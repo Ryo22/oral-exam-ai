@@ -94,7 +94,9 @@ export default function Home() {
         </div>
 
         <p className="text-center text-xs text-gray-600">
-          ANTHROPIC_API_KEY が必要です
+          GEMINI_API_KEY が必要です（
+          <span className="text-gray-500">Google AI Studio で無料取得</span>
+          ）
         </p>
       </div>
     </div>

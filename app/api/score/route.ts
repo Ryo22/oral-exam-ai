@@ -1,7 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function POST(req: NextRequest) {
   const { messages, theme, criteria } = await req.json();
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     )
     .join("\n\n");
 
-  const systemPrompt = `あなたは優秀な教育評価者です。以下の口頭試問の記録を詳細に分析し、採点してください。
+  const prompt = `あなたは優秀な教育評価者です。以下の口頭試問の記録を詳細に分析し、採点してください。
 
 試問テーマ: ${theme}
 
@@ -26,7 +26,11 @@ ${criteria.map((c: string, i: number) => `${i + 1}. ${c}`).join("\n")}
 - 30-49点: 要改善
 - 0-29点: 不足
 
-必ず以下のJSON形式のみで回答してください（他のテキストは不要）:
+以下の口頭試問の記録を評価してください:
+
+${conversationLog}
+
+必ず以下のJSON形式のみで回答してください（コードブロック不要、他のテキスト不要）:
 {
   "totalScore": <合計点数>,
   "criteria": [
@@ -41,31 +45,20 @@ ${criteria.map((c: string, i: number) => `${i + 1}. ${c}`).join("\n")}
 }`;
 
   try {
-    const response = await client.messages.create({
-      model: "claude-opus-4-6",
-      max_tokens: 2048,
-      thinking: { type: "adaptive" },
-      system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: `以下の口頭試問の記録を評価してください:\n\n${conversationLog}`,
-        },
-      ],
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
     });
 
-    const text = response.content
-      .filter((b) => b.type === "text")
-      .map((b) => (b.type === "text" ? b.text : ""))
-      .join("");
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
 
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       return NextResponse.json({ error: "Invalid response format" }, { status: 500 });
     }
 
-    const result = JSON.parse(jsonMatch[0]);
-    return NextResponse.json(result);
+    const scoreResult = JSON.parse(jsonMatch[0]);
+    return NextResponse.json(scoreResult);
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Failed to score" }, { status: 500 });

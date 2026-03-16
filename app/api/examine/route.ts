@@ -1,7 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 export async function POST(req: NextRequest) {
   const { messages, theme, criteria } = await req.json();
@@ -24,18 +24,25 @@ ${criteria.map((c: string, i: number) => `${i + 1}. ${c}`).join("\n")}
 最初の質問から始めてください。`;
 
   try {
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 512,
-      system: systemPrompt,
-      messages: messages.map((m: { role: string; content: string }) => ({
-        role: m.role,
-        content: m.content,
-      })),
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash",
+      systemInstruction: systemPrompt,
     });
 
-    const text =
-      response.content[0].type === "text" ? response.content[0].text : "";
+    // Build chat history (all but the last message)
+    const history = messages.slice(0, -1).map((m: { role: string; content: string }) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+
+    const chat = model.startChat({ history });
+
+    const lastMessage = messages.length > 0 ? messages[messages.length - 1] : null;
+    const userText = lastMessage?.role === "user" ? lastMessage.content : "試験を開始してください。最初の質問をしてください。";
+
+    const result = await chat.sendMessage(userText);
+    const text = result.response.text();
+
     return NextResponse.json({ message: text });
   } catch (err) {
     console.error(err);

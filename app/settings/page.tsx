@@ -96,8 +96,8 @@ export default function SettingsPage() {
             </svg>
             <div>
               <p className="font-medium mb-1">AI モデルについて</p>
-              <p className="text-indigo-400">試験中: Claude Haiku（低コスト・高速）</p>
-              <p className="text-indigo-400">採点時: Claude Opus（高精度・1回のみ）</p>
+              <p className="text-indigo-400">試験中・採点: Gemini 2.0 Flash（無料）</p>
+              <p className="text-indigo-400">APIキー: Google AI Studio で無料取得</p>
             </div>
           </div>
         </div>
