@@ -1,0 +1,2053 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>口頭試問AI</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.snow.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quill/1.3.7/quill.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<style>
+  @keyframes bounce3 {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-6px); }
+  }
+  .dot1 { animation: bounce3 1s ease-in-out infinite 0ms; }
+  .dot2 { animation: bounce3 1s ease-in-out infinite 150ms; }
+  .dot3 { animation: bounce3 1s ease-in-out infinite 300ms; }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .score-bar { transition: width 1s ease-in-out; }
+  .drag-handle {
+    cursor: ns-resize;
+    height: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .drag-handle::before {
+    content: '';
+    display: block;
+    width: 32px;
+    height: 3px;
+    border-radius: 2px;
+    background: #4b5563;
+  }
+  .drag-handle:hover::before { background: #6366f1; }
+  /* Quill dark theme overrides */
+  .ql-toolbar.ql-snow {
+    background: #1f2937;
+    border: none;
+    border-bottom: 1px solid #374151;
+    padding: 4px 8px;
+  }
+  .ql-toolbar.ql-snow .ql-stroke { stroke: #9ca3af; }
+  .ql-toolbar.ql-snow .ql-fill { fill: #9ca3af; }
+  .ql-toolbar.ql-snow .ql-picker { color: #9ca3af; }
+  .ql-toolbar.ql-snow button:hover .ql-stroke,
+  .ql-toolbar.ql-snow button.ql-active .ql-stroke { stroke: #818cf8; }
+  .ql-toolbar.ql-snow button:hover .ql-fill,
+  .ql-toolbar.ql-snow button.ql-active .ql-fill { fill: #818cf8; }
+  .ql-toolbar.ql-snow .ql-picker-label:hover,
+  .ql-toolbar.ql-snow .ql-picker-item:hover { color: #818cf8; }
+  .ql-toolbar.ql-snow .ql-picker-options {
+    background: #1f2937;
+    border-color: #374151;
+    color: #d1d5db;
+  }
+  .ql-container.ql-snow {
+    border: none;
+    font-size: 0.875rem;
+  }
+  .ql-editor {
+    color: #f3f4f6;
+    padding: 8px 12px;
+    min-height: 60px;
+    height: 100%;
+    overflow-y: auto;
+    line-height: 1.6;
+  }
+  .ql-editor.ql-blank::before { color: #6b7280; font-style: normal; }
+  .ql-editor h1 { font-size: 1.3em; font-weight: 700; }
+  .ql-editor h2 { font-size: 1.15em; font-weight: 700; }
+  .ql-editor h3 { font-size: 1.05em; font-weight: 600; }
+  .ql-editor blockquote { border-left: 3px solid #6366f1; padding-left: 0.75em; color: #9ca3af; }
+  .ql-editor pre.ql-syntax { background: #111827; border-radius: 6px; color: #a5f3fc; }
+  .ql-editor a { color: #818cf8; }
+  #quill-wrapper { background: #1f2937; border: 1px solid #374151; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+  #quill-editor { flex: 1; min-height: 0; overflow: hidden; }
+  .ql-container { height: 100%; }
+  #quill-wrapper:focus-within { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,102,241,0.3); }
+  /* Chat message html rendering */
+  .msg-html h1,.msg-html h2,.msg-html h3 { font-weight:700; margin:0.3em 0 0.15em; }
+  .msg-html ul,.msg-html ol { padding-left:1.2em; }
+  .msg-html li { margin:0.1em 0; }
+  .msg-html code { background:rgba(255,255,255,0.15); padding:0.1em 0.3em; border-radius:3px; font-size:0.85em; }
+  .msg-html strong { font-weight:700; }
+  .msg-html em { font-style:italic; }
+</style>
+</head>
+<body class="bg-gray-950 text-white min-h-screen" x-data="app()" x-init="init()">
+
+<!-- ========== STUDENT HOME PAGE ========== -->
+<div x-show="page === 'student'" class="min-h-screen flex flex-col items-center justify-center px-4 py-10">
+  <div class="w-full max-w-sm space-y-8">
+    <div class="text-center">
+      <div class="w-20 h-20 bg-indigo-900/60 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-indigo-800/50">
+        <svg class="w-10 h-10 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+        </svg>
+      </div>
+      <h1 class="text-3xl font-bold mb-2">口頭試問AI</h1>
+      <p class="text-gray-400 text-sm">AIが試験官となり、あなたの理解度を評価します</p>
+    </div>
+
+    <!-- Theme display (read-only) -->
+    <div class="bg-gray-900 rounded-2xl p-5 border border-gray-800">
+      <p class="text-xs text-gray-500 mb-2">試問テーマ</p>
+      <p x-text="settings.theme || '（テーマ未設定）'"
+         :class="settings.theme ? 'text-white font-medium' : 'text-gray-500 italic'"
+         class="text-base leading-relaxed"></p>
+    </div>
+
+    <!-- How it works -->
+    <div class="space-y-2">
+      <div class="flex items-center gap-3 text-sm">
+        <span class="text-lg">🎤</span>
+        <div><span class="text-gray-200">テキストで回答</span><span class="text-gray-500 text-xs ml-2">入力欄に回答を記入</span></div>
+      </div>
+      <div class="flex items-center gap-3 text-sm">
+        <span class="text-lg">🤖</span>
+        <div><span class="text-gray-200">AIが深掘り質問を繰り返す</span><span class="text-gray-500 text-xs ml-2">試験中は正解を教えません</span></div>
+      </div>
+      <div class="flex items-center gap-3 text-sm">
+        <span class="text-lg">📊</span>
+        <div><span class="text-gray-200">終了後に採点・詳細分析</span><span class="text-gray-500 text-xs ml-2">評価基準ごとにコメント付き</span></div>
+      </div>
+    </div>
+
+    <!-- Class selector (shown only if multiple classes and no URL param) -->
+    <div x-show="classes.length > 1 && !studentClassId" class="space-y-2">
+      <p class="text-xs text-gray-400">クラスを選択してください</p>
+      <select x-model="studentClassId"
+        class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <option value="">クラスを選択...</option>
+        <template x-for="c in classes" :key="c.id">
+          <option :value="c.id" x-text="c.name"></option>
+        </template>
+      </select>
+    </div>
+
+    <!-- Student identification -->
+    <div x-show="!studentUser && !studentNameConfirmed" class="space-y-4">
+      <!-- Google Sign-In (only if client ID configured) -->
+      <div x-show="googleClientId" class="space-y-3">
+        <p class="text-xs text-gray-400 text-center">Googleアカウントでログイン</p>
+        <div id="google-signin-btn" class="flex justify-center"></div>
+        <div class="flex items-center gap-3">
+          <div class="flex-1 h-px bg-gray-800"></div>
+          <span class="text-xs text-gray-600">または</span>
+          <div class="flex-1 h-px bg-gray-800"></div>
+        </div>
+      </div>
+      <!-- Name input fallback -->
+      <div class="space-y-2">
+        <p class="text-xs text-gray-400">氏名を入力して開始してください</p>
+        <input type="text" x-model="studentName"
+          @keydown.enter.prevent
+          placeholder="お名前"
+          class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+        <input type="email" x-model="studentEmail"
+          @keydown.enter.prevent
+          placeholder="メールアドレス（任意）"
+          class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+      </div>
+      <button @click="if(studentName.trim()) studentNameConfirmed = true"
+        :disabled="!studentName.trim()"
+        class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-2xl transition-colors text-lg">
+        次へ
+      </button>
+    </div>
+
+    <!-- Confirmed: show start button -->
+    <div x-show="studentUser || studentNameConfirmed" x-transition.duration.0ms class="space-y-4" @keydown.enter.prevent>
+      <div class="flex items-center gap-3 bg-gray-900 rounded-xl p-3 border border-gray-800">
+        <img x-show="studentUser && studentUser.picture" :src="studentUser && studentUser.picture" class="w-9 h-9 rounded-full" />
+        <div x-show="!(studentUser && studentUser.picture)" class="w-9 h-9 bg-indigo-900/60 rounded-full flex items-center justify-center text-indigo-300 text-sm font-bold"
+          x-text="(studentUser ? studentUser.name : studentName).charAt(0)"></div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium truncate" x-text="studentUser ? studentUser.name : studentName"></p>
+          <p class="text-xs text-gray-500 truncate" x-text="studentUser ? studentUser.email : (studentEmail || '　')"></p>
+        </div>
+        <button @click="studentUser = null; studentName = ''; studentEmail = ''; studentNameConfirmed = false;"
+          class="text-xs text-gray-600 hover:text-gray-400 transition-colors shrink-0">変更</button>
+      </div>
+      <button @click="startExamPage()"
+        :disabled="!settings.theme || !apiKey"
+        class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-2xl transition-colors text-lg">
+        試験を開始する
+      </button>
+      <p x-show="!settings.theme || !apiKey" class="text-center text-xs text-yellow-600">
+        ※ 管理者によるAPIキーとテーマの設定が必要です
+      </p>
+    </div>
+
+    <!-- My past results (auto-shown when student identified + admin allows) -->
+    <div x-show="(studentNameConfirmed || studentUser) && allowStudentHistory"
+      class="border-t border-gray-800 pt-6 space-y-3"
+      x-effect="studentPastResults = allowStudentHistory ? examResults.filter(r => r.published && (r.studentName === (studentUser ? studentUser.name : studentName) || ((studentUser ? studentUser.email : studentEmail) && r.studentEmail === (studentUser ? studentUser.email : studentEmail)))).sort((a, b) => new Date(b.date) - new Date(a.date)) : []">
+      <p class="text-xs text-gray-500 flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        過去の採点結果
+      </p>
+      <div x-show="studentPastResults.length === 0" class="text-center text-xs text-gray-600 py-4">
+        公開済みの採点結果はありません
+      </div>
+      <template x-for="r in studentPastResults" :key="r.id">
+        <div class="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-2">
+          <div class="flex items-center justify-between">
+            <p class="text-xs text-gray-500" x-text="new Date(r.date).toLocaleDateString('ja-JP')"></p>
+            <div x-show="showScoreToStudent"
+              :class="(r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 80 ? 'text-emerald-400' : (r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 60 ? 'text-yellow-400' : (r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 40 ? 'text-orange-400' : 'text-red-400'"
+              class="text-xl font-bold tabular-nums"
+              x-text="(r.adminScore ? r.adminScore.totalScore : r.totalScore) + '点'"></div>
+          </div>
+          <p class="text-sm text-white" x-text="r.theme"></p>
+          <p x-show="showCommentToStudent" class="text-xs text-gray-400 leading-relaxed"
+            x-text="r.adminScore ? r.adminScore.overallComment : r.overallComment"></p>
+        </div>
+      </template>
+    </div>
+
+    <!-- Admin link (subtle) -->
+    <div class="text-center pt-2">
+      <button @click="page='admin-login'" class="text-xs text-gray-700 hover:text-gray-500 transition-colors">
+        管理者ログイン
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== ADMIN LOGIN PAGE ========== -->
+<div x-show="page === 'admin-login'" class="min-h-screen flex items-center justify-center px-4">
+  <div class="w-full max-w-xs space-y-6">
+    <div class="text-center">
+      <div class="w-14 h-14 bg-gray-800 rounded-xl flex items-center justify-center mx-auto mb-4 border border-gray-700">
+        <svg class="w-7 h-7 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+      </div>
+      <h2 class="text-xl font-semibold">管理者ログイン</h2>
+      <p class="text-gray-500 text-xs mt-1">管理者パスワードを入力してください</p>
+    </div>
+    <div class="space-y-3">
+      <input type="password" x-model="adminLoginInput"
+        @keydown.enter="adminLogin()"
+        placeholder="パスワード"
+        :class="adminLoginError ? 'border-red-500 focus:ring-red-500' : 'border-gray-700 focus:ring-indigo-500'"
+        class="w-full bg-gray-900 border rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2"/>
+      <p x-show="adminLoginError" class="text-xs text-red-400 text-center">パスワードが違います</p>
+      <button @click="adminLogin()"
+        class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-xl transition-colors">
+        ログイン
+      </button>
+      <button @click="page='student'; adminLoginInput=''; adminLoginError=false;"
+        class="w-full bg-gray-800 hover:bg-gray-700 text-gray-400 font-medium py-3 rounded-xl transition-colors">
+        キャンセル
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== ADMIN DASHBOARD PAGE ========== -->
+<div x-show="page === 'admin'" class="min-h-screen flex flex-col">
+  <header class="border-b border-gray-800 px-5 py-3.5 flex items-center justify-between bg-gray-900/70 sticky top-0 z-10">
+    <div class="flex items-center gap-2">
+      <div class="w-7 h-7 bg-indigo-900/60 rounded-lg flex items-center justify-center border border-indigo-800/50">
+        <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+      </div>
+      <h1 class="text-base font-semibold">管理画面</h1>
+    </div>
+    <button @click="adminLogout()" class="text-xs text-gray-500 hover:text-white transition-colors flex items-center gap-1">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+      </svg>
+      ログアウト
+    </button>
+  </header>
+
+  <main class="flex-1 max-w-2xl mx-auto w-full px-5 py-6 space-y-5">
+
+    <!-- Google Sign-In Client ID (optional) -->
+    <div class="bg-gray-900 rounded-xl p-4 border border-gray-800">
+      <label class="block text-xs text-gray-400 mb-2">Google Sign-In クライアントID <span class="text-gray-600 font-normal">（任意）</span></label>
+      <input type="text" x-model="googleClientId"
+        @change="localStorage.setItem('google_client_id', googleClientId); initGoogleSignIn();"
+        placeholder="xxx.apps.googleusercontent.com"
+        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+      <p class="text-xs text-gray-600 mt-1">Google Cloud ConsoleでOAuth 2.0クライアントIDを取得。HTTPSまたはlocalhostで動作します。</p>
+    </div>
+
+    <!-- API Key -->
+    <div class="bg-gray-900 rounded-xl p-4 border border-gray-800">
+      <label class="block text-xs text-gray-400 mb-2">Gemini API Key</label>
+      <input type="password" x-model="apiKey" @input="saveApiKey()"
+        placeholder="AIza..."
+        class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+      <p class="text-xs text-gray-600 mt-1">Google AI Studio で無料取得。ローカルに保存されます。</p>
+    </div>
+
+    <!-- Model selector -->
+    <div class="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+      <div class="flex items-center justify-between">
+        <label class="block text-xs text-gray-400">使用モデル</label>
+        <button @click="fetchModels()" :disabled="!apiKey || fetchingModels"
+          class="text-xs bg-indigo-700 hover:bg-indigo-600 disabled:bg-gray-700 disabled:cursor-not-allowed text-white px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
+          <span x-show="fetchingModels" class="inline-block w-3 h-3 border border-white border-t-transparent rounded-full spin"></span>
+          <span x-text="fetchingModels ? '取得中...' : '利用可能なモデルを取得'"></span>
+        </button>
+      </div>
+      <select x-model="selectedModel" @change="localStorage.setItem('gemini_model', selectedModel)" class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        <template x-if="availableModels.length === 0">
+          <optgroup label="よく使われるモデル（要API取得で更新）">
+            <option value="gemini-2.5-flash">gemini-2.5-flash（推奨）</option>
+            <option value="gemini-2.5-flash-preview-04-17">gemini-2.5-flash-preview-04-17</option>
+            <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+            <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite（軽量・無料）</option>
+          </optgroup>
+        </template>
+        <template x-if="availableModels.length > 0">
+          <template x-for="m in availableModels" :key="m.name">
+            <option :value="m.id" x-text="m.label"></option>
+          </template>
+        </template>
+      </select>
+      <p class="text-xs text-gray-600">APIキーを入力後「利用可能なモデルを取得」を押すと、実際に使えるモデルが表示されます。</p>
+    </div>
+
+    <!-- Class management -->
+    <div class="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+      <div class="flex items-center justify-between">
+        <p class="text-xs text-gray-400 font-medium">クラス管理</p>
+        <button @click="addClass()"
+          class="text-xs text-indigo-400 hover:text-indigo-300 bg-indigo-900/30 hover:bg-indigo-900/50 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          追加
+        </button>
+      </div>
+      <template x-for="c in classes" :key="c.id">
+        <div class="flex items-center gap-2 text-sm">
+          <span class="flex-1 text-gray-300 truncate" x-text="c.name"></span>
+          <button @click="copyClassUrl(c.id)"
+            class="text-xs text-emerald-600 hover:text-emerald-400 bg-emerald-900/20 px-2 py-1 rounded transition-colors flex items-center gap-1 shrink-0">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+            URL
+          </button>
+          <button x-show="classes.length > 1" @click="removeClass(c.id)"
+            class="text-xs text-red-800 hover:text-red-500 transition-colors shrink-0">削除</button>
+        </div>
+      </template>
+      <p class="text-xs text-gray-700">「URL」ボタンでクラスごとのURLをコピーして受験者に共有してください。</p>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="grid grid-cols-2 gap-3">
+      <button @click="page='settings'"
+        class="bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium py-3.5 rounded-xl transition-colors text-sm flex items-center justify-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        テーマ・評価基準
+      </button>
+      <button @click="startExamPage()" :disabled="!settings.theme || !apiKey"
+        class="bg-indigo-900/50 hover:bg-indigo-800/60 disabled:bg-gray-700/50 disabled:cursor-not-allowed text-indigo-200 font-medium py-3.5 rounded-xl transition-colors text-sm flex items-center justify-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        テスト受験
+      </button>
+    </div>
+
+    <!-- Result display settings -->
+    <div class="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+      <p class="text-xs text-gray-400 font-medium">試験終了後に受験者へ表示する情報</p>
+      <label class="flex items-center justify-between cursor-pointer">
+        <div>
+          <span class="text-sm text-gray-300">過去の採点結果をマイページに表示</span>
+          <p class="text-xs text-gray-600 mt-0.5">ONにすると、受験者が自分の名前でログイン後に公開済み結果の一覧が表示されます</p>
+        </div>
+        <button @click="allowStudentHistory = !allowStudentHistory; localStorage.setItem('allow_student_history', allowStudentHistory)"
+          :class="allowStudentHistory ? 'bg-indigo-600' : 'bg-gray-700'"
+          class="relative w-11 h-6 rounded-full transition-colors shrink-0 ml-3">
+          <span :class="allowStudentHistory ? 'translate-x-5' : 'translate-x-1'"
+            class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform inline-block"></span>
+        </button>
+      </label>
+      <div class="border-t border-gray-800 pt-3">
+        <p class="text-xs text-gray-500 mb-2">結果ページに表示する内容</p>
+      </div>
+      <label class="flex items-center justify-between cursor-pointer">
+        <span class="text-sm text-gray-300">スコア・グレード</span>
+        <button @click="showScoreToStudent = !showScoreToStudent; localStorage.setItem('show_score_to_student', showScoreToStudent)"
+          :class="showScoreToStudent ? 'bg-indigo-600' : 'bg-gray-700'"
+          class="relative w-11 h-6 rounded-full transition-colors shrink-0">
+          <span :class="showScoreToStudent ? 'translate-x-5' : 'translate-x-1'"
+            class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform inline-block"></span>
+        </button>
+      </label>
+      <label class="flex items-center justify-between cursor-pointer">
+        <span class="text-sm text-gray-300">総合コメント</span>
+        <button @click="showCommentToStudent = !showCommentToStudent; localStorage.setItem('show_comment_to_student', showCommentToStudent)"
+          :class="showCommentToStudent ? 'bg-indigo-600' : 'bg-gray-700'"
+          class="relative w-11 h-6 rounded-full transition-colors shrink-0">
+          <span :class="showCommentToStudent ? 'translate-x-5' : 'translate-x-1'"
+            class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform inline-block"></span>
+        </button>
+      </label>
+    </div>
+
+    <!-- Anti-cheat monitoring settings -->
+    <div class="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+      <p class="text-xs text-gray-400 font-medium">不正行為対策</p>
+      <label class="flex items-center justify-between cursor-pointer">
+        <div>
+          <span class="text-sm text-gray-300">フォーカス監視（画面離脱検知）</span>
+          <p class="text-xs text-gray-600 mt-0.5">試験中に他の画面へ移動した回数を記録。問題数×3回または12回超過で要注意フラグを立てます</p>
+        </div>
+        <button @click="focusMonitoringEnabled = !focusMonitoringEnabled; localStorage.setItem('focus_monitoring_enabled', focusMonitoringEnabled)"
+          :class="focusMonitoringEnabled ? 'bg-indigo-600' : 'bg-gray-700'"
+          class="relative w-11 h-6 rounded-full transition-colors shrink-0 ml-3">
+          <span :class="focusMonitoringEnabled ? 'translate-x-5' : 'translate-x-1'"
+            class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform inline-block"></span>
+        </button>
+      </label>
+    </div>
+
+    <!-- Password change -->
+    <div x-data="{showPwChange: false}" class="bg-gray-900 rounded-xl p-4 border border-gray-800">
+      <button @click="showPwChange = !showPwChange" class="text-xs text-gray-500 hover:text-gray-300 flex items-center gap-1.5 transition-colors">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+        </svg>
+        管理者パスワードを変更
+      </button>
+      <div x-show="showPwChange" class="mt-3 flex gap-2">
+        <input type="password" x-model="adminNewPassword" placeholder="新しいパスワード"
+          @keydown.enter="changeAdminPassword()"
+          class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+        <button @click="changeAdminPassword()"
+          class="bg-gray-700 hover:bg-gray-600 text-white text-sm px-3 py-2 rounded-lg transition-colors shrink-0">変更</button>
+      </div>
+    </div>
+
+    <!-- Results list -->
+    <div>
+      <div class="space-y-2 mb-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-medium text-gray-300">
+            採点結果一覧
+            <span class="text-gray-600 font-normal ml-1"
+              x-text="'（' + examResults.filter(r => adminFilterClassId === \'all\' || r.classId === adminFilterClassId).length + '件）'"></span>
+          </h2>
+          <div class="flex items-center gap-2">
+            <button x-show="examResults.length > 0" @click="exportAllResults()"
+              class="text-xs text-emerald-700 hover:text-emerald-400 transition-colors flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              CSV
+            </button>
+            <button x-show="examResults.length > 0"
+              @click="if(confirm('全ての採点結果を削除しますか？')) { examResults = []; localStorage.removeItem('exam_results'); }"
+              class="text-xs text-red-800 hover:text-red-400 transition-colors">削除</button>
+          </div>
+        </div>
+        <!-- Class filter -->
+        <div x-show="classes.length > 1" class="flex gap-2 flex-wrap">
+          <button @click="adminFilterClassId = 'all'"
+            :class="adminFilterClassId === 'all' ? 'bg-indigo-700 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'"
+            class="text-xs px-3 py-1 rounded-full transition-colors">全て</button>
+          <template x-for="c in classes" :key="c.id">
+            <button @click="adminFilterClassId = c.id"
+              :class="adminFilterClassId === c.id ? 'bg-indigo-700 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'"
+              class="text-xs px-3 py-1 rounded-full transition-colors" x-text="c.name"></button>
+          </template>
+        </div>
+      </div>
+
+      <div x-show="examResults.length === 0"
+        class="bg-gray-900 rounded-xl border border-gray-800 py-12 text-center text-gray-600 text-sm">
+        まだ採点結果がありません
+      </div>
+
+      <div class="space-y-2">
+        <template x-for="r in [...examResults].filter(r => adminFilterClassId === 'all' || r.classId === adminFilterClassId).reverse()" :key="r.id">
+          <div x-data="{expanded: false}" class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+            <button @click="expanded = !expanded"
+              class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-800/50 transition-colors text-left">
+              <div :class="getDisplayScore(r) >= 80 ? 'text-emerald-400' : getDisplayScore(r) >= 60 ? 'text-yellow-400' : getDisplayScore(r) >= 40 ? 'text-orange-400' : 'text-red-400'"
+                   class="text-xl font-bold tabular-nums w-10 shrink-0 text-right" x-text="getDisplayScore(r)"></div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <span class="text-sm text-white truncate" x-text="r.studentName || r.theme"></span>
+                  <span x-show="r.adminScore" class="text-xs bg-amber-900/40 text-amber-400 px-1.5 py-0.5 rounded">修正済</span>
+                  <span x-show="r.focusViolationFlagged" class="text-xs bg-red-900/50 text-red-400 px-1.5 py-0.5 rounded font-medium">⚠ 不正検知</span>
+                  <span x-show="r.focusViolationCount > 0 && !r.focusViolationFlagged" class="text-xs bg-orange-900/30 text-orange-500 px-1.5 py-0.5 rounded" x-text="r.focusViolationCount + '回離脱'"></span>
+                </div>
+                <div class="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
+                  <span x-text="new Date(r.date).toLocaleString('ja-JP')"></span>
+                  <span x-show="classes.length > 1" x-text="classes.find(c => c.id === r.classId)?.name || ''" class="text-gray-600"></span>
+                </div>
+              </div>
+              <div class="flex flex-col items-end gap-1 shrink-0">
+                <span :class="r.published ? 'bg-emerald-900/50 text-emerald-400' : 'bg-gray-800 text-gray-500'"
+                  class="text-xs px-2 py-0.5 rounded-full" x-text="r.published ? '公開中' : '未公開'"></span>
+              </div>
+              <svg :class="expanded ? 'rotate-180' : ''"
+                class="w-4 h-4 text-gray-600 shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+            <div x-show="expanded" class="px-4 pb-4 border-t border-gray-800 pt-3 space-y-2">
+              <p class="text-xs text-gray-400 leading-relaxed mb-3" x-text="r.overallComment"></p>
+
+              <!-- Student name if available -->
+              <div x-show="r.studentName" class="text-xs text-gray-500 mb-2" x-text="'受験者: ' + (r.studentName || '')"></div>
+
+              <!-- Focus violation summary -->
+              <div x-show="r.focusViolationCount > 0"
+                :class="r.focusViolationFlagged ? 'bg-red-950/50 border border-red-900/50 text-red-400' : 'bg-orange-950/30 border border-orange-900/30 text-orange-500'"
+                class="text-xs rounded-lg px-3 py-2 mb-3">
+                <span x-text="'📋 フォーカス離脱: ' + r.focusViolationCount + '回'"></span>
+                <span x-show="r.focusViolationFlagged" class="font-bold ml-1">— しきい値超過（要確認）</span>
+              </div>
+
+              <!-- Per-question scores -->
+              <template x-if="r.questionScores && r.questionScores.length > 0">
+                <div class="mb-3">
+                  <p class="text-xs text-gray-600 mb-2">問別採点</p>
+                  <template x-for="(q, j) in r.questionScores" :key="j">
+                    <div class="flex items-center gap-2 text-xs mb-1">
+                      <span class="text-gray-600 shrink-0" x-text="'問' + q.questionNum"></span>
+                      <span class="text-gray-500 truncate flex-1" x-text="q.question"></span>
+                      <span :class="(q.score/q.maxScore*100) >= 80 ? 'text-emerald-400' : (q.score/q.maxScore*100) >= 60 ? 'text-yellow-400' : (q.score/q.maxScore*100) >= 40 ? 'text-orange-400' : 'text-red-400'"
+                            class="font-bold tabular-nums shrink-0" x-text="q.score + '/' + q.maxScore"></span>
+                    </div>
+                  </template>
+                </div>
+              </template>
+
+              <!-- Criteria scores -->
+              <template x-for="(c, j) in r.criteria" :key="j">
+                <div class="space-y-1">
+                  <div class="flex items-center justify-between text-xs">
+                    <span class="text-gray-400 truncate flex-1 mr-2" x-text="c.name"></span>
+                    <span :class="(c.score/c.maxScore*100) >= 80 ? 'text-emerald-400' : (c.score/c.maxScore*100) >= 60 ? 'text-yellow-400' : (c.score/c.maxScore*100) >= 40 ? 'text-orange-400' : 'text-red-400'"
+                          class="font-bold tabular-nums shrink-0" x-text="c.score + ' / ' + c.maxScore"></span>
+                  </div>
+                  <div class="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                    <div :class="(c.score/c.maxScore*100) >= 80 ? 'bg-emerald-500' : (c.score/c.maxScore*100) >= 60 ? 'bg-yellow-500' : (c.score/c.maxScore*100) >= 40 ? 'bg-orange-500' : 'bg-red-500'"
+                         class="h-full rounded-full"
+                         :style="'width: ' + Math.min(100,(c.score/c.maxScore)*100) + '%'"></div>
+                  </div>
+                  <p class="text-xs text-gray-600 leading-snug" x-text="c.comment"></p>
+                </div>
+              </template>
+              <template x-if="r.improvements && r.improvements.length">
+                <div class="mt-2 pt-2 border-t border-gray-800">
+                  <p class="text-xs text-gray-500 mb-1">改善ポイント</p>
+                  <template x-for="(imp, k) in r.improvements" :key="k">
+                    <p class="text-xs text-gray-500 flex gap-1.5"><span class="text-indigo-500 shrink-0">•</span><span x-text="imp"></span></p>
+                  </template>
+                </div>
+              </template>
+
+              <!-- AI score reference (shown when adminScore exists) -->
+              <div x-show="r.adminScore" class="mt-2 pt-2 border-t border-gray-800">
+                <p class="text-xs text-gray-600 mb-1">AIの採点（参考）: <span class="text-gray-500" x-text="r.aiScore ? r.aiScore.totalScore + '点' : ''"></span></p>
+                <p class="text-xs text-gray-700 leading-relaxed line-clamp-2" x-text="r.aiScore ? r.aiScore.overallComment : ''"></p>
+              </div>
+
+              <!-- Conversation log (raw data) -->
+              <div x-show="r.conversationLog && r.conversationLog.length > 0"
+                x-data="{ showLog: false }"
+                class="mt-2 pt-2 border-t border-gray-800">
+                <button @click="showLog = !showLog"
+                  class="w-full flex items-center justify-between text-xs text-gray-600 hover:text-gray-400 transition-colors py-1">
+                  <span class="flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3v-3z"/>
+                    </svg>
+                    <span x-text="'会話ログ（' + (r.conversationLog ? r.conversationLog.length : 0) + ' メッセージ）'"></span>
+                  </span>
+                  <svg :class="showLog ? 'rotate-180' : ''" class="w-3.5 h-3.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                  </svg>
+                </button>
+                <div x-show="showLog" class="mt-2 space-y-2 max-h-96 overflow-y-auto pr-1">
+                  <template x-for="(msg, mi) in (r.conversationLog || [])" :key="mi">
+                    <div :class="msg.role === 'user' ? 'flex justify-end gap-2' : 'flex justify-start gap-2'">
+                      <div x-show="msg.role === 'assistant'"
+                        class="w-5 h-5 bg-indigo-900 rounded-full flex items-center justify-center text-indigo-300 shrink-0 mt-0.5"
+                        style="font-size:9px;">試</div>
+                      <div :class="msg.role === 'user'
+                          ? 'bg-indigo-900/50 text-indigo-100 rounded-2xl rounded-br-sm'
+                          : 'bg-gray-800 text-gray-300 rounded-2xl rounded-bl-sm'"
+                        class="text-xs leading-relaxed px-3 py-2 max-w-[85%] whitespace-pre-wrap"
+                        x-text="msg.content"></div>
+                      <div x-show="msg.role === 'user'"
+                        class="w-5 h-5 bg-gray-700 rounded-full flex items-center justify-center text-gray-400 shrink-0 mt-0.5"
+                        style="font-size:9px;">受</div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <div class="pt-3 flex items-center gap-2 flex-wrap">
+                <button @click="togglePublish(r.id)"
+                  :class="r.published ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-emerald-700 text-white hover:bg-emerald-600'"
+                  class="text-xs px-3 py-1.5 rounded-lg transition-colors font-medium"
+                  x-text="r.published ? '公開を取り消す' : '採点結果を公開する'"></button>
+                <button @click="startEditResult(r.id)"
+                  class="text-xs bg-amber-900/40 hover:bg-amber-800/60 text-amber-400 px-3 py-1.5 rounded-lg transition-colors">採点を修正</button>
+                <button x-show="r.adminScore" @click="resetToAiScore(r.id)"
+                  class="text-xs text-gray-600 hover:text-gray-400 transition-colors">AI採点に戻す</button>
+                <div class="flex-1"></div>
+                <button @click="examResults.splice(examResults.findIndex(x => x.id === r.id), 1); saveResults();"
+                  class="text-xs text-red-800 hover:text-red-500 transition-colors">削除</button>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ========== SETTINGS PAGE ========== -->
+<div x-show="page === 'settings'" class="min-h-screen flex flex-col">
+  <header class="border-b border-gray-800 px-6 py-4 flex items-center justify-between">
+    <button @click="page='admin'" class="text-gray-400 hover:text-white transition-colors flex items-center gap-2">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+      戻る
+    </button>
+    <h1 class="text-lg font-semibold">設定</h1>
+    <div class="w-16"></div>
+  </header>
+
+  <main class="flex-1 max-w-2xl mx-auto w-full px-6 py-8 space-y-8">
+    <!-- Theme -->
+    <section>
+      <label class="block text-sm font-medium text-gray-300 mb-2">試問テーマ</label>
+      <textarea x-model="settings.theme" rows="3"
+        placeholder="例: データ構造とアルゴリズムの基礎"
+        class="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"></textarea>
+      <p class="mt-1 text-xs text-gray-500">試験官がこのテーマについて質問を行います</p>
+    </section>
+
+    <!-- Criteria - Dynamic -->
+    <section>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-sm font-medium text-gray-300">
+          評価基準
+          <span class="text-gray-500 ml-1" x-text="'（' + settings.criteria.length + '項目）'"></span>
+        </h2>
+        <button @click="addCriterion()"
+          class="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 bg-indigo-900/30 hover:bg-indigo-900/50 px-3 py-1.5 rounded-lg transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+          項目を追加
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <template x-for="(criterion, index) in settings.criteria" :key="index">
+          <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
+            <!-- Header row: number + name + delete -->
+            <div class="flex items-center gap-3">
+              <span class="w-7 h-7 flex items-center justify-center bg-indigo-900/50 text-indigo-400 rounded-full text-xs font-bold shrink-0"
+                x-text="index + 1"></span>
+              <input type="text"
+                :value="settings.criteria[index].name"
+                @input="settings.criteria[index].name = $event.target.value"
+                placeholder="評価基準名（例: 理解度）"
+                class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+              <button @click="removeCriterion(index)"
+                x-show="settings.criteria.length > 1"
+                class="w-7 h-7 flex items-center justify-center text-gray-600 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors shrink-0"
+                title="削除">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
+            <!-- Description row -->
+            <div class="ml-10">
+              <input type="text"
+                :value="settings.criteria[index].description"
+                @input="settings.criteria[index].description = $event.target.value"
+                placeholder="説明・採点ポイント（例: 概念を正確に理解し自分の言葉で説明できるか）"
+                class="w-full bg-gray-800/60 border border-gray-700/60 rounded-lg px-3 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"/>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <p class="mt-3 text-xs text-gray-500">
+        各項目は均等配点（100点÷項目数）で採点されます。説明欄はAIへの採点指示に使われます。
+      </p>
+    </section>
+
+    <!-- Questions Section -->
+    <section>
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-sm font-medium text-gray-300">
+          問題リスト
+          <span class="text-gray-500 ml-1 font-normal" x-text="settings.questions.length ? '（' + settings.questions.length + '問）' : '（未設定 → AIが自動生成）'"></span>
+        </h2>
+        <div class="flex gap-2">
+          <!-- Import button -->
+          <label class="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 bg-emerald-900/30 hover:bg-emerald-900/50 px-3 py-1.5 rounded-lg transition-colors cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+            </svg>
+            CSV/Excel取込
+            <input type="file" accept=".csv,.xlsx,.xls" @change="importQuestionsFile($event)" class="hidden"/>
+          </label>
+          <!-- Export button -->
+          <button x-show="settings.questions.length > 0" @click="exportQuestionsCSV()"
+            class="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-200 bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            CSV出力
+          </button>
+          <!-- Add button -->
+          <button @click="addQuestion()"
+            class="flex items-center gap-1 text-xs text-indigo-400 hover:text-indigo-300 bg-indigo-900/30 hover:bg-indigo-900/50 px-3 py-1.5 rounded-lg transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            問題を追加
+          </button>
+        </div>
+      </div>
+
+      <!-- CSV format hint -->
+      <div x-show="settings.questions.length === 0" class="mb-4 bg-gray-900/60 border border-dashed border-gray-700 rounded-xl p-4 text-center text-xs text-gray-500 space-y-1">
+        <p>問題を追加するか、CSV/Excelファイルを取り込んでください。</p>
+        <p class="text-gray-600">CSVフォーマット: <code class="bg-gray-800 px-1 py-0.5 rounded">問題,想定する答え,備考</code>（1行目はヘッダー）</p>
+        <p class="text-gray-700">問題リストが未設定の場合、AIがテーマに基づいて自動で質問します。</p>
+      </div>
+
+      <div class="space-y-4">
+        <template x-for="(q, index) in settings.questions" :key="q.id">
+          <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
+            <!-- Header: number + delete -->
+            <div class="flex items-center gap-2 mb-1">
+              <span class="w-7 h-7 flex items-center justify-center bg-indigo-900/50 text-indigo-400 rounded-full text-xs font-bold shrink-0"
+                x-text="'問' + (index + 1)"></span>
+              <span class="flex-1 text-xs text-gray-500">問題文（必須）</span>
+              <button @click="removeQuestion(index)"
+                class="w-7 h-7 flex items-center justify-center text-gray-600 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors shrink-0" title="削除">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+              </button>
+            </div>
+            <!-- Question textarea -->
+            <textarea
+              :value="settings.questions[index].question"
+              @input="settings.questions[index].question = $event.target.value"
+              placeholder="問題文を入力（例: データ構造のうち、スタックとキューの違いを説明してください）"
+              rows="2"
+              class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"></textarea>
+            <!-- Expected answer -->
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">想定する答え <span class="text-gray-700">（任意）</span></label>
+              <textarea
+                :value="settings.questions[index].expectedAnswer"
+                @input="settings.questions[index].expectedAnswer = $event.target.value"
+                placeholder="採点時に参照する想定回答。空欄の場合はAIのみで評価します。"
+                rows="2"
+                class="w-full bg-gray-800/60 border border-gray-700/60 rounded-lg px-3 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 resize-y"></textarea>
+            </div>
+            <!-- Notes -->
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">備考 <span class="text-gray-700">（任意）</span></label>
+              <input type="text"
+                :value="settings.questions[index].notes"
+                @input="settings.questions[index].notes = $event.target.value"
+                placeholder="採点基準の補足、ポイントなど"
+                class="w-full bg-gray-800/60 border border-gray-700/60 rounded-lg px-3 py-2 text-xs text-gray-300 placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"/>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <p x-show="settings.questions.length > 0" class="mt-3 text-xs text-gray-500">
+        試験では定義された問題を順番に出題します。想定する答えは採点時の参考として使用されます。
+      </p>
+    </section>
+
+    <!-- Info -->
+    <div class="bg-indigo-950/40 border border-indigo-800/50 rounded-xl p-4 text-sm text-indigo-300">
+      <div class="flex gap-2">
+        <svg class="w-5 h-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        <div>
+          <p class="font-medium mb-1">AIモデルについて</p>
+          <p class="text-indigo-400">ホーム画面で「利用可能なモデルを取得」を押すと最新モデル一覧が表示されます。</p>
+          <p class="text-indigo-400">無料枠推奨: gemini-2.5-flash / gemini-2.0-flash-lite</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save -->
+    <button @click="saveSettings()"
+      class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-xl transition-colors"
+      x-text="saved ? '保存しました！' : '設定を保存'"></button>
+  </main>
+</div>
+
+<!-- ========== SCORE EDIT MODAL ========== -->
+<div x-show="editingResultId !== null" class="fixed inset-0 bg-black/80 z-50 overflow-y-auto" style="display:none;">
+  <div class="min-h-screen flex items-start justify-center p-4 py-8">
+    <div class="w-full max-w-2xl bg-gray-900 rounded-2xl border border-gray-700 shadow-2xl">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+        <h2 class="text-base font-semibold">採点結果の修正</h2>
+        <button @click="cancelEditResult()" class="text-gray-500 hover:text-white transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <div x-show="editingData" class="p-6 space-y-6">
+        <!-- Total score -->
+        <div class="bg-gray-800/60 rounded-xl p-4 space-y-3">
+          <p class="text-xs text-gray-400 font-medium">合計点</p>
+          <div class="flex items-center gap-4">
+            <div class="flex-1">
+              <p class="text-xs text-gray-600 mb-1">AI採点</p>
+              <p class="text-2xl font-bold text-gray-500"
+                x-text="examResults.find(r => r.id === editingResultId)?.aiScore?.totalScore ?? '—'"></p>
+            </div>
+            <svg class="w-5 h-5 text-gray-700 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+            <div class="flex-1">
+              <p class="text-xs text-amber-500 mb-1">修正後</p>
+              <input type="number" x-model.number="editingData.totalScore" min="0" max="100"
+                class="w-24 bg-gray-800 border border-amber-700/50 rounded-lg px-3 py-2 text-xl font-bold text-white focus:outline-none focus:ring-2 focus:ring-amber-500"/>
+              <span class="text-gray-500 text-sm ml-1">/ 100</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Criteria scores -->
+        <div x-show="editingData && editingData.criteria && editingData.criteria.length > 0" class="space-y-3">
+          <p class="text-xs text-gray-400 font-medium">評価基準別</p>
+          <template x-for="(c, i) in editingData.criteria" :key="i">
+            <div class="bg-gray-800/40 rounded-xl p-4 space-y-2">
+              <div class="flex items-center justify-between">
+                <p class="text-sm font-medium text-gray-300" x-text="c.name"></p>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs text-gray-600"
+                    x-text="'AI: ' + (examResults.find(r => r.id === editingResultId)?.aiScore?.criteria?.[i]?.score ?? '—')"></span>
+                  <span class="text-gray-700">→</span>
+                  <input type="number" x-model.number="editingData.criteria[i].score"
+                    :min="0" :max="c.maxScore"
+                    class="w-16 bg-gray-800 border border-amber-700/50 rounded-lg px-2 py-1 text-sm text-white text-center focus:outline-none focus:ring-1 focus:ring-amber-500"/>
+                  <span class="text-gray-500 text-xs" x-text="'/' + c.maxScore"></span>
+                </div>
+              </div>
+              <textarea x-model="editingData.criteria[i].comment" rows="2"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-amber-500 resize-y"
+                placeholder="コメント（任意）"></textarea>
+            </div>
+          </template>
+        </div>
+
+        <!-- Question scores -->
+        <div x-show="editingData && editingData.questionScores && editingData.questionScores.length > 0" class="space-y-3">
+          <p class="text-xs text-gray-400 font-medium">問別採点</p>
+          <template x-for="(q, i) in editingData.questionScores" :key="i">
+            <div class="bg-gray-800/40 rounded-xl p-4 space-y-2">
+              <div class="flex items-start justify-between gap-3">
+                <p class="text-xs text-gray-400 flex-1" x-text="'問' + q.questionNum + ': ' + q.question"></p>
+                <div class="flex items-center gap-2 shrink-0">
+                  <span class="text-xs text-gray-600"
+                    x-text="'AI: ' + (examResults.find(r => r.id === editingResultId)?.aiScore?.questionScores?.[i]?.score ?? '—')"></span>
+                  <span class="text-gray-700">→</span>
+                  <input type="number" x-model.number="editingData.questionScores[i].score"
+                    :min="0" :max="q.maxScore"
+                    class="w-14 bg-gray-800 border border-amber-700/50 rounded-lg px-2 py-1 text-sm text-white text-center focus:outline-none focus:ring-1 focus:ring-amber-500"/>
+                  <span class="text-gray-500 text-xs" x-text="'/' + q.maxScore"></span>
+                </div>
+              </div>
+              <textarea x-model="editingData.questionScores[i].comment" rows="2"
+                class="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs text-gray-300 focus:outline-none focus:ring-1 focus:ring-amber-500 resize-y"
+                placeholder="コメント（任意）"></textarea>
+            </div>
+          </template>
+        </div>
+
+        <!-- Overall comment -->
+        <div class="space-y-2">
+          <p class="text-xs text-gray-400 font-medium">総合コメント</p>
+          <p class="text-xs text-gray-600 bg-gray-800/40 rounded-lg p-3 leading-relaxed"
+            x-text="examResults.find(r => r.id === editingResultId)?.aiScore?.overallComment"></p>
+          <textarea x-model="editingData.overallComment" rows="3"
+            class="w-full bg-gray-800 border border-amber-700/50 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-amber-500 resize-y"
+            placeholder="修正後の総合コメント"></textarea>
+        </div>
+
+        <!-- Buttons -->
+        <div class="flex gap-3 pt-2">
+          <button @click="saveEditResult()"
+            class="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-medium py-3 rounded-xl transition-colors">
+            修正を保存する
+          </button>
+          <button @click="cancelEditResult()"
+            class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium py-3 rounded-xl transition-colors">
+            キャンセル
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== EXAM PAGE ========== -->
+<div x-show="page === 'exam'" class="min-h-screen flex flex-col">
+  <header class="border-b border-gray-800 px-4 py-3 flex items-center justify-between bg-gray-900/50">
+    <button @click="teardownFocusMonitoring(); page='student'" class="text-gray-400 hover:text-white transition-colors">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </button>
+    <div class="text-center">
+      <div class="text-sm font-medium truncate max-w-48" x-text="settings.theme"></div>
+      <div class="text-xs text-gray-500 flex items-center justify-center gap-2">
+        <span x-text="messages.filter(m => m.role === 'user').length + ' 回答済み'"></span>
+        <span x-show="focusMonitoringEnabled && focusViolationCount > 0"
+          :class="focusViolationFlagged ? 'bg-red-900/60 text-red-400' : 'bg-orange-900/50 text-orange-400'"
+          class="text-xs px-1.5 py-0.5 rounded font-medium"
+          x-text="'⚠ ' + focusViolationCount + '回'"></span>
+      </div>
+    </div>
+    <button @click="endExam()"
+      :disabled="!examStarted || messages.length < 2 || isScoring"
+      class="text-sm bg-red-900/60 hover:bg-red-800/80 text-red-300 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+      x-text="isScoring ? '採点中...' : '試験終了'"></button>
+  </header>
+
+  <div class="flex-1 overflow-y-auto px-4 py-4 space-y-4" id="messages-container">
+    <div x-show="!examStarted" class="flex flex-col items-center justify-center py-20 text-center">
+      <div class="w-20 h-20 bg-indigo-900/40 rounded-full flex items-center justify-center mb-6">
+        <svg class="w-10 h-10 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+        </svg>
+      </div>
+      <h2 class="text-xl font-semibold mb-2">口頭試問を開始</h2>
+      <p class="text-gray-400 text-sm mb-2" x-text="'テーマ: ' + settings.theme"></p>
+      <p class="text-gray-500 text-xs mb-2" x-text="'評価基準: ' + settings.criteria.filter(c=>c.name).map(c=>c.name).join(' / ')"></p>
+      <p class="text-gray-500 text-xs mb-8">試験中は正解・解説は教えません。自分の言葉で答えてください。</p>
+      <button @click="startExam()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-8 py-3 rounded-xl transition-colors">
+        試験開始
+      </button>
+    </div>
+
+    <template x-if="examStarted">
+      <div class="space-y-4">
+        <template x-for="(msg, i) in messages" :key="i">
+          <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+            <div x-show="msg.role === 'assistant'" class="w-8 h-8 bg-indigo-800 rounded-full flex items-center justify-center text-xs font-medium mr-2 shrink-0 mt-1">試</div>
+            <div :class="msg.role === 'user' ? 'bg-indigo-600 text-white rounded-br-sm max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed msg-html' : 'bg-gray-800 text-gray-100 rounded-bl-sm max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed'" x-html="msg.html || msg.content"></div>
+            <div x-show="msg.role === 'user'" class="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center text-xs font-medium ml-2 shrink-0 mt-1">私</div>
+          </div>
+        </template>
+        <div x-show="isLoading" class="flex justify-start">
+          <div class="w-8 h-8 bg-indigo-800 rounded-full flex items-center justify-center text-xs font-medium mr-2 shrink-0">試</div>
+          <div class="bg-gray-800 rounded-2xl rounded-bl-sm px-4 py-3">
+            <div class="flex gap-1 items-end h-4">
+              <div class="w-2 h-2 bg-gray-400 rounded-full dot1"></div>
+              <div class="w-2 h-2 bg-gray-400 rounded-full dot2"></div>
+              <div class="w-2 h-2 bg-gray-400 rounded-full dot3"></div>
+            </div>
+          </div>
+        </div>
+        <div id="messages-end"></div>
+      </div>
+    </template>
+  </div>
+
+  <div x-show="examStarted" class="border-t border-gray-800 bg-gray-900/80 pb-3"
+    x-data="{ inputHeight: 140 }">
+    <!-- Drag handle (top edge) -->
+    <div class="drag-handle w-full"
+      @mousedown="(function(e){
+        e.preventDefault();
+        const startY = e.clientY;
+        const startH = inputHeight;
+        const onMove = (ev) => { const dy = startY - ev.clientY; inputHeight = Math.max(80, Math.min(500, startH + dy)); };
+        const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+      })($event)">
+    </div>
+    <!-- Input area -->
+    <div class="flex gap-2 items-end px-4">
+      <div id="quill-wrapper" class="flex-1" :style="`height: ${inputHeight}px`">
+        <div id="quill-toolbar">
+          <span class="ql-formats">
+            <select class="ql-header"><option value="1"></option><option value="2"></option><option value="3"></option><option selected></option></select>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-bold"></button>
+            <button class="ql-italic"></button>
+            <button class="ql-underline"></button>
+            <button class="ql-strike"></button>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-list" value="ordered"></button>
+            <button class="ql-list" value="bullet"></button>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-blockquote"></button>
+            <button class="ql-code-block"></button>
+          </span>
+          <span class="ql-formats">
+            <button class="ql-clean"></button>
+          </span>
+        </div>
+        <div id="quill-editor" style="flex:1; min-height:0;"></div>
+      </div>
+      <div class="flex flex-col gap-2 shrink-0">
+        <button @click="handleSend()"
+          :disabled="isLoading"
+          class="w-11 h-11 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-xl flex items-center justify-center transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+          </svg>
+        </button>
+        <div class="text-center" style="font-size:9px; color:#4b5563; line-height:1.2;">⌘+<br>Enter</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Focus violation warning overlay -->
+  <div x-show="showViolationWarning" x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 scale-95" x-transition:enter-end="opacity-100 scale-100" x-transition:leave="transition ease-in duration-200" x-transition:leave-start="opacity-100 scale-100" x-transition:leave-end="opacity-0 scale-95"
+    class="fixed inset-0 bg-black/85 flex items-center justify-center z-40 pointer-events-none">
+    <div class="bg-red-950 border border-red-700 rounded-2xl p-6 text-center max-w-xs mx-4 shadow-2xl">
+      <div class="text-5xl mb-3">⚠️</div>
+      <p class="text-red-300 font-bold text-lg mb-1">画面離脱を検知しました</p>
+      <p class="text-red-400 text-sm mb-2">試験中は他の画面への移動は禁止されています</p>
+      <p :class="focusViolationFlagged ? 'text-red-400 font-bold' : 'text-orange-400'"
+         class="text-sm" x-text="'離脱回数: ' + focusViolationCount + '回' + (focusViolationFlagged ? '（警告：しきい値超過）' : '')"></p>
+    </div>
+  </div>
+
+  <!-- Scoring overlay -->
+  <div x-show="isScoring" class="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+    <div class="bg-gray-900 border border-gray-700 rounded-2xl p-8 text-center max-w-sm mx-4">
+      <div class="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full spin mx-auto mb-4"></div>
+      <p class="text-lg font-medium mb-1">採点中...</p>
+      <p class="text-sm text-gray-400">Gemini が試問記録を詳細分析しています</p>
+    </div>
+  </div>
+</div>
+
+<!-- ========== RESULT PAGE ========== -->
+<div x-show="page === 'result'" class="min-h-screen flex flex-col">
+  <header class="border-b border-gray-800 px-4 py-3 flex items-center justify-between">
+    <div class="w-16"></div>
+    <h1 class="text-base font-semibold">試験終了</h1>
+    <div class="w-16"></div>
+  </header>
+
+  <main x-show="result" class="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
+
+    <!-- Student view: お疲れ様でした (always shown, result revealed only when published) -->
+    <div x-show="!isAdmin" class="flex flex-col items-center text-center space-y-6">
+      <div class="w-24 h-24 bg-indigo-900/40 rounded-full flex items-center justify-center">
+        <svg class="w-12 h-12 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </div>
+      <div>
+        <h2 class="text-2xl font-bold mb-2">お疲れ様でした！</h2>
+        <p class="text-gray-400 text-sm" x-text="settings.theme"></p>
+      </div>
+      <div class="bg-gray-900 rounded-2xl p-5 border border-gray-800 w-full max-w-xs text-left space-y-1">
+        <p class="text-xs text-gray-500">試験が完了しました。採点が完了次第、結果をお知らせします。</p>
+        <p class="text-xs text-gray-600">「採点結果を確認する」からいつでも確認できます。</p>
+      </div>
+      <button @click="page='student'; studentUser=null; studentName=''; studentEmail=''; studentNameConfirmed=false;"
+        class="w-full max-w-xs bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-4 rounded-2xl transition-colors">
+        最初の画面に戻る
+      </button>
+    </div>
+
+    <!-- Admin view: full detail -->
+    <div x-show="isAdmin" class="space-y-6">
+      <div class="bg-gray-900 rounded-2xl p-6 text-center border border-gray-800">
+        <p class="text-sm text-gray-400 mb-1" x-text="settings.theme"></p>
+        <div x-show="result && result.studentName" class="text-xs text-gray-500 mb-4" x-text="'受験者: ' + (result && result.studentName || '')"></div>
+        <div :class="result && result.totalScore >= 80 ? 'text-emerald-400' : result && result.totalScore >= 60 ? 'text-yellow-400' : result && result.totalScore >= 40 ? 'text-orange-400' : 'text-red-400'"
+             class="text-7xl font-bold tabular-nums" x-text="result ? result.totalScore : 0"></div>
+        <div class="text-gray-400 text-sm mt-1">/ 100点</div>
+        <div :class="result && result.totalScore >= 80 ? 'text-emerald-400' : result && result.totalScore >= 60 ? 'text-yellow-400' : result && result.totalScore >= 40 ? 'text-orange-400' : 'text-red-400'"
+             class="text-2xl font-bold mt-2"
+             x-text="result ? (result.totalScore >= 90 ? 'A+' : result.totalScore >= 80 ? 'A' : result.totalScore >= 70 ? 'B' : result.totalScore >= 60 ? 'C' : result.totalScore >= 50 ? 'D' : 'F') : ''"></div>
+        <p class="mt-4 text-sm text-gray-300 leading-relaxed" x-text="result ? result.overallComment : ''"></p>
+      </div>
+
+      <!-- Per-question scores -->
+      <template x-if="result && result.questionScores && result.questionScores.length > 0">
+        <div class="space-y-3">
+          <h2 class="text-sm font-medium text-gray-400 px-1">問別採点</h2>
+          <template x-for="(q, i) in result.questionScores" :key="i">
+            <div class="bg-gray-900 rounded-xl p-4 border border-gray-800">
+              <div class="flex items-start justify-between mb-2 gap-3">
+                <div class="flex-1">
+                  <p class="text-xs text-indigo-400 mb-1" x-text="'問' + q.questionNum"></p>
+                  <p class="text-sm text-gray-200 leading-snug" x-text="q.question"></p>
+                </div>
+                <span class="text-sm font-bold tabular-nums shrink-0">
+                  <span :class="(q.score/q.maxScore*100) >= 80 ? 'text-emerald-400' : (q.score/q.maxScore*100) >= 60 ? 'text-yellow-400' : (q.score/q.maxScore*100) >= 40 ? 'text-orange-400' : 'text-red-400'" x-text="q.score"></span>
+                  <span class="text-gray-500" x-text="' / ' + q.maxScore"></span>
+                </span>
+              </div>
+              <div class="w-full bg-gray-800 rounded-full h-2 overflow-hidden mb-2">
+                <div :class="(q.score/q.maxScore*100) >= 80 ? 'bg-emerald-500' : (q.score/q.maxScore*100) >= 60 ? 'bg-yellow-500' : (q.score/q.maxScore*100) >= 40 ? 'bg-orange-500' : 'bg-red-500'"
+                     class="h-full rounded-full score-bar"
+                     :style="'width: ' + Math.min(100,(q.score/q.maxScore)*100) + '%'"></div>
+              </div>
+              <p class="text-xs text-gray-400 leading-relaxed" x-text="q.comment"></p>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- Criteria scores -->
+      <div class="space-y-3">
+        <h2 class="text-sm font-medium text-gray-400 px-1">評価基準別採点</h2>
+        <template x-if="result">
+          <template x-for="(c, i) in result.criteria" :key="i">
+            <div class="bg-gray-900 rounded-xl p-4 border border-gray-800">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium" x-text="c.name"></span>
+                <span class="text-sm font-bold tabular-nums">
+                  <span :class="(c.score/c.maxScore*100) >= 80 ? 'text-emerald-400' : (c.score/c.maxScore*100) >= 60 ? 'text-yellow-400' : (c.score/c.maxScore*100) >= 40 ? 'text-orange-400' : 'text-red-400'" x-text="c.score"></span>
+                  <span class="text-gray-500" x-text="' / ' + c.maxScore"></span>
+                </span>
+              </div>
+              <div class="w-full bg-gray-800 rounded-full h-2.5 overflow-hidden">
+                <div :class="(c.score/c.maxScore*100) >= 80 ? 'bg-emerald-500' : (c.score/c.maxScore*100) >= 60 ? 'bg-yellow-500' : (c.score/c.maxScore*100) >= 40 ? 'bg-orange-500' : 'bg-red-500'"
+                     class="h-full rounded-full score-bar"
+                     :style="'width: ' + Math.min(100,(c.score/c.maxScore)*100) + '%'"></div>
+              </div>
+              <p class="mt-2 text-xs text-gray-400 leading-relaxed" x-text="c.comment"></p>
+            </div>
+          </template>
+        </template>
+      </div>
+
+      <template x-if="result && result.improvements && result.improvements.length > 0">
+        <div class="bg-gray-900 rounded-xl p-4 border border-gray-800">
+          <h2 class="text-sm font-medium text-gray-300 mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+            </svg>
+            改善アドバイス
+          </h2>
+          <ul class="space-y-2">
+            <template x-for="(imp, i) in result.improvements" :key="i">
+              <li class="flex gap-2 text-sm text-gray-300">
+                <span class="text-indigo-400 shrink-0">•</span>
+                <span x-text="imp"></span>
+              </li>
+            </template>
+          </ul>
+        </div>
+      </template>
+
+      <div x-show="messages.length > 0" class="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+        <button @click="showLog = !showLog" class="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-300 hover:text-white transition-colors">
+          <span x-text="'試問ログ (' + messages.length + ' メッセージ)'"></span>
+          <svg :class="showLog ? 'rotate-180' : ''" class="w-4 h-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <div x-show="showLog" class="px-4 pb-4 space-y-3 border-t border-gray-800 pt-3">
+          <template x-for="(msg, i) in messages" :key="i">
+            <div :class="msg.role === 'user' ? 'flex gap-2 flex-row-reverse' : 'flex gap-2'">
+              <div :class="msg.role === 'assistant' ? 'bg-indigo-800' : 'bg-gray-700'" class="w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0" x-text="msg.role === 'assistant' ? '試' : '私'"></div>
+              <div :class="msg.role === 'assistant' ? 'bg-gray-800 text-gray-300' : 'bg-indigo-900/60 text-indigo-100'" class="text-xs leading-relaxed px-3 py-2 rounded-xl max-w-[85%]" x-text="msg.content"></div>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <div class="flex gap-3 pb-6">
+        <button @click="retryExam()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-xl transition-colors">
+          もう一度試験する
+        </button>
+        <button @click="page='admin'" class="flex-1 bg-gray-800 hover:bg-gray-700 text-gray-300 font-medium py-3 rounded-xl transition-colors">
+          管理画面へ
+        </button>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+function app() {
+  const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
+
+  return {
+    page: 'student',
+    isAdmin: false,
+    adminLoginInput: '',
+    adminLoginError: false,
+    adminNewPassword: '',
+    adminPassword: 'admin',
+    examResults: [],
+    apiKey: '',
+    selectedModel: 'gemini-2.5-flash',
+    availableModels: [],
+    fetchingModels: false,
+    settings: {
+      theme: '',
+      criteria: [
+        { name: '理解度', description: '概念を正確に理解し自分の言葉で説明できるか' },
+        { name: '論理構成', description: '論理的に整理された回答ができているか' },
+        { name: '表現力', description: '適切な用語を使い明確に伝えられているか' }
+      ],
+      questions: []
+    },
+    messages: [],
+    inputText: '',
+    isLoading: false,
+    isScoring: false,
+    examStarted: false,
+    result: null,
+    showLog: false,
+    saved: false,
+    showScoreToStudent: true,
+    showCommentToStudent: true,
+    allowStudentHistory: false,
+    classes: [],
+    studentClassId: '',
+    adminFilterClassId: 'all',
+    editingResultId: null,
+    editingData: null,
+    checkResultsName: '',
+    studentPastResults: [],
+    showPastResults: false,
+    studentUser: null,
+    studentName: '',
+    studentEmail: '',
+    studentNameConfirmed: false,
+    googleClientId: '',
+    focusMonitoringEnabled: true,
+    focusViolationCount: 0,
+    focusViolations: [],
+    focusViolationFlagged: false,
+    showViolationWarning: false,
+    _focusHandlers: null,
+
+    init() {
+      const storedKey = localStorage.getItem('gemini_api_key');
+      if (storedKey) this.apiKey = storedKey;
+
+      const storedModel = localStorage.getItem('gemini_model');
+      const deprecatedModels = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro', 'gemini-2.5-flash-preview-04-17'];
+      if (storedModel && !deprecatedModels.includes(storedModel)) {
+        this.selectedModel = storedModel;
+      } else {
+        this.selectedModel = 'gemini-2.5-flash';
+        localStorage.removeItem('gemini_model');
+      }
+
+      const stored = localStorage.getItem('exam_settings_v2');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed.theme !== undefined) this.settings = parsed;
+        } catch(e) {}
+      }
+      // Ensure criteria is in new format
+      if (this.settings.criteria.length > 0 && typeof this.settings.criteria[0] === 'string') {
+        this.settings.criteria = this.settings.criteria.map(c => ({ name: c, description: '' }));
+      }
+      // Ensure questions array exists (backward compat)
+      if (!this.settings.questions) this.settings.questions = [];
+      // Load admin password
+      const storedPw = localStorage.getItem('admin_password');
+      if (storedPw) this.adminPassword = storedPw;
+      // Load exam results
+      const storedResults = localStorage.getItem('exam_results');
+      if (storedResults) {
+        try { this.examResults = JSON.parse(storedResults); } catch(e) {}
+      }
+      // Load Google Client ID
+      const storedGoogleClientId = localStorage.getItem('google_client_id');
+      if (storedGoogleClientId) this.googleClientId = storedGoogleClientId;
+      const storedShowScore = localStorage.getItem('show_score_to_student');
+      if (storedShowScore !== null) this.showScoreToStudent = storedShowScore === 'true';
+      const storedShowComment = localStorage.getItem('show_comment_to_student');
+      if (storedShowComment !== null) this.showCommentToStudent = storedShowComment === 'true';
+      const storedAllowHistory = localStorage.getItem('allow_student_history');
+      if (storedAllowHistory !== null) this.allowStudentHistory = storedAllowHistory === 'true';
+      // Load classes
+      const storedClasses = localStorage.getItem('exam_classes');
+      if (storedClasses) {
+        try { this.classes = JSON.parse(storedClasses); } catch(e) {}
+      }
+      if (this.classes.length === 0) {
+        this.classes = [{ id: 'default', name: 'クラスA' }];
+        localStorage.setItem('exam_classes', JSON.stringify(this.classes));
+      }
+      // Auto-detect class from URL parameter
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const classFromUrl = urlParams.get('class');
+        if (classFromUrl && this.classes.find(c => c.id === classFromUrl)) {
+          this.studentClassId = classFromUrl;
+        }
+      } catch(e) {}
+      // Load focus monitoring setting
+      const storedFocusMonitor = localStorage.getItem('focus_monitoring_enabled');
+      if (storedFocusMonitor !== null) this.focusMonitoringEnabled = storedFocusMonitor !== 'false';
+      // Initialize Google Sign-In if client ID is set
+      if (this.googleClientId) this.$nextTick(() => this.initGoogleSignIn());
+    },
+
+    saveApiKey() {
+      localStorage.setItem('gemini_api_key', this.apiKey);
+    },
+
+    adminLogin() {
+      if (this.adminLoginInput === this.adminPassword) {
+        this.isAdmin = true;
+        this.adminLoginError = false;
+        this.adminLoginInput = '';
+        this.page = 'admin';
+      } else {
+        this.adminLoginError = true;
+      }
+    },
+
+    adminLogout() {
+      this.isAdmin = false;
+      this.page = 'student';
+    },
+
+    changeAdminPassword() {
+      if (!this.adminNewPassword.trim()) return;
+      this.adminPassword = this.adminNewPassword.trim();
+      localStorage.setItem('admin_password', this.adminPassword);
+      this.adminNewPassword = '';
+      alert('パスワードを変更しました');
+    },
+
+    // Class management
+    addClass() {
+      const name = prompt('新しいクラス名を入力してください:');
+      if (!name || !name.trim()) return;
+      const id = 'class_' + Date.now();
+      this.classes.push({ id, name: name.trim() });
+      localStorage.setItem('exam_classes', JSON.stringify(this.classes));
+    },
+
+    removeClass(id) {
+      const hasResults = this.examResults.some(r => r.classId === id);
+      if (hasResults && !confirm('このクラスには採点結果があります。本当に削除しますか？')) return;
+      this.classes = this.classes.filter(c => c.id !== id);
+      localStorage.setItem('exam_classes', JSON.stringify(this.classes));
+    },
+
+    getClassUrl(classId) {
+      const base = window.location.href.split('?')[0];
+      return base + '?class=' + classId;
+    },
+
+    copyClassUrl(classId) {
+      const url = this.getClassUrl(classId);
+      navigator.clipboard.writeText(url).then(() => alert('URLをコピーしました:\n' + url)).catch(() => prompt('このURLをコピーしてください:', url));
+    },
+
+    // Result publishing & editing
+    togglePublish(id) {
+      const r = this.examResults.find(r => r.id === id);
+      if (!r) return;
+      r.published = !r.published;
+      this.saveResults();
+    },
+
+    startEditResult(id) {
+      const r = this.examResults.find(r => r.id === id);
+      if (!r) return;
+      this.editingResultId = id;
+      // Deep clone, pre-fill from adminScore if exists, otherwise from AI
+      const src = r.adminScore || { totalScore: r.totalScore, criteria: r.criteria, questionScores: r.questionScores || [], overallComment: r.overallComment };
+      this.editingData = JSON.parse(JSON.stringify(src));
+    },
+
+    saveEditResult() {
+      const r = this.examResults.find(r => r.id === this.editingResultId);
+      if (!r) return;
+      r.adminScore = JSON.parse(JSON.stringify(this.editingData));
+      this.saveResults();
+      this.editingResultId = null;
+      this.editingData = null;
+    },
+
+    cancelEditResult() {
+      this.editingResultId = null;
+      this.editingData = null;
+    },
+
+    resetToAiScore(id) {
+      if (!confirm('管理者の修正をリセットし、AIの採点に戻しますか？')) return;
+      const r = this.examResults.find(r => r.id === id);
+      if (r) { r.adminScore = null; this.saveResults(); }
+    },
+
+    getDisplayScore(r) {
+      return r.adminScore ? r.adminScore.totalScore : r.totalScore;
+    },
+
+    // Student: check past results
+    findPastResults() {
+      const name = (this.checkResultsName || this.studentName || '').trim();
+      if (!name) { alert('お名前を入力してください'); return; }
+      this.studentPastResults = this.examResults.filter(r =>
+        r.published && (r.studentName === name || (this.studentEmail && r.studentEmail === this.studentEmail))
+      ).sort((a, b) => new Date(b.date) - new Date(a.date));
+      this.showPastResults = true;
+    },
+
+    saveResults() {
+      localStorage.setItem('exam_results', JSON.stringify(this.examResults));
+    },
+
+    saveResult() {
+      if (!this.result) return;
+      const name = this.studentUser ? this.studentUser.name : this.studentName;
+      const email = this.studentUser ? this.studentUser.email : this.studentEmail;
+      const classId = this.studentClassId || (this.classes[0] && this.classes[0].id) || 'default';
+      const entry = {
+        id: Date.now(),
+        date: new Date().toISOString(),
+        theme: this.settings.theme,
+        studentName: name || '（未入力）',
+        studentEmail: email || '',
+        classId: classId,
+        published: false,
+        totalScore: this.result.totalScore,
+        criteria: this.result.criteria,
+        questionScores: this.result.questionScores || [],
+        overallComment: this.result.overallComment,
+        improvements: this.result.improvements || [],
+        aiScore: {
+          totalScore: this.result.totalScore,
+          criteria: JSON.parse(JSON.stringify(this.result.criteria)),
+          questionScores: JSON.parse(JSON.stringify(this.result.questionScores || [])),
+          overallComment: this.result.overallComment,
+          improvements: JSON.parse(JSON.stringify(this.result.improvements || [])),
+        },
+        adminScore: null,
+        focusViolationCount: this.focusViolationCount,
+        focusViolationFlagged: this.focusViolationFlagged,
+        focusViolations: JSON.parse(JSON.stringify(this.focusViolations)),
+        conversationLog: JSON.parse(JSON.stringify(this.messages)),
+      };
+      this.examResults.push(entry);
+      this.saveResults();
+    },
+
+    exportAllResults() {
+      if (!this.examResults.length) return;
+      // Build CSV header
+      const criteriaNames = this.examResults[0].criteria.map(c => c.name);
+      const hasQuestions = this.examResults.some(r => r.questionScores && r.questionScores.length > 0);
+      const questionHeaders = hasQuestions
+        ? this.examResults.reduce((max, r) => Math.max(max, (r.questionScores||[]).length), 0)
+        : 0;
+      let headers = ['日時', '受験者名', 'メールアドレス', 'テーマ', '合計点', ...criteriaNames.map(n => n + '_点数')];
+      for (let i = 1; i <= questionHeaders; i++) headers.push('問' + i + '_点数');
+      headers.push('総合コメント');
+      const rows = this.examResults.map(r => {
+        const criteriaScores = r.criteria.map(c => c.score);
+        const qScores = [];
+        for (let i = 0; i < questionHeaders; i++) qScores.push((r.questionScores||[])[i]?.score ?? '');
+        return [
+          new Date(r.date).toLocaleString('ja-JP'),
+          r.studentName || '',
+          r.studentEmail || '',
+          r.theme || '',
+          r.totalScore,
+          ...criteriaScores,
+          ...qScores,
+          r.overallComment || '',
+        ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+      });
+      const csv = '\uFEFF' + headers.map(h => `"${h}"`).join(',') + '\n' + rows.join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '採点結果一覧_' + new Date().toISOString().slice(0,10) + '.csv';
+      a.click();
+    },
+
+    initGoogleSignIn() {
+      if (!this.googleClientId) return;
+      const loadAndInit = () => {
+        if (!window.google || !window.google.accounts) return;
+        google.accounts.id.initialize({
+          client_id: this.googleClientId,
+          callback: (response) => {
+            try {
+              const base64 = response.credential.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+              const payload = JSON.parse(atob(base64 + '=='.slice((base64.length % 4) || 4)));
+              this.studentUser = { name: payload.name, email: payload.email, picture: payload.picture || '' };
+            } catch(e) { console.error('Google auth error:', e); }
+          }
+        });
+        this.$nextTick(() => {
+          const el = document.getElementById('google-signin-btn');
+          if (el && el.innerHTML === '') {
+            google.accounts.id.renderButton(el, { theme: 'filled_black', size: 'large', width: 280 });
+          }
+        });
+      };
+      if (window.google && window.google.accounts) {
+        loadAndInit();
+        return;
+      }
+      if (!document.querySelector('script[src*="accounts.google.com/gsi"]')) {
+        const s = document.createElement('script');
+        s.src = 'https://accounts.google.com/gsi/client';
+        s.async = true;
+        s.onload = loadAndInit;
+        document.head.appendChild(s);
+      }
+    },
+
+    async fetchModels() {
+      if (!this.apiKey) return;
+      this.fetchingModels = true;
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${this.apiKey}`);
+        const data = await res.json();
+        if (data.models) {
+          // Filter models that support generateContent
+          const filtered = data.models
+            .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+            .map(m => {
+              const id = m.name.replace('models/', '');
+              return { id, name: m.name, label: `${id}${m.displayName ? ' - ' + m.displayName : ''}` };
+            })
+            .sort((a, b) => a.id.localeCompare(b.id));
+          this.availableModels = filtered;
+          // Auto-select first flash model if current selection not found
+          const found = filtered.find(m => m.id === this.selectedModel);
+          if (!found && filtered.length > 0) {
+            const flashModel = filtered.find(m => m.id.includes('flash')) || filtered[0];
+            this.selectedModel = flashModel.id;
+          }
+          alert(`✅ ${filtered.length}個のモデルを取得しました。`);
+        } else {
+          alert('❌ モデル取得失敗: ' + JSON.stringify(data.error || data));
+        }
+      } catch(e) {
+        alert('❌ モデル取得エラー: ' + e.message);
+      } finally {
+        this.fetchingModels = false;
+      }
+    },
+
+    addCriterion() {
+      this.settings.criteria.push({ name: '', description: '' });
+    },
+
+    removeCriterion(index) {
+      if (this.settings.criteria.length > 1) {
+        this.settings.criteria.splice(index, 1);
+      }
+    },
+
+    addQuestion() {
+      this.settings.questions.push({ id: Date.now() + Math.random(), question: '', expectedAnswer: '', notes: '' });
+    },
+
+    removeQuestion(index) {
+      this.settings.questions.splice(index, 1);
+    },
+
+    importQuestionsFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const ext = file.name.split('.').pop().toLowerCase();
+      const parse = (rows) => {
+        const parsed = rows
+          .filter(r => r['問題'] || r['question'])
+          .map(r => ({
+            id: Date.now() + Math.random(),
+            question:        r['問題']        || r['question']        || '',
+            expectedAnswer:  r['想定する答え'] || r['expectedAnswer']  || '',
+            notes:           r['備考']         || r['notes']           || '',
+          }));
+        if (parsed.length === 0) { alert('問題が見つかりませんでした。\nヘッダー行に「問題」「想定する答え」「備考」を含めてください。'); return; }
+        if (confirm(`${parsed.length}件の問題を取り込みます。既存の問題リストを置き換えますか？`)) {
+          this.settings.questions = parsed;
+          alert(`${parsed.length}件の問題を取り込みました。`);
+        }
+        event.target.value = '';
+      };
+      if (ext === 'csv') {
+        Papa.parse(file, { header: true, skipEmptyLines: true, complete: (r) => parse(r.data) });
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const wb = XLSX.read(e.target.result, { type: 'binary' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          parse(XLSX.utils.sheet_to_json(ws));
+        };
+        reader.readAsBinaryString(file);
+      } else {
+        alert('.csv、.xlsx、.xls ファイルを選択してください。');
+      }
+    },
+
+    exportQuestionsCSV() {
+      const header = '問題,想定する答え,備考\n';
+      const rows = this.settings.questions.map(q =>
+        [q.question, q.expectedAnswer, q.notes].map(v => `"${(v||'').replace(/"/g,'""')}"`).join(',')
+      ).join('\n');
+      const blob = new Blob(['\uFEFF' + header + rows], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '問題リスト.csv';
+      a.click();
+    },
+
+    saveSettings() {
+      localStorage.setItem('exam_settings_v2', JSON.stringify(this.settings));
+      localStorage.setItem('gemini_model', this.selectedModel);
+      this.saved = true;
+      setTimeout(() => this.saved = false, 2000);
+    },
+
+    startExamPage() {
+      this.messages = [];
+      this.examStarted = false;
+      this.result = null;
+      this.inputText = '';
+      this.page = 'exam';
+      this.$nextTick(() => this.initQuill());
+    },
+
+    async startExam() {
+      this.examStarted = true;
+      this.setupFocusMonitoring();
+      this.isLoading = true;
+      const systemPrompt = this.buildSystemPrompt();
+      const response = await this.callGemini(systemPrompt, []);
+      if (response) {
+        this.messages.push({ role: 'assistant', content: response });
+        this.scrollToBottom();
+      }
+      this.isLoading = false;
+    },
+
+    initQuill() {
+      // If quill already exists, just clear it
+      if (window._quill) { window._quill.setContents([]); return; }
+      const quill = new Quill('#quill-editor', {
+        theme: 'snow',
+        placeholder: '回答を入力... (⌘+Enter で送信)',
+        modules: {
+          toolbar: '#quill-toolbar',
+          keyboard: {
+            bindings: {
+              submitCmd: {
+                key: 13, metaKey: true,
+                handler: () => { this.handleSend(); return false; }
+              },
+              submitCtrl: {
+                key: 13, ctrlKey: true,
+                handler: () => { this.handleSend(); return false; }
+              },
+              // Google Docs: Cmd+Alt+1/2/3 for headings
+              heading1: { key: 49, metaKey: true, altKey: true, handler: () => { quill.format('header', 1); return false; } },
+              heading2: { key: 50, metaKey: true, altKey: true, handler: () => { quill.format('header', 2); return false; } },
+              heading3: { key: 51, metaKey: true, altKey: true, handler: () => { quill.format('header', 3); return false; } },
+              // Google Docs: Cmd+Shift+7 ordered list
+              orderedList: { key: 55, metaKey: true, shiftKey: true, handler: () => { const f = quill.getFormat(); quill.format('list', f.list === 'ordered' ? false : 'ordered'); return false; } },
+              // Google Docs: Cmd+Shift+8 bullet list
+              bulletList:  { key: 56, metaKey: true, shiftKey: true, handler: () => { const f = quill.getFormat(); quill.format('list', f.list === 'bullet' ? false : 'bullet'); return false; } },
+              // Google Docs: Cmd+Shift+9 blockquote (actually Cmd+Alt+0 in GDocs but close)
+              blockquote:  { key: 57, metaKey: true, shiftKey: true, handler: () => { const f = quill.getFormat(); quill.format('blockquote', !f.blockquote); return false; } },
+            }
+          }
+        }
+      });
+      // Keep quill editor div flex to fill wrapper height
+      quill.root.style.height = '100%';
+      quill.root.style.overflowY = 'auto';
+      window._quill = quill;
+    },
+
+    getQuillText() {
+      if (!window._quill) return this.inputText;
+      const text = window._quill.getText().trim();
+      return text;
+    },
+
+    getQuillHtml() {
+      if (!window._quill) return this.inputText;
+      const html = window._quill.root.innerHTML;
+      // Empty quill produces <p><br></p>
+      if (html === '<p><br></p>') return '';
+      return html;
+    },
+
+    clearQuill() {
+      if (window._quill) {
+        window._quill.setContents([]);
+        window._quill.focus();
+      }
+      this.inputText = '';
+    },
+
+    async handleSend() {
+      const html = this.getQuillHtml();
+      const text = this.getQuillText();
+      if (!text || this.isLoading) return;
+      this.clearQuill();
+      this.messages.push({ role: 'user', content: text, html: html });
+      this.scrollToBottom();
+      this.isLoading = true;
+      const systemPrompt = this.buildSystemPrompt();
+      const response = await this.callGemini(systemPrompt, this.messages);
+      if (response) {
+        this.messages.push({ role: 'assistant', content: response });
+        this.scrollToBottom();
+      }
+      this.isLoading = false;
+    },
+
+    async endExam() {
+      if (!this.examStarted || this.messages.length < 2 || this.isScoring) return;
+      if (!confirm('試験を終了して採点しますか？')) return;
+      this.teardownFocusMonitoring();
+      this.isScoring = true;
+
+      const activeCriteria = this.settings.criteria.filter(c => c.name);
+      const criteriaCount = activeCriteria.length;
+      const pointsEach = Math.floor(100 / criteriaCount);
+      const remainder = 100 - pointsEach * criteriaCount;
+
+      const conversationLog = this.messages.map(m =>
+        `【${m.role === 'assistant' ? '試験官' : '受験者'}】${m.content}`
+      ).join('\n\n');
+
+      const criteriaList = activeCriteria.map((c, i) => {
+        const pts = pointsEach + (i === 0 ? remainder : 0);
+        return `${i + 1}. ${c.name}（${pts}点満点）${c.description ? ': ' + c.description : ''}`;
+      }).join('\n');
+
+      // Build expected-answer comparison block if any question has an expected answer
+      const activeQuestions = (this.settings.questions || []).filter(q => q.question.trim());
+      const questionsWithAnswer = activeQuestions.filter(q => q.expectedAnswer.trim());
+      let expectedAnswerBlock = '';
+      if (questionsWithAnswer.length > 0) {
+        expectedAnswerBlock = `
+【問題と想定する答えの対照】
+${activeQuestions.map((q, i) =>
+  `問${i + 1}: ${q.question}` +
+  (q.expectedAnswer ? `\n　想定する答え: ${q.expectedAnswer}` : '\n　想定する答え: （未設定）') +
+  (q.notes ? `\n　備考: ${q.notes}` : '')
+).join('\n\n')}
+
+【採点方法】
+各問いについて以下2軸で評価し、最終スコアを総合的に判断してください：
+① 想定する答えとの比較（想定する答えが設定されている問いのみ）: 想定する答えの要素・観点がどの程度カバーされているか
+② AI独自の評価（全問い）: 回答の正確さ・論理性・理解の深さ（想定する答えと異なっていても正しい回答は正当に評価する）
+※ ①と②を総合的に判断し、最終スコアを決定してください。`;
+      }
+
+      const prompt = `あなたは優秀な教育評価者です。以下の口頭試問の記録を詳細に分析し、採点してください。
+
+試問テーマ: ${this.settings.theme}
+${expectedAnswerBlock}
+
+評価基準（合計100点満点）:
+${criteriaList}
+
+以下の口頭試問の記録を評価してください:
+
+${conversationLog}
+
+必ず以下のJSON形式のみで回答してください（コードブロック不要）:
+{
+  "totalScore": <合計点数(0-100)>,
+  "criteria": [
+    {
+      "name": "<評価基準名>",
+      "score": <点数>,
+      "maxScore": <満点>,
+      "comment": "<詳細な評価コメント（200文字程度）>"
+    }
+  ],${activeQuestions.length > 0 ? `
+  "questionScores": [
+    {
+      "questionNum": <問番号(1始まり)>,
+      "question": "<問題文（短縮可）>",
+      "score": <点数(0-10)>,
+      "maxScore": 10,
+      "comment": "<この問に対する評価コメント（150文字程度）>"
+    }
+  ],` : ''}
+  "overallComment": "<総合評価コメント（300文字程度）>",
+  "improvements": ["<改善点1>", "<改善点2>", "<改善点3>"]
+}`;
+
+      try {
+        const endpoint = `${GEMINI_BASE}${this.selectedModel}:generateContent?key=${this.apiKey}`;
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.3 }
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error?.message || 'API Error ' + res.status);
+        }
+
+        const data = await res.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          this.result = JSON.parse(jsonMatch[0]);
+          this.saveResult();
+          this.page = 'result';
+        } else {
+          alert('採点結果の解析に失敗しました。');
+        }
+      } catch (err) {
+        console.error(err);
+        const msg = err.message || '';
+        if (msg.includes('quota') || msg.includes('429') || msg.includes('limit: 0')) {
+          alert('⚠️ APIクォータ超過\n\nホーム画面でモデルを「gemini-1.5-flash」または「gemini-1.5-flash-8b」に変更してお試しください。\n\nエラー: ' + msg);
+        } else {
+          alert('採点に失敗しました: ' + msg);
+        }
+      } finally {
+        this.isScoring = false;
+      }
+    },
+
+    retryExam() {
+      this.teardownFocusMonitoring();
+      this.focusViolationCount = 0;
+      this.focusViolations = [];
+      this.focusViolationFlagged = false;
+      this.showViolationWarning = false;
+      this.messages = [];
+      this.examStarted = false;
+      this.result = null;
+      this.inputText = '';
+      if (window._quill) window._quill.setContents([]);
+      this.page = 'exam';
+    },
+
+    buildSystemPrompt() {
+      const activeCriteria = this.settings.criteria.filter(c => c.name);
+      const criteriaText = activeCriteria.map((c, i) =>
+        `${i + 1}. ${c.name}${c.description ? '（' + c.description + '）' : ''}`
+      ).join('\n');
+
+      const activeQuestions = (this.settings.questions || []).filter(q => q.question.trim());
+      const hasQuestions = activeQuestions.length > 0;
+
+      let questionBlock = '';
+      if (hasQuestions) {
+        const qList = activeQuestions.map((q, i) =>
+          `【問${i + 1}】${q.question}${q.notes ? '\n　備考: ' + q.notes : ''}`
+        ).join('\n\n');
+        questionBlock = `
+以下の問題リストを順番に出題してください:
+${qList}
+
+各問いの進め方:
+- 問いを提示し、受験者の回答を受け取る
+- 回答が不十分な場合は1〜2回の深掘り質問をしてから次の問いへ進む
+- 全ての問いが終わったら「以上で試問を終了します」と伝える`;
+      } else {
+        questionBlock = `\nテーマに基づいて、適切な質問を生成してください。`;
+      }
+
+      return `あなたは厳格で公平な口頭試問の試験官です。
+試問テーマ: ${this.settings.theme}
+
+あなたの役割:
+1. ${hasQuestions ? '指定された問題リストを順番に出題する' : 'テーマに基づいて適切な質問を行う'}
+2. 受験者の回答に対して深掘り質問をする
+3. 【絶対禁止】試験中は正解・解説・ヒントを一切教えない
+4. 回答が不十分な場合は「もう少し詳しく説明してください」などと促す
+5. 回答が的外れな場合も正解を教えず「別の観点から考えてみてください」などと促す
+6. 一度に一つの質問のみ行う
+7. 簡潔に、試験官らしく振る舞う
+${questionBlock}
+
+評価観点（試験中は言及しない）:
+${criteriaText}
+
+最初の質問から始めてください。`;
+    },
+
+    async callGemini(systemPrompt, messages) {
+      try {
+        const contents = messages.map(m => ({
+          role: m.role === 'assistant' ? 'model' : 'user',
+          parts: [{ text: m.content }]
+        }));
+        if (contents.length === 0) {
+          contents.push({ role: 'user', parts: [{ text: '試験を開始してください。最初の質問をしてください。' }] });
+        }
+
+        const endpoint = `${GEMINI_BASE}${this.selectedModel}:generateContent?key=${this.apiKey}`;
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: contents,
+            generationConfig: { temperature: 0.7, maxOutputTokens: 512 }
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          const errMsg = err.error?.message || 'API Error ' + res.status;
+          if (errMsg.includes('quota') || errMsg.includes('limit: 0') || res.status === 429) {
+            throw new Error('QUOTA_EXCEEDED: ' + errMsg);
+          }
+          throw new Error(errMsg);
+        }
+
+        const data = await res.json();
+        return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+      } catch (err) {
+        console.error('Gemini error:', err);
+        if (err.message && err.message.startsWith('QUOTA_EXCEEDED')) {
+          alert('⚠️ APIクォータ超過\n\nホーム画面でモデルを「gemini-1.5-flash」または「gemini-1.5-flash-8b」に変更してお試しください。');
+        } else {
+          alert('APIエラー: ' + (err.message || err));
+        }
+        return null;
+      }
+    },
+
+    // ========== FOCUS MONITORING / ANTI-CHEAT ==========
+
+    setupFocusMonitoring() {
+      if (!this.focusMonitoringEnabled) return;
+      // Reset counts
+      this.focusViolationCount = 0;
+      this.focusViolations = [];
+      this.focusViolationFlagged = false;
+      this.showViolationWarning = false;
+      const self = this;
+
+      const onVisibilityChange = () => {
+        if (document.hidden && self.examStarted && self.page === 'exam') {
+          self.recordFocusViolation('tab_switch');
+        }
+      };
+      const onBlur = () => {
+        if (self.examStarted && self.page === 'exam') {
+          self.recordFocusViolation('window_blur');
+        }
+      };
+      const onFullscreenChange = () => {
+        if (!document.fullscreenElement && self.examStarted && self.page === 'exam') {
+          self.recordFocusViolation('fullscreen_exit');
+          // Attempt to re-enter fullscreen after a short delay
+          setTimeout(() => {
+            if (self.examStarted && self.page === 'exam') {
+              document.documentElement.requestFullscreen().catch(() => {});
+            }
+          }, 800);
+        }
+      };
+
+      document.addEventListener('visibilitychange', onVisibilityChange);
+      window.addEventListener('blur', onBlur);
+      document.addEventListener('fullscreenchange', onFullscreenChange);
+      this._focusHandlers = { onVisibilityChange, onBlur, onFullscreenChange };
+
+      // Enter fullscreen
+      document.documentElement.requestFullscreen().catch(() => {});
+    },
+
+    teardownFocusMonitoring() {
+      if (this._focusHandlers) {
+        document.removeEventListener('visibilitychange', this._focusHandlers.onVisibilityChange);
+        window.removeEventListener('blur', this._focusHandlers.onBlur);
+        document.removeEventListener('fullscreenchange', this._focusHandlers.onFullscreenChange);
+        this._focusHandlers = null;
+      }
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+    },
+
+    recordFocusViolation(type) {
+      const activeQuestions = (this.settings.questions || []).filter(q => q.question && q.question.trim());
+      const threshold = activeQuestions.length > 0 ? Math.min(activeQuestions.length * 3, 12) : 12;
+
+      this.focusViolationCount++;
+      this.focusViolations.push({ type, time: new Date().toISOString(), count: this.focusViolationCount });
+      // Show warning overlay for 3 seconds
+      this.showViolationWarning = true;
+      clearTimeout(this._violationWarningTimer);
+      this._violationWarningTimer = setTimeout(() => { this.showViolationWarning = false; }, 3000);
+      // Flag if threshold reached
+      if (this.focusViolationCount >= threshold) {
+        this.focusViolationFlagged = true;
+      }
+    },
+
+    // ========== END FOCUS MONITORING ==========
+
+    scrollToBottom() {
+      this.$nextTick(() => {
+        const el = document.getElementById('messages-end');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      });
+    }
+  };
+}
+</script>
+</body>
+</html>
