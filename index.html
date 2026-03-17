@@ -408,9 +408,9 @@
         </div>
         <button @click="allowStudentHistory = !allowStudentHistory; localStorage.setItem('allow_student_history', allowStudentHistory)"
           :class="allowStudentHistory ? 'bg-gc-green' : 'bg-gray-300'"
-          class="relative w-12 h-6 rounded-full transition-colors flex-none mt-0.5">
-          <span :class="allowStudentHistory ? 'translate-x-6' : 'translate-x-1'"
-            class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform inline-block"></span>
+          class="w-12 h-6 rounded-full flex items-center transition-colors flex-none mt-0.5 px-0.5">
+          <span :class="allowStudentHistory ? 'ml-6' : 'ml-0'"
+            class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
         </button>
       </label>
       <div class="border-t border-gc-border pt-3">
@@ -420,18 +420,18 @@
         <span class="text-sm text-gray-700 flex-1 min-w-0 truncate">スコア・グレード</span>
         <button @click="showScoreToStudent = !showScoreToStudent; localStorage.setItem('show_score_to_student', showScoreToStudent)"
           :class="showScoreToStudent ? 'bg-gc-green' : 'bg-gray-300'"
-          class="relative w-12 h-6 rounded-full transition-colors flex-none">
-          <span :class="showScoreToStudent ? 'translate-x-6' : 'translate-x-1'"
-            class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform inline-block"></span>
+          class="w-12 h-6 rounded-full flex items-center transition-colors flex-none px-0.5">
+          <span :class="showScoreToStudent ? 'ml-6' : 'ml-0'"
+            class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
         </button>
       </label>
       <label class="flex items-center gap-3 cursor-pointer">
         <span class="text-sm text-gray-700 flex-1 min-w-0 truncate">総合コメント</span>
         <button @click="showCommentToStudent = !showCommentToStudent; localStorage.setItem('show_comment_to_student', showCommentToStudent)"
           :class="showCommentToStudent ? 'bg-gc-green' : 'bg-gray-300'"
-          class="relative w-12 h-6 rounded-full transition-colors flex-none">
-          <span :class="showCommentToStudent ? 'translate-x-6' : 'translate-x-1'"
-            class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform inline-block"></span>
+          class="w-12 h-6 rounded-full flex items-center transition-colors flex-none px-0.5">
+          <span :class="showCommentToStudent ? 'ml-6' : 'ml-0'"
+            class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
         </button>
       </label>
     </div>
@@ -446,9 +446,9 @@
         </div>
         <button @click="focusMonitoringEnabled = !focusMonitoringEnabled; localStorage.setItem('focus_monitoring_enabled', focusMonitoringEnabled)"
           :class="focusMonitoringEnabled ? 'bg-gc-green' : 'bg-gray-300'"
-          class="relative w-12 h-6 rounded-full transition-colors flex-none mt-0.5">
-          <span :class="focusMonitoringEnabled ? 'translate-x-6' : 'translate-x-1'"
-            class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform inline-block"></span>
+          class="w-12 h-6 rounded-full flex items-center transition-colors flex-none mt-0.5 px-0.5">
+          <span :class="focusMonitoringEnabled ? 'ml-6' : 'ml-0'"
+            class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
         </button>
       </label>
     </div>
