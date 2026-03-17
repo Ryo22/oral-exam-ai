@@ -214,6 +214,15 @@
       <p x-show="!settings.theme || !apiKey" class="text-center text-xs text-amber-600">
         ※ 管理者によるAPIキーとテーマの設定が必要です
       </p>
+      <!-- My Page button (shown when history is allowed) -->
+      <button x-show="allowStudentHistory"
+        @click="mypageSelectedResult = null; page = 'mypage'"
+        class="w-full bg-white hover:bg-gray-50 text-gc-blue border border-gc-border font-medium py-3 rounded-2xl transition-colors text-sm flex items-center justify-center gap-2 shadow-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        マイページ（過去の結果）
+      </button>
     </div>
 
     <!-- My past results (auto-shown when student identified + admin allows) -->
@@ -1097,12 +1106,24 @@
       </div>
       <div class="bg-white rounded-2xl p-5 border border-gc-border w-full max-w-xs text-left space-y-1 shadow-sm">
         <p class="text-xs text-gray-500">試験が完了しました。採点が完了次第、結果をお知らせします。</p>
-        <p class="text-xs text-gray-400">マイページからいつでも確認できます。</p>
+        <p x-show="allowStudentHistory" class="text-xs text-gc-blue">マイページから採点結果をいつでも確認できます。</p>
+        <p x-show="!allowStudentHistory" class="text-xs text-gray-400">結果は管理者よりお知らせします。</p>
       </div>
-      <button @click="page='student'; studentUser=null; studentName=''; studentEmail=''; studentNameConfirmed=false;"
-        class="w-full max-w-xs bg-gc-blue hover:bg-gc-blue-dark text-white font-medium py-3.5 rounded-2xl transition-colors">
-        最初の画面に戻る
-      </button>
+      <div class="w-full max-w-xs space-y-3">
+        <button x-show="allowStudentHistory"
+          @click="mypageSelectedResult = null; page = 'mypage'"
+          class="w-full bg-gc-blue hover:bg-gc-blue-dark text-white font-medium py-3.5 rounded-2xl transition-colors flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+          </svg>
+          マイページで確認する
+        </button>
+        <button @click="page='student'; studentUser=null; studentName=''; studentEmail=''; studentNameConfirmed=false;"
+          :class="allowStudentHistory ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-gc-blue hover:bg-gc-blue-dark text-white'"
+          class="w-full font-medium py-3.5 rounded-2xl transition-colors">
+          最初の画面に戻る
+        </button>
+      </div>
     </div>
 
     <!-- Admin view: full detail -->
@@ -1219,6 +1240,226 @@
   </main>
 </div>
 
+<!-- ========== MY PAGE ========== -->
+<div x-show="page === 'mypage'" class="min-h-screen flex flex-col bg-gc-surface">
+
+  <!-- Header -->
+  <header class="border-b border-gc-border px-4 py-3 flex items-center gap-3 bg-white sticky top-0 z-10 shadow-sm">
+    <button @click="mypageSelectedResult ? mypageSelectedResult = null : page = 'student'"
+      class="text-gray-500 hover:text-gray-900 transition-colors p-1 rounded-lg hover:bg-gray-100">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+      </svg>
+    </button>
+    <h1 class="text-base font-semibold text-gray-900 flex-1"
+      x-text="mypageSelectedResult ? '採点結果詳細' : 'マイページ'"></h1>
+    <!-- Spacer to balance header -->
+    <div class="w-7"></div>
+  </header>
+
+  <!-- ===== LIST VIEW ===== -->
+  <div x-show="!mypageSelectedResult" class="flex-1 max-w-2xl mx-auto w-full px-4 py-6 space-y-5">
+
+    <!-- Student profile card -->
+    <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm flex items-center gap-3">
+      <!-- Avatar -->
+      <div>
+        <img x-show="studentUser && studentUser.picture" :src="studentUser && studentUser.picture" class="w-12 h-12 rounded-full border border-gc-border"/>
+        <div x-show="!(studentUser && studentUser.picture)"
+          class="w-12 h-12 rounded-full bg-green-100 border border-green-200 flex items-center justify-center text-gc-green text-lg font-bold"
+          x-text="(studentUser ? studentUser.name : studentName).charAt(0)"></div>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="font-semibold text-gray-900" x-text="studentUser ? studentUser.name : studentName"></p>
+        <p class="text-xs text-gray-400 truncate" x-text="studentUser ? studentUser.email : (studentEmail || '')"></p>
+      </div>
+      <div class="text-right shrink-0">
+        <p class="text-2xl font-bold tabular-nums text-gc-blue" x-text="studentPastResults.length"></p>
+        <p class="text-xs text-gray-400">回受験</p>
+      </div>
+    </div>
+
+    <!-- Section header -->
+    <div class="flex items-center justify-between">
+      <h2 class="text-sm font-medium text-gray-600 flex items-center gap-2">
+        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        公開済み採点結果
+      </h2>
+      <span class="text-xs text-gray-400" x-text="studentPastResults.length + '件'"></span>
+    </div>
+
+    <!-- Empty state -->
+    <div x-show="studentPastResults.length === 0" class="flex flex-col items-center justify-center py-16 text-center">
+      <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4 border border-gc-border">
+        <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+      </div>
+      <p class="text-gray-500 text-sm font-medium">採点結果はまだありません</p>
+      <p class="text-gray-400 text-xs mt-1">試験を受けると、採点後にここに表示されます</p>
+    </div>
+
+    <!-- Results list -->
+    <div class="space-y-3">
+      <template x-for="r in studentPastResults" :key="r.id">
+        <div @click="mypageSelectedResult = r"
+          class="bg-white rounded-xl border border-gc-border shadow-sm cursor-pointer hover:shadow-md hover:border-gc-blue transition-all group">
+          <div class="p-4 flex items-start gap-3">
+            <!-- Score badge -->
+            <div x-show="showScoreToStudent"
+              :class="(r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 80 ? 'bg-emerald-100 text-emerald-700' : (r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 60 ? 'bg-yellow-100 text-yellow-700' : (r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 40 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'"
+              class="w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0 border border-transparent">
+              <span class="text-xl font-bold tabular-nums leading-none"
+                x-text="r.adminScore ? r.adminScore.totalScore : r.totalScore"></span>
+              <span class="text-xs font-medium">点</span>
+            </div>
+            <div x-show="!showScoreToStudent"
+              class="w-14 h-14 rounded-xl bg-gray-100 border border-gc-border flex items-center justify-center shrink-0">
+              <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <!-- Info -->
+            <div class="flex-1 min-w-0">
+              <p class="text-xs text-gray-400 mb-0.5"
+                x-text="new Date(r.date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })"></p>
+              <p class="text-sm font-medium text-gray-900 truncate" x-text="r.theme"></p>
+              <p x-show="showCommentToStudent"
+                class="text-xs text-gray-500 mt-1 leading-relaxed line-clamp-2"
+                x-text="r.adminScore ? r.adminScore.overallComment : r.overallComment"></p>
+            </div>
+            <!-- Arrow -->
+            <svg class="w-4 h-4 text-gray-300 group-hover:text-gc-blue transition-colors shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </div>
+          <!-- Score bar (if showScoreToStudent) -->
+          <div x-show="showScoreToStudent" class="px-4 pb-3">
+            <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+              <div :class="(r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 80 ? 'bg-emerald-500' : (r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 60 ? 'bg-yellow-500' : (r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 40 ? 'bg-orange-500' : 'bg-red-500'"
+                class="h-full rounded-full score-bar"
+                :style="'width: ' + Math.min(100, r.adminScore ? r.adminScore.totalScore : r.totalScore) + '%'"></div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- New exam button -->
+    <div class="pt-2 pb-6">
+      <button @click="page = 'student'"
+        class="w-full bg-gc-green hover:bg-gc-green-dark text-white font-medium py-3.5 rounded-2xl transition-colors flex items-center justify-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        新しい試験を受ける
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== DETAIL VIEW ===== -->
+  <div x-show="mypageSelectedResult" class="flex-1 max-w-2xl mx-auto w-full px-4 py-6 space-y-5 pb-10">
+
+    <!-- Date and theme -->
+    <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm">
+      <p class="text-xs text-gray-400 mb-1"
+        x-text="mypageSelectedResult && new Date(mypageSelectedResult.date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })"></p>
+      <p class="text-base font-semibold text-gray-900" x-text="mypageSelectedResult && mypageSelectedResult.theme"></p>
+    </div>
+
+    <!-- Score summary card (only if showScoreToStudent) -->
+    <div x-show="showScoreToStudent" class="bg-white rounded-xl p-6 border border-gc-border shadow-sm text-center">
+      <p class="text-xs text-gray-400 mb-3">総合スコア</p>
+      <div :class="mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 80 ? 'text-emerald-600' : mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 60 ? 'text-yellow-600' : mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 40 ? 'text-orange-500' : 'text-red-500'"
+        class="text-7xl font-bold tabular-nums"
+        x-text="mypageSelectedResult ? (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) : 0"></div>
+      <div class="text-gray-400 text-sm mt-1">/ 100点</div>
+      <div :class="mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 80 ? 'text-emerald-600' : mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 60 ? 'text-yellow-600' : mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 40 ? 'text-orange-500' : 'text-red-500'"
+        class="text-2xl font-bold mt-2"
+        x-text="mypageSelectedResult ? ((mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 90 ? 'A+' : (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 80 ? 'A' : (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 70 ? 'B' : (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 60 ? 'C' : (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 50 ? 'D' : 'F') : ''"></div>
+    </div>
+
+    <!-- Overall comment (only if showCommentToStudent) -->
+    <div x-show="showCommentToStudent && mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.overallComment : mypageSelectedResult.overallComment)"
+      class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-2">
+      <h2 class="text-sm font-medium text-gray-600 flex items-center gap-2">
+        <svg class="w-4 h-4 text-gc-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-3 3H9v-3z"/>
+        </svg>
+        総評
+      </h2>
+      <p class="text-sm text-gray-700 leading-relaxed"
+        x-text="mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.overallComment : mypageSelectedResult.overallComment)"></p>
+    </div>
+
+    <!-- Criteria scores (only if showScoreToStudent) -->
+    <template x-if="showScoreToStudent && mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.criteria : mypageSelectedResult.criteria) && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.criteria : mypageSelectedResult.criteria).length > 0">
+      <div class="space-y-3">
+        <h2 class="text-sm font-medium text-gray-600 px-1">評価基準別採点</h2>
+        <template x-for="(c, i) in (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.criteria : mypageSelectedResult.criteria)" :key="i">
+          <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-medium text-gray-800" x-text="c.name"></span>
+              <span class="text-sm font-bold tabular-nums">
+                <span :class="(c.score/c.maxScore*100) >= 80 ? 'text-emerald-600' : (c.score/c.maxScore*100) >= 60 ? 'text-yellow-600' : (c.score/c.maxScore*100) >= 40 ? 'text-orange-500' : 'text-red-500'"
+                  x-text="c.score"></span>
+                <span class="text-gray-400" x-text="' / ' + c.maxScore"></span>
+              </span>
+            </div>
+            <div class="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+              <div :class="(c.score/c.maxScore*100) >= 80 ? 'bg-emerald-500' : (c.score/c.maxScore*100) >= 60 ? 'bg-yellow-500' : (c.score/c.maxScore*100) >= 40 ? 'bg-orange-500' : 'bg-red-500'"
+                class="h-full rounded-full score-bar"
+                :style="'width: ' + Math.min(100,(c.score/c.maxScore)*100) + '%'"></div>
+            </div>
+            <p x-show="showCommentToStudent && c.comment" class="mt-2 text-xs text-gray-500 leading-relaxed" x-text="c.comment"></p>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <!-- Improvements (show if comment is enabled) -->
+    <template x-if="showCommentToStudent && mypageSelectedResult && mypageSelectedResult.improvements && mypageSelectedResult.improvements.length > 0">
+      <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm">
+        <h2 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
+          <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+          </svg>
+          改善アドバイス
+        </h2>
+        <ul class="space-y-2">
+          <template x-for="(imp, i) in mypageSelectedResult.improvements" :key="i">
+            <li class="flex gap-2 text-sm text-gray-600">
+              <span class="text-gc-blue shrink-0">•</span>
+              <span x-text="imp"></span>
+            </li>
+          </template>
+        </ul>
+      </div>
+    </template>
+
+    <!-- No score/comment message (when both are hidden) -->
+    <div x-show="!showScoreToStudent && !showCommentToStudent"
+      class="bg-white rounded-xl p-8 border border-gc-border shadow-sm text-center">
+      <div class="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+        <svg class="w-7 h-7 text-gc-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+      </div>
+      <p class="text-gray-600 font-medium">試験完了</p>
+      <p class="text-xs text-gray-400 mt-1">採点結果の詳細は管理者よりお知らせします</p>
+    </div>
+
+    <!-- Back to list button -->
+    <button @click="mypageSelectedResult = null"
+      class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-xl transition-colors">
+      ← 結果一覧に戻る
+    </button>
+
+  </div>
+</div>
+
 <script>
 function app() {
   const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
@@ -1263,6 +1504,7 @@ function app() {
     checkResultsName: '',
     studentPastResults: [],
     showPastResults: false,
+    mypageSelectedResult: null,
     studentUser: null,
     studentName: '',
     studentEmail: '',
