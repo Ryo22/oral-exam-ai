@@ -378,17 +378,17 @@
     </div>
 
     <!-- Result display settings -->
-    <div class="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3 overflow-hidden">
+    <div class="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
       <p class="text-xs text-gray-400 font-medium">試験終了後に受験者へ表示する情報</p>
       <label class="flex items-start gap-3 cursor-pointer">
-        <div class="flex-1 min-w-0">
-          <span class="text-sm text-gray-300">過去の採点結果をマイページに表示</span>
+        <div class="flex-1 min-w-0 overflow-hidden">
+          <span class="text-sm text-gray-300 block truncate">過去の採点結果をマイページに表示</span>
           <p class="text-xs text-gray-600 mt-0.5">ONにすると、受験者が自分の名前でログイン後に公開済み結果の一覧が表示されます</p>
         </div>
         <button @click="allowStudentHistory = !allowStudentHistory; localStorage.setItem('allow_student_history', allowStudentHistory)"
           :class="allowStudentHistory ? 'bg-indigo-600' : 'bg-gray-700'"
-          class="relative w-11 h-6 rounded-full transition-colors shrink-0 mt-0.5">
-          <span :class="allowStudentHistory ? 'translate-x-5' : 'translate-x-1'"
+          class="relative w-12 h-6 rounded-full transition-colors flex-none mt-0.5">
+          <span :class="allowStudentHistory ? 'translate-x-6' : 'translate-x-1'"
             class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform inline-block"></span>
         </button>
       </label>
@@ -396,37 +396,37 @@
         <p class="text-xs text-gray-500 mb-2">結果ページに表示する内容</p>
       </div>
       <label class="flex items-center gap-3 cursor-pointer">
-        <span class="text-sm text-gray-300 flex-1 min-w-0">スコア・グレード</span>
+        <span class="text-sm text-gray-300 flex-1 min-w-0 truncate">スコア・グレード</span>
         <button @click="showScoreToStudent = !showScoreToStudent; localStorage.setItem('show_score_to_student', showScoreToStudent)"
           :class="showScoreToStudent ? 'bg-indigo-600' : 'bg-gray-700'"
-          class="relative w-11 h-6 rounded-full transition-colors shrink-0">
-          <span :class="showScoreToStudent ? 'translate-x-5' : 'translate-x-1'"
+          class="relative w-12 h-6 rounded-full transition-colors flex-none">
+          <span :class="showScoreToStudent ? 'translate-x-6' : 'translate-x-1'"
             class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform inline-block"></span>
         </button>
       </label>
       <label class="flex items-center gap-3 cursor-pointer">
-        <span class="text-sm text-gray-300 flex-1 min-w-0">総合コメント</span>
+        <span class="text-sm text-gray-300 flex-1 min-w-0 truncate">総合コメント</span>
         <button @click="showCommentToStudent = !showCommentToStudent; localStorage.setItem('show_comment_to_student', showCommentToStudent)"
           :class="showCommentToStudent ? 'bg-indigo-600' : 'bg-gray-700'"
-          class="relative w-11 h-6 rounded-full transition-colors shrink-0">
-          <span :class="showCommentToStudent ? 'translate-x-5' : 'translate-x-1'"
+          class="relative w-12 h-6 rounded-full transition-colors flex-none">
+          <span :class="showCommentToStudent ? 'translate-x-6' : 'translate-x-1'"
             class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform inline-block"></span>
         </button>
       </label>
     </div>
 
     <!-- Anti-cheat monitoring settings -->
-    <div class="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3 overflow-hidden">
+    <div class="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
       <p class="text-xs text-gray-400 font-medium">不正行為対策</p>
       <label class="flex items-start gap-3 cursor-pointer">
-        <div class="flex-1 min-w-0">
-          <span class="text-sm text-gray-300">フォーカス監視（画面離脱検知）</span>
+        <div class="flex-1 min-w-0 overflow-hidden">
+          <span class="text-sm text-gray-300 block">フォーカス監視（画面離脱検知）</span>
           <p class="text-xs text-gray-600 mt-0.5">試験中に他の画面へ移動した回数を記録。問題数×3回または12回超過で要注意フラグを立てます</p>
         </div>
         <button @click="focusMonitoringEnabled = !focusMonitoringEnabled; localStorage.setItem('focus_monitoring_enabled', focusMonitoringEnabled)"
           :class="focusMonitoringEnabled ? 'bg-indigo-600' : 'bg-gray-700'"
-          class="relative w-11 h-6 rounded-full transition-colors shrink-0 mt-0.5">
-          <span :class="focusMonitoringEnabled ? 'translate-x-5' : 'translate-x-1'"
+          class="relative w-12 h-6 rounded-full transition-colors flex-none mt-0.5">
+          <span :class="focusMonitoringEnabled ? 'translate-x-6' : 'translate-x-1'"
             class="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform inline-block"></span>
         </button>
       </label>
