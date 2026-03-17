@@ -766,10 +766,87 @@
         </div>
       </div>
 
-      <div x-show="settings.questions.length === 0" class="mb-4 bg-white border border-dashed border-gc-border rounded-xl p-4 text-center text-xs text-gray-400 space-y-1">
-        <p>問題を追加するか、CSV/Excelファイルを取り込んでください。</p>
-        <p class="text-gray-300">CSVフォーマット: <code class="bg-gray-100 px-1 py-0.5 rounded text-gray-500">問題,想定する答え,備考</code>（1行目はヘッダー）</p>
-        <p class="text-gray-300">問題リストが未設定の場合、AIがテーマに基づいて自動で質問します。</p>
+      <!-- AI出題設定（問題リスト未設定時に表示） -->
+      <div x-show="settings.questions.length === 0" class="mb-4 space-y-3">
+
+        <!-- AI auto-generation settings card -->
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-4">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-gc-blue shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+            </svg>
+            <h3 class="text-sm font-medium text-gc-blue">AI自動出題の設定</h3>
+            <span class="text-xs text-blue-400">（問題リスト未設定時に使用）</span>
+          </div>
+
+          <!-- Question count -->
+          <div class="flex items-center gap-3">
+            <label class="text-xs font-medium text-gray-600 w-16 shrink-0">問題数</label>
+            <input type="number" x-model.number="settings.autoQuestionCount" min="1" max="30"
+              :disabled="settings.difficultyDistribution.reduce((a,b)=>a+b,0) > 0"
+              :class="settings.difficultyDistribution.reduce((a,b)=>a+b,0) > 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white'"
+              class="w-20 border border-gc-border rounded-lg px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue text-center"/>
+            <span class="text-xs text-gray-500">問</span>
+            <span x-show="settings.difficultyDistribution.reduce((a,b)=>a+b,0) > 0"
+              class="text-xs text-blue-500">← 難易度内訳の合計が優先されます</span>
+          </div>
+
+          <!-- Difficulty distribution -->
+          <div class="space-y-2">
+            <div class="flex items-center gap-2">
+              <label class="text-xs font-medium text-gray-600 w-16 shrink-0">難易度内訳</label>
+              <span class="text-xs text-gray-400">各難易度で何問出題するかを指定（省略可）</span>
+            </div>
+            <div class="grid grid-cols-5 gap-2">
+              <template x-for="(_, i) in settings.difficultyDistribution" :key="i">
+                <div class="flex flex-col items-center gap-1.5">
+                  <div class="flex flex-col items-center gap-0.5">
+                    <span class="text-xs font-semibold"
+                      :class="i === 0 ? 'text-sky-500' : i === 1 ? 'text-green-500' : i === 2 ? 'text-yellow-500' : i === 3 ? 'text-orange-500' : 'text-red-500'"
+                      x-text="'Lv.' + (i+1)"></span>
+                    <span class="text-[10px] text-gray-400"
+                      :class="i === 0 ? 'text-sky-400' : i === 1 ? 'text-green-400' : i === 2 ? 'text-yellow-400' : i === 3 ? 'text-orange-400' : 'text-red-400'"
+                      x-text="['易', 'やや易', '標準', 'やや難', '難'][i]"></span>
+                  </div>
+                  <input type="number"
+                    :value="settings.difficultyDistribution[i]"
+                    @input="settings.difficultyDistribution[i] = parseInt($event.target.value) || 0"
+                    min="0" max="20"
+                    class="w-full text-center border border-gc-border rounded-lg px-1 py-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue"/>
+                </div>
+              </template>
+            </div>
+            <!-- Distribution summary -->
+            <div class="flex items-center justify-between pt-1">
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-500">合計:</span>
+                <span class="text-sm font-bold tabular-nums"
+                  :class="settings.difficultyDistribution.reduce((a,b)=>a+b,0) > 0 ? 'text-gc-blue' : 'text-gray-400'"
+                  x-text="settings.difficultyDistribution.reduce((a,b)=>a+b,0) + ' 問'"></span>
+              </div>
+              <button x-show="settings.difficultyDistribution.reduce((a,b)=>a+b,0) > 0"
+                @click="settings.difficultyDistribution = [0,0,0,0,0]"
+                class="text-xs text-gray-400 hover:text-red-500 transition-colors">
+                リセット
+              </button>
+            </div>
+          </div>
+
+          <!-- Difficulty level explanations (compact) -->
+          <div class="border-t border-blue-200 pt-3 grid grid-cols-5 gap-1.5 text-[10px] text-gray-400">
+            <span>Lv.1: 基礎的な定義・事実</span>
+            <span>Lv.2: 概念の理解・説明</span>
+            <span>Lv.3: 応用・比較・分析</span>
+            <span>Lv.4: 複合的な問題解決</span>
+            <span>Lv.5: 高度な応用・批判的思考</span>
+          </div>
+        </div>
+
+        <!-- CSV hint -->
+        <div class="bg-white border border-dashed border-gc-border rounded-xl p-3 text-center text-xs text-gray-400 space-y-0.5">
+          <p>問題を追加するか、CSV/Excelファイルを取り込んでください。</p>
+          <p class="text-gray-300">CSVフォーマット: <code class="bg-gray-100 px-1 py-0.5 rounded text-gray-500">問題,想定する答え,備考,難易度</code>（1行目はヘッダー）</p>
+        </div>
       </div>
 
       <div class="space-y-4">
@@ -808,6 +885,29 @@
                 @input="settings.questions[index].notes = $event.target.value"
                 placeholder="採点基準の補足、ポイントなど"
                 class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gc-blue focus:border-gc-blue"/>
+            </div>
+            <!-- Difficulty selector -->
+            <div class="flex items-center gap-3">
+              <label class="text-xs text-gray-500 shrink-0">難易度 <span class="text-gray-300">（任意）</span></label>
+              <div class="flex gap-1.5">
+                <template x-for="lv in [1,2,3,4,5]" :key="lv">
+                  <button
+                    @click="settings.questions[index].difficulty = (settings.questions[index].difficulty === lv ? null : lv)"
+                    :class="{
+                      'bg-sky-100 text-sky-600 border-sky-300': settings.questions[index].difficulty === lv && lv === 1,
+                      'bg-green-100 text-green-600 border-green-300': settings.questions[index].difficulty === lv && lv === 2,
+                      'bg-yellow-100 text-yellow-600 border-yellow-300': settings.questions[index].difficulty === lv && lv === 3,
+                      'bg-orange-100 text-orange-600 border-orange-300': settings.questions[index].difficulty === lv && lv === 4,
+                      'bg-red-100 text-red-600 border-red-300': settings.questions[index].difficulty === lv && lv === 5,
+                      'bg-gray-100 text-gray-400 border-gray-200 hover:border-gray-300': settings.questions[index].difficulty !== lv
+                    }"
+                    class="w-9 h-7 rounded-lg border text-xs font-semibold transition-colors"
+                    x-text="lv"></button>
+                </template>
+                <span x-show="settings.questions[index].difficulty"
+                  class="text-xs text-gray-400 self-center ml-1"
+                  x-text="['易', 'やや易', '標準', 'やや難', '難'][settings.questions[index].difficulty - 1]"></span>
+              </div>
             </div>
           </div>
         </template>
@@ -1519,7 +1619,9 @@ function app() {
         { name: '論理構成', description: '論理的に整理された回答ができているか' },
         { name: '表現力', description: '適切な用語を使い明確に伝えられているか' }
       ],
-      questions: []
+      questions: [],
+      autoQuestionCount: 5,
+      difficultyDistribution: [0, 0, 0, 0, 0]
     },
     messages: [],
     inputText: '',
@@ -1580,6 +1682,9 @@ function app() {
       }
       // Ensure questions array exists (backward compat)
       if (!this.settings.questions) this.settings.questions = [];
+      // Ensure new AI question settings exist (backward compat)
+      if (!this.settings.autoQuestionCount) this.settings.autoQuestionCount = 5;
+      if (!this.settings.difficultyDistribution) this.settings.difficultyDistribution = [0, 0, 0, 0, 0];
       // Load admin password
       const storedPw = localStorage.getItem('admin_password');
       if (storedPw) this.adminPassword = storedPw;
@@ -1877,7 +1982,7 @@ function app() {
     },
 
     addQuestion() {
-      this.settings.questions.push({ id: Date.now() + Math.random(), question: '', expectedAnswer: '', notes: '' });
+      this.settings.questions.push({ id: Date.now() + Math.random(), question: '', expectedAnswer: '', notes: '', difficulty: null });
     },
 
     removeQuestion(index) {
@@ -1891,12 +1996,17 @@ function app() {
       const parse = (rows) => {
         const parsed = rows
           .filter(r => r['問題'] || r['question'])
-          .map(r => ({
-            id: Date.now() + Math.random(),
-            question:        r['問題']        || r['question']        || '',
-            expectedAnswer:  r['想定する答え'] || r['expectedAnswer']  || '',
-            notes:           r['備考']         || r['notes']           || '',
-          }));
+          .map(r => {
+            const diffRaw = r['難易度'] || r['difficulty'] || '';
+            const diff = parseInt(diffRaw);
+            return {
+              id: Date.now() + Math.random(),
+              question:        r['問題']        || r['question']        || '',
+              expectedAnswer:  r['想定する答え'] || r['expectedAnswer']  || '',
+              notes:           r['備考']         || r['notes']           || '',
+              difficulty:      (diff >= 1 && diff <= 5) ? diff : null,
+            };
+          });
         if (parsed.length === 0) { alert('問題が見つかりませんでした。\nヘッダー行に「問題」「想定する答え」「備考」を含めてください。'); return; }
         if (confirm(`${parsed.length}件の問題を取り込みます。既存の問題リストを置き換えますか？`)) {
           this.settings.questions = parsed;
@@ -1920,9 +2030,9 @@ function app() {
     },
 
     exportQuestionsCSV() {
-      const header = '問題,想定する答え,備考\n';
+      const header = '問題,想定する答え,備考,難易度\n';
       const rows = this.settings.questions.map(q =>
-        [q.question, q.expectedAnswer, q.notes].map(v => `"${(v||'').replace(/"/g,'""')}"`).join(',')
+        [q.question, q.expectedAnswer, q.notes, q.difficulty || ''].map(v => `"${(v||'').toString().replace(/"/g,'""')}"`).join(',')
       ).join('\n');
       const blob = new Blob(['\uFEFF' + header + rows], { type: 'text/csv;charset=utf-8;' });
       const a = document.createElement('a');
@@ -2176,20 +2286,42 @@ ${conversationLog}
       const hasQuestions = activeQuestions.length > 0;
 
       let questionBlock = '';
+      const difficultyLabels = ['易（基礎的な定義・事実の確認）', 'やや易（概念の理解と説明）', '標準（応用・比較・分析）', 'やや難（複合的な問題解決）', '難（高度な応用・批判的思考）'];
       if (hasQuestions) {
-        const qList = activeQuestions.map((q, i) =>
-          `【問${i + 1}】${q.question}${q.notes ? '\n　備考: ' + q.notes : ''}`
-        ).join('\n\n');
+        const qList = activeQuestions.map((q, i) => {
+          let line = `【問${i + 1}】${q.question}`;
+          if (q.difficulty) line += `\n　難易度: Lv.${q.difficulty}（${difficultyLabels[q.difficulty - 1]}）`;
+          if (q.notes) line += `\n　備考: ${q.notes}`;
+          return line;
+        }).join('\n\n');
         questionBlock = `
 以下の問題リストを順番に出題してください:
 ${qList}
 
 各問いの進め方:
 - 問いを提示し、受験者の回答を受け取る
-- 回答が不十分な場合は1〜2回の深掘り質問をしてから次の問いへ進む
+- 回答が不十分な場合は1〜2回の深掘り質問をしてから次の問いへ進む（難易度が高い問いほど深掘りを丁寧に）
 - 全ての問いが終わったら「以上で試問を終了します」と伝える`;
       } else {
-        questionBlock = `\nテーマに基づいて、適切な質問を生成してください。`;
+        const diffDist = this.settings.difficultyDistribution || [0,0,0,0,0];
+        const diffSum = diffDist.reduce((a, b) => a + b, 0);
+        const totalQ = diffSum > 0 ? diffSum : (this.settings.autoQuestionCount || 5);
+        if (diffSum > 0) {
+          const distLines = diffDist
+            .map((count, i) => count > 0 ? `  - Lv.${i+1}（${difficultyLabels[i]}）: ${count}問` : null)
+            .filter(Boolean).join('\n');
+          questionBlock = `
+テーマに基づいて、以下の難易度内訳で合計${totalQ}問を順番に出題してください:
+${distLines}
+
+出題順序: 易しい問いから難しい問いへ段階的に進んでください。
+各問いの進め方:
+- 問いを提示し、受験者の回答を受け取る
+- 回答が不十分な場合は1〜2回の深掘り質問をしてから次の問いへ進む（難易度が高いほど丁寧に深掘り）
+- 全ての問いが終わったら「以上で試問を終了します」と伝える`;
+        } else {
+          questionBlock = `\nテーマに基づいて、${totalQ}問を順番に出題してください。易しい問いから難しい問いへ段階的に進むよう工夫してください。`;
+        }
       }
 
       return `あなたは厳格で公平な口頭試問の試験官です。
