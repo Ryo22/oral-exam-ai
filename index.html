@@ -1304,7 +1304,7 @@
     <!-- Results list -->
     <div class="space-y-3">
       <template x-for="r in studentPastResults" :key="r.id">
-        <div @click="mypageSelectedResult = r"
+        <div @click="mypageSelectedResult = r; mypageShowLog = false"
           class="bg-white rounded-xl border border-gc-border shadow-sm cursor-pointer hover:shadow-md hover:border-gc-blue transition-all group">
           <div class="p-4 flex items-start gap-3">
             <!-- Score badge -->
@@ -1451,8 +1451,44 @@
       <p class="text-xs text-gray-400 mt-1">採点結果の詳細は管理者よりお知らせします</p>
     </div>
 
+    <!-- Conversation log (collapsible) -->
+    <template x-if="mypageSelectedResult && mypageSelectedResult.conversationLog && mypageSelectedResult.conversationLog.length > 0">
+      <div class="bg-white rounded-xl border border-gc-border overflow-hidden shadow-sm">
+        <button @click="mypageShowLog = !mypageShowLog"
+          class="w-full flex items-center justify-between px-4 py-3.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors">
+          <span class="flex items-center gap-2 font-medium">
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+            </svg>
+            試問ログ
+            <span class="text-xs text-gray-400 font-normal"
+              x-text="'(' + mypageSelectedResult.conversationLog.length + ' メッセージ)'"></span>
+          </span>
+          <svg :class="mypageShowLog ? 'rotate-180' : ''" class="w-4 h-4 transition-transform text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+        <div x-show="mypageShowLog" x-transition class="px-4 pb-4 space-y-3 border-t border-gc-border pt-3">
+          <template x-for="(msg, i) in mypageSelectedResult.conversationLog" :key="i">
+            <div :class="msg.role === 'user' ? 'flex gap-2 flex-row-reverse' : 'flex gap-2'">
+              <!-- Avatar -->
+              <div :class="msg.role === 'assistant' ? 'bg-gc-green text-white' : 'bg-gray-200 text-gray-600'"
+                class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium shrink-0 mt-0.5"
+                x-text="msg.role === 'assistant' ? '試' : '私'"></div>
+              <!-- Bubble -->
+              <div :class="msg.role === 'assistant'
+                  ? 'bg-gc-surface border border-gc-border text-gray-800 rounded-bl-sm'
+                  : 'bg-gc-blue text-white rounded-br-sm'"
+                class="text-sm leading-relaxed px-3 py-2.5 rounded-2xl max-w-[85%] shadow-sm"
+                x-text="msg.content"></div>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+
     <!-- Back to list button -->
-    <button @click="mypageSelectedResult = null"
+    <button @click="mypageSelectedResult = null; mypageShowLog = false"
       class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-xl transition-colors">
       ← 結果一覧に戻る
     </button>
@@ -1505,6 +1541,7 @@ function app() {
     studentPastResults: [],
     showPastResults: false,
     mypageSelectedResult: null,
+    mypageShowLog: false,
     studentUser: null,
     studentName: '',
     studentEmail: '',
