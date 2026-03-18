@@ -396,9 +396,21 @@
         </p>
         <input type="text" x-model="voiceModel"
           @change="localStorage.setItem('voice_model', voiceModel)"
-          placeholder="例: gemini-2.5-flash-native-audio-dialog"
+          placeholder="例: gemini-2.5-flash-preview-native-audio-dialog"
           class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue"/>
-        <p class="text-xs text-gray-400">AI Studioの「Live API」欄に表示されているモデル名を入力してください。</p>
+        <p class="text-xs text-gray-400 mb-2">AI Studioの「Live API」欄に表示されているモデル名を入力してください。</p>
+        <!-- API version selector -->
+        <div class="flex items-center gap-3 pt-1">
+          <span class="text-xs text-gray-500 shrink-0">APIバージョン:</span>
+          <div class="flex gap-2">
+            <template x-for="ver in ['v1alpha','v1beta']" :key="ver">
+              <button @click="liveApiVersion = ver; localStorage.setItem('live_api_version', ver)"
+                :class="liveApiVersion === ver ? 'bg-gc-blue text-white border-gc-blue' : 'bg-white text-gray-600 border-gc-border hover:bg-gray-50'"
+                class="text-xs px-3 py-1 rounded-lg border transition-colors"
+                x-text="ver"></button>
+            </template>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1867,7 +1879,8 @@ function app() {
     examStarted: false,
     // ---- Voice mode (Gemini Live API) ----
     voiceMode: false,
-    voiceModel: 'gemini-2.5-flash-native-audio-dialog',
+    voiceModel: 'gemini-2.5-flash-preview-native-audio-dialog',
+    liveApiVersion: 'v1alpha',
     liveWs: null,
     liveStatus: 'idle',   // 'idle'|'connecting'|'ready'|'listening'|'ai_speaking'|'error'
     liveErrorMsg: '',
@@ -1918,6 +1931,8 @@ function app() {
       if (storedKey) this.apiKey = storedKey;
       const storedVoiceModel = localStorage.getItem('voice_model');
       if (storedVoiceModel) this.voiceModel = storedVoiceModel;
+      const storedLiveApiVer = localStorage.getItem('live_api_version');
+      if (storedLiveApiVer) this.liveApiVersion = storedLiveApiVer;
 
       const storedModel = localStorage.getItem('gemini_model');
       const deprecatedModels = [
@@ -2461,7 +2476,7 @@ function app() {
     // ---- Connect to Gemini Live API ----
     async initLiveSession() {
       this.liveStatus = 'connecting';
-      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${this.apiKey}`;
+      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.${this.liveApiVersion}.GenerativeService.BidiGenerateContent?key=${this.apiKey}`;
       try {
         this.liveWs = new WebSocket(wsUrl);
       } catch(e) {
