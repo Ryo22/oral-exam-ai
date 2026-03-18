@@ -1,36 +1,27 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 口頭試問AI
 
-## Getting Started
+AIが試験官となり、受験者の理解度を口頭試問形式で評価するスタンドアロン Web アプリです。
 
-First, run the development server:
+## 使い方
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+`index.html` を直接ブラウザで開くか、GitHub Pages 経由でアクセスしてください。
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+**ライブURL**: https://ryo22.github.io/oral-exam-ai/
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 主な機能
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Gemini API（Google AI Studio）を使ったAI試験官
+- テーマ・評価基準・問題リストのカスタマイズ
+- 問題数・難易度内訳の指定（AI自動出題）
+- 複数テスト管理・複数クラス管理
+- 採点結果の公開・学生マイページ（会話ログ閲覧含む）
+- 不正行為対策（フォーカス離脱検知）
+- CSV/Excel で問題リストの入出力
 
-## Learn More
+## 技術スタック
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Alpine.js 3.x（リアクティブ状態管理）
+- Tailwind CSS CDN（Google Classroomスタイル）
+- Quill.js（リッチテキストエディタ）
+- PapaParse / SheetJS（CSV・Excel処理）
+- Google Gemini API
