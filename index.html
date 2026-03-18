@@ -321,7 +321,27 @@
     </button>
   </header>
 
+  <!-- Tab bar -->
+  <div class="bg-white border-b border-gc-border sticky top-[57px] z-10">
+    <div class="max-w-2xl mx-auto flex">
+      <button @click="adminTab = 'tests'"
+        :class="adminTab === 'tests' ? 'border-gc-blue text-gc-blue' : 'border-transparent text-gray-500 hover:text-gray-700'"
+        class="flex-1 py-3 text-sm font-medium border-b-2 transition-colors">
+        テスト・クラス管理
+      </button>
+      <button @click="adminTab = 'system'"
+        :class="adminTab === 'system' ? 'border-gc-blue text-gc-blue' : 'border-transparent text-gray-500 hover:text-gray-700'"
+        class="flex-1 py-3 text-sm font-medium border-b-2 transition-colors">
+        システム設定
+      </button>
+    </div>
+  </div>
+
   <main class="flex-1 max-w-2xl mx-auto w-full px-5 py-6 space-y-5">
+
+    <!-- ========== TAB: システム設定 ========== -->
+    <template x-if="adminTab === 'system'">
+      <div class="space-y-5">
 
     <!-- Google Sign-In Client ID (optional) -->
     <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm">
@@ -382,6 +402,13 @@
         <p class="text-xs text-gray-400">音声モードで使用するモデルです（無料枠: 無制限RPM / 1M TPM）。</p>
       </div>
     </div>
+
+      </div><!-- end space-y-5 system tab part 1 -->
+    </template><!-- end adminTab === 'system' part 1 -->
+
+    <!-- ========== TAB: テスト・クラス管理 ========== -->
+    <template x-if="adminTab === 'tests'">
+      <div class="space-y-5">
 
     <!-- Class management -->
     <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-3">
@@ -502,6 +529,13 @@
       </button>
     </div>
 
+      </div><!-- end space-y-5 tests tab part 1 -->
+    </template><!-- end adminTab === 'tests' part 1 -->
+
+    <!-- システム設定 part 2: 表示・監視・パスワード -->
+    <template x-if="adminTab === 'system'">
+      <div class="space-y-5">
+
     <!-- Result display settings -->
     <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-3">
       <p class="text-xs text-gray-600 font-medium">試験終了後に受験者へ表示する情報</p>
@@ -573,6 +607,13 @@
           class="bg-gc-blue hover:bg-gc-blue-dark text-white text-sm px-3 py-2 rounded-lg transition-colors shrink-0">変更</button>
       </div>
     </div>
+
+      </div><!-- end space-y-5 system tab part 2 -->
+    </template><!-- end adminTab === 'system' part 2 -->
+
+    <!-- テスト管理 part 2: 採点結果一覧 -->
+    <template x-if="adminTab === 'tests'">
+      <div>
 
     <!-- Results list -->
     <div>
@@ -753,6 +794,9 @@
         </template>
       </div>
     </div>
+
+      </div><!-- end div wrapper tests part 2 -->
+    </template><!-- end adminTab === 'tests' part 2 -->
 
   </main>
 </div>
@@ -1144,6 +1188,41 @@
 
 <!-- ========== EXAM PAGE ========== -->
 <div x-show="page === 'exam'" class="min-h-screen flex flex-col bg-gc-surface">
+
+  <!-- ===== END EXAM CONFIRMATION MODAL ===== -->
+  <div x-show="showEndConfirm"
+    x-transition:enter="transition ease-out duration-150"
+    x-transition:enter-start="opacity-0"
+    x-transition:enter-end="opacity-100"
+    x-transition:leave="transition ease-in duration-100"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+    style="display:none">
+    <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+      @click.stop>
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          </svg>
+        </div>
+        <h3 class="text-base font-semibold text-gray-900">試験を終了しますか？</h3>
+      </div>
+      <p class="text-sm text-gray-500 mb-5 pl-13">試験を終了してAIによる採点を開始します。この操作は取り消せません。</p>
+      <div class="flex gap-3">
+        <button @click="showEndConfirm = false"
+          class="flex-1 border border-gc-border text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors">
+          キャンセル
+        </button>
+        <button @click="confirmEndExam()"
+          class="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl text-sm font-medium transition-colors">
+          終了して採点
+        </button>
+      </div>
+    </div>
+  </div>
+
   <header class="border-b border-gc-border px-4 py-3 flex items-center justify-between bg-white shadow-sm">
     <button @click="teardownFocusMonitoring(); if(voiceMode) stopLiveSession(); voiceMode=false; page='student'" class="text-gray-500 hover:text-gray-900 transition-colors">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1249,8 +1328,12 @@
         </div>
       </div>
       <p class="text-xs text-gray-400 text-center leading-relaxed">
-        マイクに向かって自然に話してください。AIが自動で応答します。<br>会話が終了したら「試験終了」を押してください。
+        マイクに向かって自然に話してください。AIが自動で応答します。
       </p>
+      <button @click="endExam()"
+        :disabled="!examStarted || isScoring"
+        class="mt-1 text-sm bg-red-100 hover:bg-red-200 text-red-600 px-6 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        x-text="isScoring ? '採点中...' : '試験終了'"></button>
     </div>
   </div>
 
@@ -1754,6 +1837,7 @@ function app() {
     adminLoginInput: '',
     adminLoginError: false,
     adminNewPassword: '',
+    adminTab: 'tests',  // 'tests' | 'system'
     adminPassword: 'admin',
     examResults: [],
     apiKey: '',
@@ -1788,6 +1872,7 @@ function app() {
     voiceAudioQueue: [],
     voiceIsPlaying: false,
     voiceCurrentAiText: '',
+    showEndConfirm: false,
     result: null,
     showLog: false,
     saved: false,
@@ -2401,9 +2486,16 @@ function app() {
           data = JSON.parse(text);
         } catch(e) { return; }
 
-        // Setup complete → start mic
+        // Setup complete → start mic and kick off conversation
         if (data.setupComplete) {
           this.liveStatus = 'ready';
+          // Ask AI to start the exam (first question)
+          this.liveWs.send(JSON.stringify({
+            client_content: {
+              turns: [{ role: 'user', parts: [{ text: '試験を開始してください。最初の質問をしてください。' }] }],
+              turn_complete: true
+            }
+          }));
           await this._startMicCapture();
           return;
         }
@@ -2465,9 +2557,14 @@ function app() {
         }
       };
 
-      this.liveWs.onerror = () => { this.liveStatus = 'error'; };
-      this.liveWs.onclose = () => {
-        if (this.liveStatus !== 'idle') this.liveStatus = 'idle';
+      this.liveWs.onerror = (e) => {
+        console.error('LiveWS error:', e);
+        this.liveStatus = 'error';
+      };
+      this.liveWs.onclose = (e) => {
+        console.log('LiveWS closed:', e.code, e.reason);
+        // Don't override 'error' state so the user can see what went wrong
+        if (this.liveStatus !== 'error') this.liveStatus = 'idle';
       };
     },
 
@@ -2676,8 +2773,13 @@ function app() {
     },
 
     async endExam() {
-      if (!this.examStarted || this.messages.length < 2 || this.isScoring) return;
-      if (!confirm('試験を終了して採点しますか？')) return;
+      if (!this.examStarted || (this.messages.length < 2 && !this.voiceMode) || this.isScoring) return;
+      // Show custom modal instead of confirm() to stay in fullscreen
+      this.showEndConfirm = true;
+    },
+
+    async confirmEndExam() {
+      this.showEndConfirm = false;
       this.teardownFocusMonitoring();
       if (this.voiceMode) this.stopLiveSession();
       this.isScoring = true;
@@ -2929,17 +3031,17 @@ ${criteriaText}
       const self = this;
 
       const onVisibilityChange = () => {
-        if (document.hidden && self.examStarted && self.page === 'exam') {
+        if (document.hidden && self.examStarted && self.page === 'exam' && !self.showEndConfirm) {
           self.recordFocusViolation('tab_switch');
         }
       };
       const onBlur = () => {
-        if (self.examStarted && self.page === 'exam') {
+        if (self.examStarted && self.page === 'exam' && !self.showEndConfirm) {
           self.recordFocusViolation('window_blur');
         }
       };
       const onFullscreenChange = () => {
-        if (!document.fullscreenElement && self.examStarted && self.page === 'exam') {
+        if (!document.fullscreenElement && self.examStarted && self.page === 'exam' && !self.showEndConfirm) {
           self.recordFocusViolation('fullscreen_exit');
           // Attempt to re-enter fullscreen after a short delay
           setTimeout(() => {
