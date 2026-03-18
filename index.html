@@ -394,23 +394,30 @@
           <svg class="w-3.5 h-3.5 text-gc-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
           音声モデル（Live API）
         </p>
-        <input type="text" x-model="voiceModel"
-          @change="localStorage.setItem('voice_model', voiceModel)"
-          placeholder="例: gemini-2.5-flash-preview-native-audio-dialog"
-          class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue"/>
-        <p class="text-xs text-gray-400 mb-2">AI Studioの「Live API」欄に表示されているモデル名を入力してください。</p>
-        <!-- API version selector -->
-        <div class="flex items-center gap-3 pt-1">
-          <span class="text-xs text-gray-500 shrink-0">APIバージョン:</span>
-          <div class="flex gap-2">
-            <template x-for="ver in ['v1alpha','v1beta']" :key="ver">
-              <button @click="liveApiVersion = ver; localStorage.setItem('live_api_version', ver)"
-                :class="liveApiVersion === ver ? 'bg-gc-blue text-white border-gc-blue' : 'bg-white text-gray-600 border-gc-border hover:bg-gray-50'"
-                class="text-xs px-3 py-1 rounded-lg border transition-colors"
-                x-text="ver"></button>
+        <select
+          :value="voiceModel + '|' + liveApiVersion"
+          @change="
+            const parts = $event.target.value.split('|');
+            voiceModel = parts[0];
+            liveApiVersion = parts[1] || 'v1beta';
+            localStorage.setItem('voice_model', voiceModel);
+            localStorage.setItem('live_api_version', liveApiVersion);
+          "
+          class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue">
+          <template x-if="availableLiveModels.length === 0">
+            <optgroup label="デフォルト（「モデル取得」で自動検出）">
+              <option value="gemini-2.5-flash-native-audio-latest|v1beta">gemini-2.5-flash-native-audio-latest（v1beta）</option>
+              <option value="gemini-2.5-flash-preview-native-audio-dialog|v1alpha">gemini-2.5-flash-preview-native-audio-dialog（v1alpha）</option>
+              <option value="gemini-2.0-flash-live-001|v1alpha">gemini-2.0-flash-live-001（v1alpha）</option>
+            </optgroup>
+          </template>
+          <template x-if="availableLiveModels.length > 0">
+            <template x-for="m in availableLiveModels" :key="m.id + '|' + m.version">
+              <option :value="m.id + '|' + m.version" x-text="m.label"></option>
             </template>
-          </div>
-        </div>
+          </template>
+        </select>
+        <p class="text-xs text-gray-400">「利用可能なモデルを取得」を押すと、APIキーで使用可能な音声モデルを自動検出します。</p>
       </div>
     </div>
 
@@ -1277,7 +1284,7 @@
     <template x-if="examStarted">
       <div class="space-y-4">
         <template x-for="(msg, i) in messages" :key="i">
-          <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+          <div x-show="(msg.html || msg.content || '').trim()" :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
             <div x-show="msg.role === 'assistant'" class="w-8 h-8 bg-gc-green rounded-full flex items-center justify-center text-xs font-medium text-white mr-2 shrink-0 mt-1">試</div>
             <div :class="msg.role === 'user' ? 'bg-gc-blue text-white rounded-br-sm max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed msg-html' : 'bg-white border border-gc-border text-gray-800 rounded-bl-sm max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm'" x-html="msg.html || msg.content"></div>
             <div x-show="msg.role === 'user'" class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-xs font-medium text-gray-600 ml-2 shrink-0 mt-1">私</div>
@@ -1567,7 +1574,7 @@
         </button>
         <div x-show="showLog" class="px-4 pb-4 space-y-3 border-t border-gc-border pt-3">
           <template x-for="(msg, i) in messages" :key="i">
-            <div :class="msg.role === 'user' ? 'flex gap-2 flex-row-reverse' : 'flex gap-2'">
+            <div x-show="(msg.content || '').trim()" :class="msg.role === 'user' ? 'flex gap-2 flex-row-reverse' : 'flex gap-2'">
               <div :class="msg.role === 'assistant' ? 'bg-gc-green text-white' : 'bg-gray-200 text-gray-600'" class="w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0" x-text="msg.role === 'assistant' ? '試' : '私'"></div>
               <div :class="msg.role === 'assistant' ? 'bg-gray-100 text-gray-700' : 'bg-blue-100 text-blue-900'" class="text-xs leading-relaxed px-3 py-2 rounded-xl max-w-[85%]" x-text="msg.content"></div>
             </div>
@@ -1881,6 +1888,7 @@ function app() {
     voiceMode: false,
     voiceModel: 'gemini-2.5-flash-preview-native-audio-dialog',
     liveApiVersion: 'v1alpha',
+    availableLiveModels: [],  // [{id, label, version}] — populated by fetchModels()
     liveWs: null,
     liveStatus: 'idle',   // 'idle'|'connecting'|'ready'|'listening'|'ai_speaking'|'error'
     liveErrorMsg: '',
@@ -2374,11 +2382,8 @@ function app() {
         const found = filtered.find(m => m.id === this.selectedModel);
         if (!found && filtered.length > 0) this.selectedModel = filtered[0].id;
 
-        // ── 2. Detect Live API (bidiGenerateContent) model ───────────────
-        let liveModel = null;
-        let liveVer = null;
-
-        // Search in v1beta first, then v1alpha
+        // ── 2. Detect Live API (bidiGenerateContent) models ─────────────
+        const allLiveModels = [];
         for (const ver of ['v1beta', 'v1alpha']) {
           const vModels = ver === 'v1beta' ? models : await fetchForVersion('v1alpha');
           if (!vModels) continue;
@@ -2386,23 +2391,26 @@ function app() {
             m.supportedGenerationMethods &&
             m.supportedGenerationMethods.includes('bidiGenerateContent')
           );
-          if (liveModels.length > 0) {
-            // Prefer models with "native-audio" or "live" in name
-            const preferred = liveModels.find(m =>
-              m.name.includes('native-audio') || m.name.includes('live')
-            ) || liveModels[0];
-            liveModel = preferred.name.replace('models/', '');
-            liveVer = ver;
-            break;
+          for (const m of liveModels) {
+            const id = m.name.replace('models/', '');
+            // Avoid duplicates (same model might appear in both versions)
+            if (!allLiveModels.find(x => x.id === id)) {
+              allLiveModels.push({ id, label: `${id}（${ver}）`, version: ver });
+            }
           }
         }
+        this.availableLiveModels = allLiveModels;
 
-        if (liveModel) {
-          this.voiceModel = liveModel;
-          this.liveApiVersion = liveVer;
-          localStorage.setItem('voice_model', liveModel);
-          localStorage.setItem('live_api_version', liveVer);
-          alert(`✅ テキスト: ${filtered.length}個\n🎤 音声モデル自動検出: ${liveModel}（${liveVer}）`);
+        if (allLiveModels.length > 0) {
+          // Prefer models with "native-audio" or "live" in name, otherwise first
+          const preferred = allLiveModels.find(m =>
+            m.id.includes('native-audio') || m.id.includes('live')
+          ) || allLiveModels[0];
+          this.voiceModel = preferred.id;
+          this.liveApiVersion = preferred.version;
+          localStorage.setItem('voice_model', preferred.id);
+          localStorage.setItem('live_api_version', preferred.version);
+          alert(`✅ テキスト: ${filtered.length}個\n🎤 音声モデル: ${allLiveModels.length}個取得（自動選択: ${preferred.id}）`);
         } else {
           alert(`✅ テキスト: ${filtered.length}個\n⚠️ Live API対応モデルが見つかりませんでした。`);
         }
@@ -2581,9 +2589,26 @@ function app() {
             this.voiceCurrentAiText += sc.outputTranscription.text;
           }
 
+          // User speech transcription — accumulate, push only when explicitly finished
+          if (sc.inputTranscription) {
+            if (sc.inputTranscription.text) {
+              this._pendingUserText = (this._pendingUserText || '') + sc.inputTranscription.text;
+            }
+            // Only push when API signals the transcription is complete
+            if (sc.inputTranscription.finished === true && this._pendingUserText && this._pendingUserText.trim()) {
+              this.messages.push({ role: 'user', content: this._pendingUserText.trim() });
+              this._pendingUserText = '';
+            }
+          }
+
           // AI turn complete
           if (sc.turnComplete) {
-            const aiText = this.voiceCurrentAiText.trim();
+            // Flush any remaining user speech that wasn't finalized yet
+            if (this._pendingUserText && this._pendingUserText.trim()) {
+              this.messages.push({ role: 'user', content: this._pendingUserText.trim() });
+              this._pendingUserText = '';
+            }
+            const aiText = this._cleanAiText(this.voiceCurrentAiText.trim());
             if (aiText) {
               this.messages.push({ role: 'assistant', content: aiText });
               if (aiText.includes('以上で試問を終了します')) {
@@ -2595,17 +2620,6 @@ function app() {
             this.voiceCurrentAiText = '';
             if (this.voiceAudioQueue.length === 0 && !this.voiceIsPlaying) {
               this.liveStatus = 'listening';
-            }
-          }
-
-          // User speech transcription — accumulate until finished
-          if (sc.inputTranscription) {
-            if (sc.inputTranscription.text) {
-              this._pendingUserText = (this._pendingUserText || '') + sc.inputTranscription.text;
-            }
-            if (sc.inputTranscription.finished !== false && this._pendingUserText) {
-              this.messages.push({ role: 'user', content: this._pendingUserText });
-              this._pendingUserText = '';
             }
           }
 
@@ -2726,6 +2740,25 @@ function app() {
     },
 
     // ---- Tear down Live session ----
+    // Strip AI internal commentary lines (e.g. "**Title** English explanation.")
+    // that the model sometimes prepends before the actual Japanese response.
+    _cleanAiText(text) {
+      if (!text) return text;
+      // Remove lines that are purely internal meta-commentary:
+      // Pattern: lines starting with **Title** followed by English text
+      // Keep lines that contain Japanese characters or are short exam questions
+      const lines = text.split('\n');
+      const cleaned = lines.filter(line => {
+        const t = line.trim();
+        if (!t) return false; // drop blank lines at boundaries
+        // Drop lines that match ** meta-commentary pattern AND contain no Japanese
+        if (/^\*\*[^*]+\*\*/.test(t) && !/[\u3000-\u9FFF\uF900-\uFAFF]/.test(t)) return false;
+        return true;
+      }).join('\n').trim();
+      // Also strip inline **bold** markers themselves (keep the text between them)
+      return cleaned.replace(/\*\*([^*]+)\*\*/g, '$1').trim();
+    },
+
     stopLiveSession() {
       if (this.voiceAudioCtx) { try { this.voiceAudioCtx.close(); } catch(e){} this.voiceAudioCtx = null; }
       if (this.voicePlayCtx)  { try { this.voicePlayCtx.close();  } catch(e){} this.voicePlayCtx = null; }
@@ -3052,6 +3085,7 @@ ${distLines}
 5. 回答が的外れな場合も正解を教えず「別の観点から考えてみてください」などと促す
 6. 一度に一つの質問のみ行う
 7. 簡潔に、試験官らしく振る舞う
+8. 【重要】内部思考・計画メモ・英語の注釈（例: **Initiating Exam** や **Refusing Aid Request** などの太字見出し）は絶対に出力しない。試験官として自然な日本語のみで発言すること
 ${questionBlock}
 
 評価観点（試験中は言及しない）:
