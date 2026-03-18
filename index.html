@@ -346,11 +346,11 @@
       </div>
       <select x-model="selectedModel" @change="localStorage.setItem('gemini_model', selectedModel)" class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue">
         <template x-if="availableModels.length === 0">
-          <optgroup label="よく使われるモデル（要API取得で更新）">
-            <option value="gemini-2.5-flash">gemini-2.5-flash（推奨）</option>
-            <option value="gemini-2.5-flash-preview-04-17">gemini-2.5-flash-preview-04-17</option>
-            <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-            <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite（軽量・無料）</option>
+          <optgroup label="無料枠で使えるモデル">
+            <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite（推奨・RPD:500）</option>
+            <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite（RPD:20）</option>
+            <option value="gemini-3-flash">gemini-3-flash（RPD:20）</option>
+            <option value="gemini-2.5-flash">gemini-2.5-flash（RPD:20）</option>
           </optgroup>
         </template>
         <template x-if="availableModels.length > 0">
@@ -359,7 +359,7 @@
           </template>
         </template>
       </select>
-      <p class="text-xs text-gray-400">APIキーを入力後「利用可能なモデルを取得」を押すと、実際に使えるモデルが表示されます。</p>
+      <p class="text-xs text-gray-400">無料枠で利用可能なモデルのみ表示しています。「利用可能なモデルを取得」を押すと最新の無料モデル一覧に更新されます。</p>
     </div>
 
     <!-- Class management -->
@@ -1004,7 +1004,7 @@
         <div>
           <p class="font-medium mb-1">AIモデルについて</p>
           <p class="text-blue-600">ホーム画面で「利用可能なモデルを取得」を押すと最新モデル一覧が表示されます。</p>
-          <p class="text-blue-600">無料枠推奨: gemini-2.5-flash / gemini-2.0-flash-lite</p>
+          <p class="text-blue-600">無料枠推奨: gemini-3.1-flash-lite（RPD:500）/ gemini-2.5-flash-lite / gemini-3-flash / gemini-2.5-flash</p>
         </div>
       </div>
     </div>
@@ -1687,7 +1687,7 @@ function app() {
     adminPassword: 'admin',
     examResults: [],
     apiKey: '',
-    selectedModel: 'gemini-2.5-flash',
+    selectedModel: 'gemini-3.1-flash-lite',
     availableModels: [],
     fetchingModels: false,
     settings: {
@@ -1745,11 +1745,14 @@ function app() {
       if (storedKey) this.apiKey = storedKey;
 
       const storedModel = localStorage.getItem('gemini_model');
-      const deprecatedModels = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro', 'gemini-2.5-flash-preview-04-17'];
+      const deprecatedModels = [
+        'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro',
+        'gemini-2.5-flash-preview-04-17', 'gemini-2.0-flash', 'gemini-2.0-flash-lite',
+      ];
       if (storedModel && !deprecatedModels.includes(storedModel)) {
         this.selectedModel = storedModel;
       } else {
-        this.selectedModel = 'gemini-2.5-flash';
+        this.selectedModel = 'gemini-3.1-flash-lite';
         localStorage.removeItem('gemini_model');
       }
 
@@ -2140,26 +2143,42 @@ function app() {
     async fetchModels() {
       if (!this.apiKey) return;
       this.fetchingModels = true;
+      // Free-tier text generation models (RPM > 0 in Google AI Studio free plan)
+      const FREE_MODELS = [
+        'gemini-3.1-flash-lite',
+        'gemini-2.5-flash-lite',
+        'gemini-3-flash',
+        'gemini-2.5-flash',
+      ];
       try {
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${this.apiKey}`);
         const data = await res.json();
         if (data.models) {
-          // Filter models that support generateContent
+          // Filter to free-tier generateContent models only
           const filtered = data.models
-            .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+            .filter(m =>
+              m.supportedGenerationMethods &&
+              m.supportedGenerationMethods.includes('generateContent') &&
+              FREE_MODELS.some(fid => m.name.replace('models/', '').startsWith(fid))
+            )
             .map(m => {
               const id = m.name.replace('models/', '');
-              return { id, name: m.name, label: `${id}${m.displayName ? ' - ' + m.displayName : ''}` };
+              const rpd = { 'gemini-3.1-flash-lite': 500, 'gemini-2.5-flash-lite': 20, 'gemini-3-flash': 20, 'gemini-2.5-flash': 20 };
+              const baseId = FREE_MODELS.find(fid => id.startsWith(fid)) || id;
+              const rpdLabel = rpd[baseId] ? `（RPD:${rpd[baseId]}）` : '';
+              return { id, name: m.name, label: `${id}${rpdLabel}` };
             })
-            .sort((a, b) => a.id.localeCompare(b.id));
-          this.availableModels = filtered;
-          // Auto-select first flash model if current selection not found
+            .sort((a, b) => {
+              // Sort by free quota descending (3.1-flash-lite first)
+              return FREE_MODELS.findIndex(f => a.id.startsWith(f)) - FREE_MODELS.findIndex(f => b.id.startsWith(f));
+            });
+          this.availableModels = filtered.length > 0 ? filtered : [];
+          // Auto-select recommended model if current not in free list
           const found = filtered.find(m => m.id === this.selectedModel);
           if (!found && filtered.length > 0) {
-            const flashModel = filtered.find(m => m.id.includes('flash')) || filtered[0];
-            this.selectedModel = flashModel.id;
+            this.selectedModel = filtered[0].id;
           }
-          alert(`✅ ${filtered.length}個のモデルを取得しました。`);
+          alert(`✅ ${filtered.length}個の無料モデルを取得しました。`);
         } else {
           alert('❌ モデル取得失敗: ' + JSON.stringify(data.error || data));
         }
