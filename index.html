@@ -2340,38 +2340,73 @@ function app() {
         'gemini-3-flash',
         'gemini-2.5-flash',
       ];
-      try {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${this.apiKey}`);
+
+      // Helper: fetch model list for a given API version
+      const fetchForVersion = async (ver) => {
+        const res = await fetch(`https://generativelanguage.googleapis.com/${ver}/models?key=${this.apiKey}`);
+        if (!res.ok) return null;
         const data = await res.json();
-        if (data.models) {
-          // Filter to free-tier generateContent models only
-          const filtered = data.models
-            .filter(m =>
-              m.supportedGenerationMethods &&
-              m.supportedGenerationMethods.includes('generateContent') &&
-              FREE_MODELS.some(fid => m.name.replace('models/', '').startsWith(fid))
-            )
-            .map(m => {
-              const id = m.name.replace('models/', '');
-              const rpd = { 'gemini-3.1-flash-lite': 500, 'gemini-2.5-flash-lite': 20, 'gemini-3-flash': 20, 'gemini-2.5-flash': 20 };
-              const baseId = FREE_MODELS.find(fid => id.startsWith(fid)) || id;
-              const rpdLabel = rpd[baseId] ? `（RPD:${rpd[baseId]}）` : '';
-              return { id, name: m.name, label: `${id}${rpdLabel}` };
-            })
-            .sort((a, b) => {
-              // Sort by free quota descending (3.1-flash-lite first)
-              return FREE_MODELS.findIndex(f => a.id.startsWith(f)) - FREE_MODELS.findIndex(f => b.id.startsWith(f));
-            });
-          this.availableModels = filtered.length > 0 ? filtered : [];
-          // Auto-select recommended model if current not in free list
-          const found = filtered.find(m => m.id === this.selectedModel);
-          if (!found && filtered.length > 0) {
-            this.selectedModel = filtered[0].id;
+        return data.models || null;
+      };
+
+      try {
+        // ── 1. Fetch text models from v1beta ──────────────────────────────
+        const models = await fetchForVersion('v1beta');
+        if (!models) { alert('❌ モデル取得失敗'); return; }
+
+        const filtered = models
+          .filter(m =>
+            m.supportedGenerationMethods &&
+            m.supportedGenerationMethods.includes('generateContent') &&
+            FREE_MODELS.some(fid => m.name.replace('models/', '').startsWith(fid))
+          )
+          .map(m => {
+            const id = m.name.replace('models/', '');
+            const rpd = { 'gemini-3.1-flash-lite': 500, 'gemini-2.5-flash-lite': 20, 'gemini-3-flash': 20, 'gemini-2.5-flash': 20 };
+            const baseId = FREE_MODELS.find(fid => id.startsWith(fid)) || id;
+            const rpdLabel = rpd[baseId] ? `（RPD:${rpd[baseId]}）` : '';
+            return { id, name: m.name, label: `${id}${rpdLabel}` };
+          })
+          .sort((a, b) =>
+            FREE_MODELS.findIndex(f => a.id.startsWith(f)) - FREE_MODELS.findIndex(f => b.id.startsWith(f))
+          );
+        this.availableModels = filtered.length > 0 ? filtered : [];
+        const found = filtered.find(m => m.id === this.selectedModel);
+        if (!found && filtered.length > 0) this.selectedModel = filtered[0].id;
+
+        // ── 2. Detect Live API (bidiGenerateContent) model ───────────────
+        let liveModel = null;
+        let liveVer = null;
+
+        // Search in v1beta first, then v1alpha
+        for (const ver of ['v1beta', 'v1alpha']) {
+          const vModels = ver === 'v1beta' ? models : await fetchForVersion('v1alpha');
+          if (!vModels) continue;
+          const liveModels = vModels.filter(m =>
+            m.supportedGenerationMethods &&
+            m.supportedGenerationMethods.includes('bidiGenerateContent')
+          );
+          if (liveModels.length > 0) {
+            // Prefer models with "native-audio" or "live" in name
+            const preferred = liveModels.find(m =>
+              m.name.includes('native-audio') || m.name.includes('live')
+            ) || liveModels[0];
+            liveModel = preferred.name.replace('models/', '');
+            liveVer = ver;
+            break;
           }
-          alert(`✅ ${filtered.length}個の無料モデルを取得しました。`);
-        } else {
-          alert('❌ モデル取得失敗: ' + JSON.stringify(data.error || data));
         }
+
+        if (liveModel) {
+          this.voiceModel = liveModel;
+          this.liveApiVersion = liveVer;
+          localStorage.setItem('voice_model', liveModel);
+          localStorage.setItem('live_api_version', liveVer);
+          alert(`✅ テキスト: ${filtered.length}個\n🎤 音声モデル自動検出: ${liveModel}（${liveVer}）`);
+        } else {
+          alert(`✅ テキスト: ${filtered.length}個\n⚠️ Live API対応モデルが見つかりませんでした。`);
+        }
+
       } catch(e) {
         alert('❌ モデル取得エラー: ' + e.message);
       } finally {
