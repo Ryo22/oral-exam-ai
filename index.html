@@ -846,6 +846,27 @@
       <p class="mt-1 text-xs text-gray-400">試験官がこのテーマについて質問を行います</p>
     </section>
 
+    <!-- Learning mode toggle -->
+    <section>
+      <label class="flex items-start gap-3 cursor-pointer select-none">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2 mb-0.5">
+            <span class="text-sm font-medium text-gray-700">学習モード</span>
+            <span x-show="settings.learningMode"
+              class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">ON</span>
+          </div>
+          <p class="text-xs text-gray-400 leading-relaxed">ONにすると、受験者が「ヒントをください」「答えを教えて」と求めたとき、AIがヒントや解説を提供します。試験ではなく学習・練習用途向けです。</p>
+        </div>
+        <button
+          @click="settings.learningMode = !settings.learningMode; saveSettings()"
+          :class="settings.learningMode ? 'bg-amber-400' : 'bg-gray-300'"
+          class="w-12 h-6 rounded-full flex items-center transition-colors flex-none mt-0.5 px-0.5">
+          <span :class="settings.learningMode ? 'ml-6' : 'ml-0'"
+            class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
+        </button>
+      </label>
+    </section>
+
     <!-- Criteria - Dynamic -->
     <section>
       <div class="flex items-center justify-between mb-4">
@@ -1250,7 +1271,11 @@
       </svg>
     </button>
     <div class="text-center">
-      <div class="text-sm font-medium truncate max-w-48 text-gray-900" x-text="settings.theme"></div>
+      <div class="flex items-center justify-center gap-2">
+        <div class="text-sm font-medium truncate max-w-40 text-gray-900" x-text="settings.theme"></div>
+        <span x-show="settings.learningMode"
+          class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 shrink-0">学習</span>
+      </div>
       <div class="text-xs text-gray-400 flex items-center justify-center gap-2">
         <span x-text="messages.filter(m => m.role === 'user').length + ' 回答済み'"></span>
         <span x-show="focusMonitoringEnabled && focusViolationCount > 0"
@@ -1275,10 +1300,16 @@
       <h2 class="text-xl font-semibold mb-2 text-gray-900">口頭試問を開始</h2>
       <p class="text-gray-500 text-sm mb-2" x-text="'テーマ: ' + settings.theme"></p>
       <p class="text-gray-400 text-xs mb-2" x-text="'評価基準: ' + settings.criteria.filter(c=>c.name).map(c=>c.name).join(' / ')"></p>
-      <p class="text-gray-400 text-xs mb-8">試験中は正解・解説は教えません。自分の言葉で答えてください。</p>
-      <button @click="startExam()" class="bg-gc-blue hover:bg-gc-blue-dark text-white font-medium px-8 py-3 rounded-xl transition-colors">
-        試験開始
-      </button>
+      <p class="text-gray-400 text-xs mb-4" x-text="settings.learningMode ? 'ヒントや解説を求めることができます。気軽に学習してください。' : '試験中は正解・解説は教えません。自分の言葉で答えてください。'"></p>
+      <div x-show="settings.learningMode"
+        class="mb-6 flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl px-4 py-2.5 text-xs">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+        </svg>
+        <span>学習モード：「ヒントをください」「答えを教えて」と言えばサポートしてもらえます</span>
+      </div>
+      <button @click="startExam()" class="bg-gc-blue hover:bg-gc-blue-dark text-white font-medium px-8 py-3 rounded-xl transition-colors"
+        x-text="settings.learningMode ? '学習開始' : '試験開始'"></button>
     </div>
 
     <template x-if="examStarted">
@@ -2144,7 +2175,8 @@ function app() {
         ],
         questions: [],
         autoQuestionCount: 5,
-        difficultyDistribution: [0,0,0,0,0]
+        difficultyDistribution: [0,0,0,0,0],
+        learningMode: false
       };
       this.tests.push({ id, name, settings: defaultSettings });
       this.switchTest(id);
@@ -3074,10 +3106,17 @@ ${distLines}
         }
       }
 
-      return `あなたは厳格で公平な口頭試問の試験官です。
-試問テーマ: ${this.settings.theme}
+      const isLearning = this.settings.learningMode;
 
-あなたの役割:
+      const roleLines = isLearning ? `
+1. ${hasQuestions ? '指定された問題リストを順番に出題する' : 'テーマに基づいて適切な質問を行う'}
+2. 受験者の回答に対して深掘り質問をする
+3. 【学習モード】受験者が「ヒントをください」「ヒント」と求めた場合は、答えに直結しない範囲でヒントを提供する
+4. 【学習モード】受験者が「答えを教えて」「正解を教えて」「解説して」などと求めた場合は、正解と丁寧な解説を提供する
+5. 回答が不十分な場合は「もう少し詳しく説明してください」などと促す（または希望すればヒントを提示する旨を伝える）
+6. 一度に一つの質問のみ行う
+7. 学習をサポートする温かみのある口調で振る舞う
+8. 【重要】内部思考・計画メモ・英語の注釈（例: **Initiating Exam** などの太字見出し）は絶対に出力しない。自然な日本語のみで発言すること` : `
 1. ${hasQuestions ? '指定された問題リストを順番に出題する' : 'テーマに基づいて適切な質問を行う'}
 2. 受験者の回答に対して深掘り質問をする
 3. 【絶対禁止】試験中は正解・解説・ヒントを一切教えない
@@ -3085,7 +3124,12 @@ ${distLines}
 5. 回答が的外れな場合も正解を教えず「別の観点から考えてみてください」などと促す
 6. 一度に一つの質問のみ行う
 7. 簡潔に、試験官らしく振る舞う
-8. 【重要】内部思考・計画メモ・英語の注釈（例: **Initiating Exam** や **Refusing Aid Request** などの太字見出し）は絶対に出力しない。試験官として自然な日本語のみで発言すること
+8. 【重要】内部思考・計画メモ・英語の注釈（例: **Initiating Exam** や **Refusing Aid Request** などの太字見出し）は絶対に出力しない。試験官として自然な日本語のみで発言すること`;
+
+      return `あなたは${isLearning ? '学習をサポートする教育者' : '厳格で公平な口頭試問の試験官'}です。
+試問テーマ: ${this.settings.theme}
+${isLearning ? 'モード: 【学習モード】ヒントや解説の提供が許可されています。' : ''}
+あなたの役割:${roleLines}
 ${questionBlock}
 
 評価観点（試験中は言及しない）:
