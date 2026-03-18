@@ -373,18 +373,92 @@
         </button>
       </div>
       <template x-for="c in classes" :key="c.id">
-        <div class="flex items-center gap-2 text-sm">
-          <span class="flex-1 text-gray-700 truncate" x-text="c.name"></span>
-          <button @click="copyClassUrl(c.id)"
-            class="text-xs text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded transition-colors flex items-center gap-1 shrink-0">
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-            URL
-          </button>
-          <button x-show="classes.length > 1" @click="removeClass(c.id)"
-            class="text-xs text-red-400 hover:text-red-600 transition-colors shrink-0">削除</button>
+        <div class="space-y-1">
+          <!-- View mode -->
+          <div x-show="editingClassId !== c.id" class="flex items-center gap-2 text-sm">
+            <span class="flex-1 text-gray-800 truncate font-medium" x-text="c.name"></span>
+            <button @click="startEditClass(c.id, c.name)" title="名前を変更"
+              class="text-gray-400 hover:text-gc-blue transition-colors shrink-0 p-1 rounded hover:bg-blue-50">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </button>
+            <button @click="copyClassUrl(c.id)"
+              class="text-xs text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded transition-colors flex items-center gap-1 shrink-0">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              URL
+            </button>
+            <button x-show="classes.length > 1" @click="removeClass(c.id)"
+              class="text-xs text-red-400 hover:text-red-600 transition-colors shrink-0">削除</button>
+          </div>
+          <!-- Edit mode -->
+          <div x-show="editingClassId === c.id" class="flex items-center gap-2">
+            <input type="text" x-model="editingClassName"
+              @keydown.enter="saveClassName(c.id)"
+              @keydown.escape="cancelEditClass()"
+              @blur="saveClassName(c.id)"
+              class="flex-1 border border-gc-blue rounded-lg px-2.5 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue"
+              x-effect="if(editingClassId === c.id) $el.focus()"
+              placeholder="クラス名"/>
+            <button @click.prevent="saveClassName(c.id)"
+              class="text-xs bg-gc-blue text-white px-2.5 py-1.5 rounded-lg hover:bg-gc-blue-dark transition-colors shrink-0">保存</button>
+            <button @click.prevent="cancelEditClass()"
+              class="text-xs text-gray-400 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors shrink-0">取消</button>
+          </div>
         </div>
       </template>
       <p class="text-xs text-gray-400">「URL」ボタンでクラスごとのURLをコピーして受験者に共有してください。</p>
+    </div>
+
+    <!-- Test management -->
+    <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-3">
+      <div class="flex items-center justify-between">
+        <p class="text-xs text-gray-600 font-medium">テスト管理</p>
+        <button @click="addTest()"
+          class="text-xs text-gc-blue hover:text-gc-blue-dark bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          追加
+        </button>
+      </div>
+      <template x-for="t in tests" :key="t.id">
+        <div class="space-y-1">
+          <!-- View mode -->
+          <div x-show="editingTestId !== t.id" class="flex items-center gap-2">
+            <!-- Active indicator dot -->
+            <span :class="activeTestId === t.id ? 'bg-gc-green' : 'bg-gray-200'"
+              class="w-2 h-2 rounded-full shrink-0 transition-colors"></span>
+            <!-- Name button (click to switch) -->
+            <button @click="switchTest(t.id)"
+              :class="activeTestId === t.id ? 'text-gray-900 font-semibold' : 'text-gray-500 hover:text-gray-800'"
+              class="flex-1 text-sm text-left truncate transition-colors"
+              x-text="t.name + (activeTestId === t.id ? '（使用中）' : '')"></button>
+            <!-- Rename -->
+            <button @click="startEditTest(t.id, t.name)" title="名前を変更"
+              class="text-gray-400 hover:text-gc-blue transition-colors shrink-0 p-1 rounded hover:bg-blue-50">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </button>
+            <!-- Open settings -->
+            <button @click="switchTest(t.id); page='settings'"
+              class="text-xs text-gc-blue hover:text-gc-blue-dark bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded transition-colors shrink-0">設定</button>
+            <!-- Delete -->
+            <button x-show="tests.length > 1" @click="deleteTest(t.id)"
+              class="text-xs text-red-400 hover:text-red-600 transition-colors shrink-0">削除</button>
+          </div>
+          <!-- Edit mode -->
+          <div x-show="editingTestId === t.id" class="flex items-center gap-2">
+            <input type="text" x-model="editingTestName"
+              @keydown.enter="saveTestName(t.id)"
+              @keydown.escape="cancelEditTest()"
+              @blur="saveTestName(t.id)"
+              class="flex-1 border border-gc-blue rounded-lg px-2.5 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue"
+              x-effect="if(editingTestId === t.id) $el.focus()"
+              placeholder="テスト名"/>
+            <button @click.prevent="saveTestName(t.id)"
+              class="text-xs bg-gc-blue text-white px-2.5 py-1.5 rounded-lg hover:bg-gc-blue-dark transition-colors shrink-0">保存</button>
+            <button @click.prevent="cancelEditTest()"
+              class="text-xs text-gray-400 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors shrink-0">取消</button>
+          </div>
+        </div>
+      </template>
+      <p class="text-xs text-gray-400">テストを切り替えると、テーマ・評価基準・問題リストが切り替わります。</p>
     </div>
 
     <!-- Quick actions -->
@@ -671,7 +745,11 @@
       </svg>
       戻る
     </button>
-    <h1 class="text-base font-semibold text-gray-900">設定</h1>
+    <div class="text-center">
+      <h1 class="text-base font-semibold text-gray-900">設定</h1>
+      <p class="text-xs text-gc-blue truncate max-w-[180px]"
+        x-text="tests.find(t => t.id === activeTestId)?.name || ''"></p>
+    </div>
     <div class="w-16"></div>
   </header>
 
@@ -1637,6 +1715,12 @@ function app() {
     classes: [],
     studentClassId: '',
     adminFilterClassId: 'all',
+    editingClassId: null,
+    editingClassName: '',
+    tests: [],
+    activeTestId: '',
+    editingTestId: null,
+    editingTestName: '',
     editingResultId: null,
     editingData: null,
     checkResultsName: '',
@@ -1685,6 +1769,26 @@ function app() {
       // Ensure new AI question settings exist (backward compat)
       if (!this.settings.autoQuestionCount) this.settings.autoQuestionCount = 5;
       if (!this.settings.difficultyDistribution) this.settings.difficultyDistribution = [0, 0, 0, 0, 0];
+      // Load tests (multiple test configurations)
+      const storedTests = localStorage.getItem('exam_tests_v1');
+      if (storedTests) {
+        try { this.tests = JSON.parse(storedTests); } catch(e) {}
+      }
+      if (this.tests.length === 0) {
+        // Migrate from old single-test settings
+        this.tests = [{ id: 'test_default', name: 'テスト1', settings: JSON.parse(JSON.stringify(this.settings)) }];
+        localStorage.setItem('exam_tests_v1', JSON.stringify(this.tests));
+      }
+      this.activeTestId = this.tests[0].id;
+      // Load the active test's settings (overrides the exam_settings_v2 load above)
+      this.settings = JSON.parse(JSON.stringify(this.tests[0].settings));
+      // Ensure backward compat fields on loaded settings
+      if (!this.settings.questions) this.settings.questions = [];
+      if (!this.settings.autoQuestionCount) this.settings.autoQuestionCount = 5;
+      if (!this.settings.difficultyDistribution) this.settings.difficultyDistribution = [0, 0, 0, 0, 0];
+      if (this.settings.criteria.length > 0 && typeof this.settings.criteria[0] === 'string') {
+        this.settings.criteria = this.settings.criteria.map(c => ({ name: c, description: '' }));
+      }
       // Load admin password
       const storedPw = localStorage.getItem('admin_password');
       if (storedPw) this.adminPassword = storedPw;
@@ -1756,18 +1860,40 @@ function app() {
 
     // Class management
     addClass() {
-      const name = prompt('新しいクラス名を入力してください:');
-      if (!name || !name.trim()) return;
       const id = 'class_' + Date.now();
-      this.classes.push({ id, name: name.trim() });
+      const name = 'クラス' + (this.classes.length + 1);
+      this.classes.push({ id, name });
+      this.saveClassesToStorage();
+      this.$nextTick(() => { this.editingClassId = id; this.editingClassName = name; });
+    },
+
+    saveClassesToStorage() {
       localStorage.setItem('exam_classes', JSON.stringify(this.classes));
+    },
+
+    startEditClass(id, name) {
+      this.editingClassId = id;
+      this.editingClassName = name;
+    },
+
+    saveClassName(id) {
+      const c = this.classes.find(c => c.id === id);
+      if (c && this.editingClassName.trim()) c.name = this.editingClassName.trim();
+      this.editingClassId = null;
+      this.editingClassName = '';
+      this.saveClassesToStorage();
+    },
+
+    cancelEditClass() {
+      this.editingClassId = null;
+      this.editingClassName = '';
     },
 
     removeClass(id) {
       const hasResults = this.examResults.some(r => r.classId === id);
       if (hasResults && !confirm('このクラスには採点結果があります。本当に削除しますか？')) return;
       this.classes = this.classes.filter(c => c.id !== id);
-      localStorage.setItem('exam_classes', JSON.stringify(this.classes));
+      this.saveClassesToStorage();
     },
 
     getClassUrl(classId) {
@@ -1778,6 +1904,78 @@ function app() {
     copyClassUrl(classId) {
       const url = this.getClassUrl(classId);
       navigator.clipboard.writeText(url).then(() => alert('URLをコピーしました:\n' + url)).catch(() => prompt('このURLをコピーしてください:', url));
+    },
+
+    // Test management
+    saveTestsToStorage() {
+      localStorage.setItem('exam_tests_v1', JSON.stringify(this.tests));
+    },
+
+    switchTest(id) {
+      if (id === this.activeTestId) return;
+      // Save current settings into the current test
+      const cur = this.tests.find(t => t.id === this.activeTestId);
+      if (cur) cur.settings = JSON.parse(JSON.stringify(this.settings));
+      // Load new test
+      this.activeTestId = id;
+      const next = this.tests.find(t => t.id === id);
+      if (next) {
+        this.settings = JSON.parse(JSON.stringify(next.settings));
+        if (!this.settings.questions) this.settings.questions = [];
+        if (!this.settings.autoQuestionCount) this.settings.autoQuestionCount = 5;
+        if (!this.settings.difficultyDistribution) this.settings.difficultyDistribution = [0,0,0,0,0];
+        if (this.settings.criteria.length > 0 && typeof this.settings.criteria[0] === 'string') {
+          this.settings.criteria = this.settings.criteria.map(c => ({ name: c, description: '' }));
+        }
+      }
+      this.saveTestsToStorage();
+    },
+
+    addTest() {
+      const id = 'test_' + Date.now();
+      const name = 'テスト' + (this.tests.length + 1);
+      const defaultSettings = {
+        theme: '',
+        criteria: [
+          { name: '理解度', description: '概念を正確に理解し自分の言葉で説明できるか' },
+          { name: '論理構成', description: '論理的に整理された回答ができているか' },
+          { name: '表現力', description: '適切な用語を使い明確に伝えられているか' }
+        ],
+        questions: [],
+        autoQuestionCount: 5,
+        difficultyDistribution: [0,0,0,0,0]
+      };
+      this.tests.push({ id, name, settings: defaultSettings });
+      this.switchTest(id);
+      this.$nextTick(() => { this.editingTestId = id; this.editingTestName = name; });
+    },
+
+    deleteTest(id) {
+      if (this.tests.length <= 1) { alert('テストは最低1つ必要です。'); return; }
+      const hasResults = this.examResults.some(r => r.testId === id);
+      if (hasResults && !confirm('このテストには採点結果があります。本当に削除しますか？')) return;
+      if (!hasResults && !confirm('このテストを削除しますか？')) return;
+      this.tests = this.tests.filter(t => t.id !== id);
+      if (this.activeTestId === id) this.switchTest(this.tests[0].id);
+      else this.saveTestsToStorage();
+    },
+
+    startEditTest(id, name) {
+      this.editingTestId = id;
+      this.editingTestName = name;
+    },
+
+    saveTestName(id) {
+      const t = this.tests.find(t => t.id === id);
+      if (t && this.editingTestName.trim()) t.name = this.editingTestName.trim();
+      this.editingTestId = null;
+      this.editingTestName = '';
+      this.saveTestsToStorage();
+    },
+
+    cancelEditTest() {
+      this.editingTestId = null;
+      this.editingTestName = '';
     },
 
     // Result publishing & editing
@@ -1847,6 +2045,7 @@ function app() {
         studentName: name || '（未入力）',
         studentEmail: email || '',
         classId: classId,
+        testId: this.activeTestId,
         published: false,
         totalScore: this.result.totalScore,
         criteria: this.result.criteria,
@@ -2042,7 +2241,11 @@ function app() {
     },
 
     saveSettings() {
-      localStorage.setItem('exam_settings_v2', JSON.stringify(this.settings));
+      // Sync settings into the active test
+      const t = this.tests.find(t => t.id === this.activeTestId);
+      if (t) t.settings = JSON.parse(JSON.stringify(this.settings));
+      localStorage.setItem('exam_tests_v1', JSON.stringify(this.tests));
+      localStorage.setItem('exam_settings_v2', JSON.stringify(this.settings)); // backward compat
       localStorage.setItem('gemini_model', this.selectedModel);
       this.saved = true;
       setTimeout(() => this.saved = false, 2000);
