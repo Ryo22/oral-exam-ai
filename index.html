@@ -396,8 +396,7 @@
         </p>
         <select x-model="voiceModel" @change="localStorage.setItem('voice_model', voiceModel)"
           class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue">
-          <option value="gemini-2.0-flash-live-001">gemini-2.0-flash-live-001（推奨・v1beta対応）</option>
-          <option value="gemini-live-2.5-flash-preview">gemini-live-2.5-flash-preview</option>
+          <option value="gemini-2.0-flash-live-001">gemini-2.0-flash-live-001</option>
         </select>
         <p class="text-xs text-gray-400">音声モードで使用するモデルです（無料枠: 無制限RPM / 1M TPM）。</p>
       </div>
@@ -1092,7 +1091,8 @@
         </button>
       </div>
 
-      <div x-show="editingData" class="p-6 space-y-6">
+      <template x-if="editingData">
+      <div class="p-6 space-y-6">
         <!-- Total score -->
         <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
           <p class="text-xs text-gray-600 font-medium">合計点</p>
@@ -1182,6 +1182,7 @@
           </button>
         </div>
       </div>
+      </template><!-- end x-if editingData -->
     </div>
   </div>
 </div>
@@ -1303,6 +1304,10 @@
                  liveStatus === 'ready' || liveStatus === 'listening' ? '🎤 話してください — AIが聞いています' :
                  liveStatus === 'ai_speaking' ? '🔊 AIが回答中...' :
                  liveStatus === 'error' ? '接続エラー' : ''"></p>
+    </div>
+    <!-- Error detail (shown when error) -->
+    <div x-show="liveStatus === 'error' && liveErrorMsg" class="bg-red-50 px-4 py-2 border-b border-red-100">
+      <p class="text-xs text-red-600 leading-relaxed" x-text="liveErrorMsg"></p>
     </div>
     <!-- Mic visualizer + hint -->
     <div class="flex flex-col items-center gap-3 px-4 py-4">
@@ -1865,6 +1870,7 @@ function app() {
     voiceModel: 'gemini-2.0-flash-live-001',
     liveWs: null,
     liveStatus: 'idle',   // 'idle'|'connecting'|'ready'|'listening'|'ai_speaking'|'error'
+    liveErrorMsg: '',
     voiceMicStream: null,
     voiceAudioCtx: null,  // AudioContext for mic capture (16 kHz)
     voicePlayCtx: null,   // AudioContext for playback (24 kHz)
@@ -1911,7 +1917,7 @@ function app() {
       const storedKey = localStorage.getItem('gemini_api_key');
       if (storedKey) this.apiKey = storedKey;
       const storedVoiceModel = localStorage.getItem('voice_model');
-      const validVoiceModels = ['gemini-2.0-flash-live-001', 'gemini-live-2.5-flash-preview'];
+      const validVoiceModels = ['gemini-2.0-flash-live-001'];
       if (storedVoiceModel && validVoiceModels.includes(storedVoiceModel)) {
         this.voiceModel = storedVoiceModel;
       } else {
@@ -2510,68 +2516,89 @@ function app() {
         if (data.serverContent) {
           const sc = data.serverContent;
 
-          // Model audio/text parts
+          // Model turn: audio chunks (AUDIO modality → audio only, no text in parts)
           if (sc.modelTurn && sc.modelTurn.parts) {
+            let hasAudio = false;
             for (const part of sc.modelTurn.parts) {
               if (part.inlineData && part.inlineData.mimeType && part.inlineData.mimeType.startsWith('audio/')) {
                 this.voiceAudioQueue.push(part.inlineData.data);
-                if (!this.voiceIsPlaying) this._playNextAudioChunk();
+                hasAudio = true;
               }
+              // Text parts (fallback — in AUDIO mode text comes via outputTranscription instead)
               if (part.text) this.voiceCurrentAiText += part.text;
             }
-            this.liveStatus = 'ai_speaking';
+            if (hasAudio) {
+              this.liveStatus = 'ai_speaking';
+              if (!this.voiceIsPlaying) this._playNextAudioChunk();
+            }
+          }
+
+          // AI output transcription — primary source for AI text in AUDIO mode
+          if (sc.outputTranscription && sc.outputTranscription.text) {
+            this.voiceCurrentAiText += sc.outputTranscription.text;
           }
 
           // AI turn complete
           if (sc.turnComplete) {
-            if (this.voiceCurrentAiText) {
-              this.messages.push({ role: 'assistant', content: this.voiceCurrentAiText });
-              // Check if exam should auto-end
-              if (this.voiceCurrentAiText.includes('以上で試問を終了します')) {
+            const aiText = this.voiceCurrentAiText.trim();
+            if (aiText) {
+              this.messages.push({ role: 'assistant', content: aiText });
+              if (aiText.includes('以上で試問を終了します')) {
                 this.voiceCurrentAiText = '';
                 setTimeout(() => this.endExam(), 1500);
                 return;
               }
-              this.voiceCurrentAiText = '';
             }
-            // Resume listening after AI finishes speaking
-            if (this.voiceAudioQueue.length === 0) this.liveStatus = 'listening';
+            this.voiceCurrentAiText = '';
+            if (this.voiceAudioQueue.length === 0 && !this.voiceIsPlaying) {
+              this.liveStatus = 'listening';
+            }
           }
 
-          // AI output transcription (text alongside audio)
-          if (sc.outputTranscription && sc.outputTranscription.text) {
-            // already handled via text parts above
-          }
-
-          // User speech transcription
-          if (sc.inputTranscription && sc.inputTranscription.text && sc.inputTranscription.finished) {
-            this.messages.push({ role: 'user', content: sc.inputTranscription.text });
+          // User speech transcription — accumulate until finished
+          if (sc.inputTranscription) {
+            if (sc.inputTranscription.text) {
+              this._pendingUserText = (this._pendingUserText || '') + sc.inputTranscription.text;
+            }
+            if (sc.inputTranscription.finished !== false && this._pendingUserText) {
+              this.messages.push({ role: 'user', content: this._pendingUserText });
+              this._pendingUserText = '';
+            }
           }
 
           // Interrupted (user spoke over AI)
           if (sc.interrupted) {
             this.voiceAudioQueue = [];
             this.voiceCurrentAiText = '';
+            this._pendingUserText = '';
             this.voiceIsPlaying = false;
             this.liveStatus = 'listening';
           }
         }
 
         if (data.error) {
-          console.error('Live API error:', data.error);
+          const msg = data.error.message || JSON.stringify(data.error);
+          console.error('Live API error:', msg);
           this.liveStatus = 'error';
-          alert('Live API エラー: ' + (data.error.message || JSON.stringify(data.error)));
+          this.liveErrorMsg = msg;
         }
       };
 
       this.liveWs.onerror = (e) => {
         console.error('LiveWS error:', e);
         this.liveStatus = 'error';
+        this.liveErrorMsg = '接続エラーが発生しました';
       };
       this.liveWs.onclose = (e) => {
         console.log('LiveWS closed:', e.code, e.reason);
-        // Don't override 'error' state so the user can see what went wrong
-        if (this.liveStatus !== 'error') this.liveStatus = 'idle';
+        if (e.code !== 1000 && e.code !== 1001) {
+          // Abnormal close — show error with reason
+          this.liveErrorMsg = e.reason ? `[${e.code}] ${e.reason}` : `接続が切断されました（コード: ${e.code}）`;
+          this.liveStatus = 'error';
+        } else if (this.liveStatus !== 'error') {
+          this.liveStatus = 'idle';
+          this.liveErrorMsg = '';
+        }
       };
     },
 
@@ -2616,6 +2643,10 @@ function app() {
         this.voicePlayCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
         this.voiceScheduledTime = this.voicePlayCtx.currentTime;
       }
+      // Resume suspended context (browsers suspend AudioContext until user interaction)
+      if (this.voicePlayCtx.state === 'suspended') {
+        this.voicePlayCtx.resume().catch(() => {});
+      }
 
       // Drain all queued chunks and schedule them back-to-back
       while (this.voiceAudioQueue.length > 0) {
@@ -2658,9 +2689,11 @@ function app() {
       if (this.voiceMicStream) { this.voiceMicStream.getTracks().forEach(t => t.stop()); this.voiceMicStream = null; }
       if (this.liveWs) { try { this.liveWs.close(); } catch(e){} this.liveWs = null; }
       this.liveStatus = 'idle';
+      this.liveErrorMsg = '';
       this.voiceAudioQueue = [];
       this.voiceIsPlaying = false;
       this.voiceCurrentAiText = '';
+      this._pendingUserText = '';
     },
 
     saveSettings() {
