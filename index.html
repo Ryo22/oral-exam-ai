@@ -2963,8 +2963,8 @@ ${conversationLog}
       if (hasQuestions) {
         const qList = activeQuestions.map((q, i) => {
           let line = `【問${i + 1}】${q.question}`;
-          if (q.difficulty) line += `\n　難易度: Lv.${q.difficulty}（${difficultyLabels[q.difficulty - 1]}）`;
-          if (q.notes) line += `\n　備考: ${q.notes}`;
+          if (q.difficulty) line += `\n　（内部ガイド）難易度: Lv.${q.difficulty}（${difficultyLabels[q.difficulty - 1]}）— 受験者には伝えないこと`;
+          if (q.notes) line += `\n　（内部ガイド）備考: ${q.notes}`;
           return line;
         }).join('\n\n');
         questionBlock = `
@@ -2972,6 +2972,7 @@ ${conversationLog}
 ${qList}
 
 各問いの進め方:
+- 問いを提示する際、難易度レベルや内部ガイドの情報は受験者に一切伝えないこと
 - 問いを提示し、受験者の回答を受け取る
 - 回答が不十分な場合は1〜2回の深掘り質問をしてから次の問いへ進む（難易度が高い問いほど深掘りを丁寧に）
 - 全ての問いが終わったら「以上で試問を終了します」と伝える`;
