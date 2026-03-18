@@ -206,10 +206,18 @@
         <button @click="studentUser = null; studentName = ''; studentEmail = ''; studentNameConfirmed = false;"
           class="text-xs text-gray-400 hover:text-gray-700 transition-colors shrink-0">変更</button>
       </div>
-      <button @click="startExamPage()"
+      <button @click="startExamPage(false)"
         :disabled="!settings.theme || !apiKey"
         class="w-full bg-gc-green hover:bg-gc-green-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3.5 rounded-2xl transition-colors text-base">
-        試験を開始する
+        試験を開始する（テキスト）
+      </button>
+      <button @click="startExamPage(true)"
+        :disabled="!settings.theme || !apiKey"
+        class="w-full bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed text-gc-blue disabled:text-gray-300 border border-gc-blue disabled:border-gray-200 font-medium py-3.5 rounded-2xl transition-colors text-base flex items-center justify-center gap-2 shadow-sm">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+        </svg>
+        試験を開始する（音声）
       </button>
       <p x-show="!settings.theme || !apiKey" class="text-center text-xs text-amber-600">
         ※ 管理者によるAPIキーとテーマの設定が必要です
@@ -346,11 +354,11 @@
       </div>
       <select x-model="selectedModel" @change="localStorage.setItem('gemini_model', selectedModel)" class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue">
         <template x-if="availableModels.length === 0">
-          <optgroup label="よく使われるモデル（要API取得で更新）">
-            <option value="gemini-2.5-flash">gemini-2.5-flash（推奨）</option>
-            <option value="gemini-2.5-flash-preview-04-17">gemini-2.5-flash-preview-04-17</option>
-            <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-            <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite（軽量・無料）</option>
+          <optgroup label="無料枠で使えるモデル">
+            <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite（推奨・RPD:500）</option>
+            <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite（RPD:20）</option>
+            <option value="gemini-3-flash">gemini-3-flash（RPD:20）</option>
+            <option value="gemini-2.5-flash">gemini-2.5-flash（RPD:20）</option>
           </optgroup>
         </template>
         <template x-if="availableModels.length > 0">
@@ -359,7 +367,20 @@
           </template>
         </template>
       </select>
-      <p class="text-xs text-gray-400">APIキーを入力後「利用可能なモデルを取得」を押すと、実際に使えるモデルが表示されます。</p>
+      <p class="text-xs text-gray-400">無料枠で利用可能なモデルのみ表示しています。「利用可能なモデルを取得」を押すと最新の無料モデル一覧に更新されます。</p>
+      <!-- Voice model selector -->
+      <div class="border-t border-gc-border pt-3 space-y-2">
+        <p class="text-xs text-gray-600 font-medium flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5 text-gc-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>
+          音声モデル（Live API）
+        </p>
+        <select x-model="voiceModel" @change="localStorage.setItem('voice_model', voiceModel)"
+          class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue">
+          <option value="gemini-2.5-flash-preview-native-audio-dialog">gemini-2.5-flash-preview-native-audio-dialog（推奨）</option>
+          <option value="gemini-2.0-flash-live-001">gemini-2.0-flash-live-001</option>
+        </select>
+        <p class="text-xs text-gray-400">音声モードで使用するモデルです（無料枠: 無制限RPM / 1M TPM）。</p>
+      </div>
     </div>
 
     <!-- Class management -->
@@ -1004,7 +1025,7 @@
         <div>
           <p class="font-medium mb-1">AIモデルについて</p>
           <p class="text-blue-600">ホーム画面で「利用可能なモデルを取得」を押すと最新モデル一覧が表示されます。</p>
-          <p class="text-blue-600">無料枠推奨: gemini-2.5-flash / gemini-2.0-flash-lite</p>
+          <p class="text-blue-600">無料枠推奨: gemini-3.1-flash-lite（RPD:500）/ gemini-2.5-flash-lite / gemini-3-flash / gemini-2.5-flash</p>
         </div>
       </div>
     </div>
@@ -1124,7 +1145,7 @@
 <!-- ========== EXAM PAGE ========== -->
 <div x-show="page === 'exam'" class="min-h-screen flex flex-col bg-gc-surface">
   <header class="border-b border-gc-border px-4 py-3 flex items-center justify-between bg-white shadow-sm">
-    <button @click="teardownFocusMonitoring(); page='student'" class="text-gray-500 hover:text-gray-900 transition-colors">
+    <button @click="teardownFocusMonitoring(); if(voiceMode) stopLiveSession(); voiceMode=false; page='student'" class="text-gray-500 hover:text-gray-900 transition-colors">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
       </svg>
@@ -1140,7 +1161,7 @@
       </div>
     </div>
     <button @click="endExam()"
-      :disabled="!examStarted || messages.length < 2 || isScoring"
+      :disabled="!examStarted || (messages.length < 2 && !voiceMode) || isScoring"
       class="text-sm bg-red-100 hover:bg-red-200 text-red-600 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       x-text="isScoring ? '採点中...' : '試験終了'"></button>
   </header>
@@ -1185,7 +1206,56 @@
     </template>
   </div>
 
-  <div x-show="examStarted" class="border-t border-gc-border bg-white pb-3"
+  <!-- ===== VOICE CONTROLS (voice mode) ===== -->
+  <div x-show="examStarted && voiceMode" class="border-t border-gc-border bg-white">
+    <!-- Status bar -->
+    <div class="flex items-center justify-center gap-2 px-4 py-2 border-b border-gc-border"
+      :class="liveStatus === 'error' ? 'bg-red-50' : liveStatus === 'ai_speaking' ? 'bg-blue-50' : 'bg-gray-50'">
+      <!-- Animated status dot -->
+      <span class="w-2 h-2 rounded-full shrink-0"
+        :class="liveStatus === 'connecting' ? 'bg-yellow-400 animate-pulse' :
+                liveStatus === 'ready' || liveStatus === 'listening' ? 'bg-gc-green animate-pulse' :
+                liveStatus === 'ai_speaking' ? 'bg-gc-blue animate-pulse' :
+                liveStatus === 'error' ? 'bg-red-500' : 'bg-gray-300'"></span>
+      <p class="text-xs font-medium"
+        :class="liveStatus === 'error' ? 'text-red-600' : liveStatus === 'ai_speaking' ? 'text-gc-blue' : 'text-gray-600'"
+        x-text="liveStatus === 'idle' ? '未接続' :
+                 liveStatus === 'connecting' ? '接続中...' :
+                 liveStatus === 'ready' || liveStatus === 'listening' ? '🎤 話してください — AIが聞いています' :
+                 liveStatus === 'ai_speaking' ? '🔊 AIが回答中...' :
+                 liveStatus === 'error' ? '接続エラー' : ''"></p>
+    </div>
+    <!-- Mic visualizer + hint -->
+    <div class="flex flex-col items-center gap-3 px-4 py-4">
+      <!-- Animated mic icon -->
+      <div class="relative flex items-center justify-center">
+        <!-- Ripple rings (shown when listening) -->
+        <div x-show="liveStatus === 'listening' || liveStatus === 'ready'"
+          class="absolute w-16 h-16 rounded-full bg-green-100 animate-ping opacity-60"></div>
+        <div x-show="liveStatus === 'ai_speaking'"
+          class="absolute w-16 h-16 rounded-full bg-blue-100 animate-ping opacity-60"></div>
+        <!-- Central mic/speaker circle -->
+        <div class="w-14 h-14 rounded-full flex items-center justify-center z-10 transition-colors"
+          :class="liveStatus === 'ai_speaking' ? 'bg-gc-blue' :
+                  liveStatus === 'listening' || liveStatus === 'ready' ? 'bg-gc-green' : 'bg-gray-200'">
+          <!-- Mic icon when listening -->
+          <svg x-show="liveStatus !== 'ai_speaking'" class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+          </svg>
+          <!-- Speaker icon when AI speaking -->
+          <svg x-show="liveStatus === 'ai_speaking'" class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253"/>
+          </svg>
+        </div>
+      </div>
+      <p class="text-xs text-gray-400 text-center leading-relaxed">
+        マイクに向かって自然に話してください。AIが自動で応答します。<br>会話が終了したら「試験終了」を押してください。
+      </p>
+    </div>
+  </div>
+
+  <!-- ===== TEXT INPUT (text mode only) ===== -->
+  <div x-show="examStarted && !voiceMode" class="border-t border-gc-border bg-white pb-3"
     x-data="{ inputHeight: 140 }">
     <!-- Drag handle (top edge) -->
     <div class="drag-handle w-full"
@@ -1687,7 +1757,7 @@ function app() {
     adminPassword: 'admin',
     examResults: [],
     apiKey: '',
-    selectedModel: 'gemini-2.5-flash',
+    selectedModel: 'gemini-3.1-flash-lite',
     availableModels: [],
     fetchingModels: false,
     settings: {
@@ -1706,6 +1776,18 @@ function app() {
     isLoading: false,
     isScoring: false,
     examStarted: false,
+    // ---- Voice mode (Gemini Live API) ----
+    voiceMode: false,
+    voiceModel: 'gemini-2.5-flash-preview-native-audio-dialog',
+    liveWs: null,
+    liveStatus: 'idle',   // 'idle'|'connecting'|'ready'|'listening'|'ai_speaking'|'error'
+    voiceMicStream: null,
+    voiceAudioCtx: null,  // AudioContext for mic capture (16 kHz)
+    voicePlayCtx: null,   // AudioContext for playback (24 kHz)
+    voiceScheduledTime: 0,
+    voiceAudioQueue: [],
+    voiceIsPlaying: false,
+    voiceCurrentAiText: '',
     result: null,
     showLog: false,
     saved: false,
@@ -1743,13 +1825,18 @@ function app() {
     init() {
       const storedKey = localStorage.getItem('gemini_api_key');
       if (storedKey) this.apiKey = storedKey;
+      const storedVoiceModel = localStorage.getItem('voice_model');
+      if (storedVoiceModel) this.voiceModel = storedVoiceModel;
 
       const storedModel = localStorage.getItem('gemini_model');
-      const deprecatedModels = ['gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro', 'gemini-2.5-flash-preview-04-17'];
+      const deprecatedModels = [
+        'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro',
+        'gemini-2.5-flash-preview-04-17', 'gemini-2.0-flash', 'gemini-2.0-flash-lite',
+      ];
       if (storedModel && !deprecatedModels.includes(storedModel)) {
         this.selectedModel = storedModel;
       } else {
-        this.selectedModel = 'gemini-2.5-flash';
+        this.selectedModel = 'gemini-3.1-flash-lite';
         localStorage.removeItem('gemini_model');
       }
 
@@ -2140,26 +2227,42 @@ function app() {
     async fetchModels() {
       if (!this.apiKey) return;
       this.fetchingModels = true;
+      // Free-tier text generation models (RPM > 0 in Google AI Studio free plan)
+      const FREE_MODELS = [
+        'gemini-3.1-flash-lite',
+        'gemini-2.5-flash-lite',
+        'gemini-3-flash',
+        'gemini-2.5-flash',
+      ];
       try {
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${this.apiKey}`);
         const data = await res.json();
         if (data.models) {
-          // Filter models that support generateContent
+          // Filter to free-tier generateContent models only
           const filtered = data.models
-            .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+            .filter(m =>
+              m.supportedGenerationMethods &&
+              m.supportedGenerationMethods.includes('generateContent') &&
+              FREE_MODELS.some(fid => m.name.replace('models/', '').startsWith(fid))
+            )
             .map(m => {
               const id = m.name.replace('models/', '');
-              return { id, name: m.name, label: `${id}${m.displayName ? ' - ' + m.displayName : ''}` };
+              const rpd = { 'gemini-3.1-flash-lite': 500, 'gemini-2.5-flash-lite': 20, 'gemini-3-flash': 20, 'gemini-2.5-flash': 20 };
+              const baseId = FREE_MODELS.find(fid => id.startsWith(fid)) || id;
+              const rpdLabel = rpd[baseId] ? `（RPD:${rpd[baseId]}）` : '';
+              return { id, name: m.name, label: `${id}${rpdLabel}` };
             })
-            .sort((a, b) => a.id.localeCompare(b.id));
-          this.availableModels = filtered;
-          // Auto-select first flash model if current selection not found
+            .sort((a, b) => {
+              // Sort by free quota descending (3.1-flash-lite first)
+              return FREE_MODELS.findIndex(f => a.id.startsWith(f)) - FREE_MODELS.findIndex(f => b.id.startsWith(f));
+            });
+          this.availableModels = filtered.length > 0 ? filtered : [];
+          // Auto-select recommended model if current not in free list
           const found = filtered.find(m => m.id === this.selectedModel);
           if (!found && filtered.length > 0) {
-            const flashModel = filtered.find(m => m.id.includes('flash')) || filtered[0];
-            this.selectedModel = flashModel.id;
+            this.selectedModel = filtered[0].id;
           }
-          alert(`✅ ${filtered.length}個のモデルを取得しました。`);
+          alert(`✅ ${filtered.length}個の無料モデルを取得しました。`);
         } else {
           alert('❌ モデル取得失敗: ' + JSON.stringify(data.error || data));
         }
@@ -2240,6 +2343,222 @@ function app() {
       a.click();
     },
 
+    // =============================================
+    // VOICE MODE — Gemini Live API
+    // =============================================
+
+    // ---- Audio helpers ----
+    _float32ToPCM16(f32) {
+      const i16 = new Int16Array(f32.length);
+      for (let i = 0; i < f32.length; i++) {
+        const s = Math.max(-1, Math.min(1, f32[i]));
+        i16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+      return i16;
+    },
+    _bufToBase64(buf) {
+      let b = ''; const u8 = new Uint8Array(buf);
+      for (let i = 0; i < u8.length; i++) b += String.fromCharCode(u8[i]);
+      return btoa(b);
+    },
+    _base64ToBuf(b64) {
+      const bin = atob(b64); const u8 = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      return u8.buffer;
+    },
+
+    // ---- Connect to Gemini Live API ----
+    async initLiveSession() {
+      this.liveStatus = 'connecting';
+      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${this.apiKey}`;
+      try {
+        this.liveWs = new WebSocket(wsUrl);
+      } catch(e) {
+        alert('Live API WebSocket の接続に失敗しました: ' + e.message);
+        this.liveStatus = 'error'; return;
+      }
+
+      this.liveWs.onopen = () => {
+        const setup = {
+          setup: {
+            model: `models/${this.voiceModel}`,
+            system_instruction: { parts: [{ text: this.buildSystemPrompt() }] },
+            generation_config: {
+              response_modalities: ['AUDIO'],
+              speech_config: { voice_config: { prebuilt_voice_config: { voice_name: 'Kore' } } }
+            },
+            input_audio_transcription: {},
+            output_audio_transcription: {}
+          }
+        };
+        this.liveWs.send(JSON.stringify(setup));
+      };
+
+      this.liveWs.onmessage = async (event) => {
+        let data;
+        try {
+          const text = event.data instanceof Blob ? await event.data.text() : event.data;
+          data = JSON.parse(text);
+        } catch(e) { return; }
+
+        // Setup complete → start mic
+        if (data.setupComplete) {
+          this.liveStatus = 'ready';
+          await this._startMicCapture();
+          return;
+        }
+
+        if (data.serverContent) {
+          const sc = data.serverContent;
+
+          // Model audio/text parts
+          if (sc.modelTurn && sc.modelTurn.parts) {
+            for (const part of sc.modelTurn.parts) {
+              if (part.inlineData && part.inlineData.mimeType && part.inlineData.mimeType.startsWith('audio/')) {
+                this.voiceAudioQueue.push(part.inlineData.data);
+                if (!this.voiceIsPlaying) this._playNextAudioChunk();
+              }
+              if (part.text) this.voiceCurrentAiText += part.text;
+            }
+            this.liveStatus = 'ai_speaking';
+          }
+
+          // AI turn complete
+          if (sc.turnComplete) {
+            if (this.voiceCurrentAiText) {
+              this.messages.push({ role: 'assistant', content: this.voiceCurrentAiText });
+              // Check if exam should auto-end
+              if (this.voiceCurrentAiText.includes('以上で試問を終了します')) {
+                this.voiceCurrentAiText = '';
+                setTimeout(() => this.endExam(), 1500);
+                return;
+              }
+              this.voiceCurrentAiText = '';
+            }
+            // Resume listening after AI finishes speaking
+            if (this.voiceAudioQueue.length === 0) this.liveStatus = 'listening';
+          }
+
+          // AI output transcription (text alongside audio)
+          if (sc.outputTranscription && sc.outputTranscription.text) {
+            // already handled via text parts above
+          }
+
+          // User speech transcription
+          if (sc.inputTranscription && sc.inputTranscription.text && sc.inputTranscription.finished) {
+            this.messages.push({ role: 'user', content: sc.inputTranscription.text });
+          }
+
+          // Interrupted (user spoke over AI)
+          if (sc.interrupted) {
+            this.voiceAudioQueue = [];
+            this.voiceCurrentAiText = '';
+            this.voiceIsPlaying = false;
+            this.liveStatus = 'listening';
+          }
+        }
+
+        if (data.error) {
+          console.error('Live API error:', data.error);
+          this.liveStatus = 'error';
+          alert('Live API エラー: ' + (data.error.message || JSON.stringify(data.error)));
+        }
+      };
+
+      this.liveWs.onerror = () => { this.liveStatus = 'error'; };
+      this.liveWs.onclose = () => {
+        if (this.liveStatus !== 'idle') this.liveStatus = 'idle';
+      };
+    },
+
+    // ---- Start microphone capture and stream to WebSocket ----
+    async _startMicCapture() {
+      try {
+        this.voiceMicStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        this.voiceAudioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        const source = this.voiceAudioCtx.createMediaStreamSource(this.voiceMicStream);
+        // ScriptProcessor is deprecated but universally supported; replace with AudioWorklet in future
+        const processor = this.voiceAudioCtx.createScriptProcessor(4096, 1, 1);
+        processor.onaudioprocess = (e) => {
+          if (this.liveWs && this.liveWs.readyState === WebSocket.OPEN && this.liveStatus !== 'ai_speaking') {
+            const pcm16 = this._float32ToPCM16(e.inputBuffer.getChannelData(0));
+            const b64 = this._bufToBase64(pcm16.buffer);
+            this.liveWs.send(JSON.stringify({
+              realtime_input: { media_chunks: [{ data: b64, mime_type: 'audio/pcm;rate=16000' }] }
+            }));
+          }
+        };
+        source.connect(processor);
+        processor.connect(this.voiceAudioCtx.destination);
+        this.liveStatus = 'listening';
+      } catch(err) {
+        alert('マイクへのアクセスが許可されていません。\nブラウザの設定でマイクを許可してください。\n\nエラー: ' + err.message);
+        this.liveStatus = 'error';
+        this.stopLiveSession();
+      }
+    },
+
+    // ---- Play queued audio chunks (PCM 24kHz) ----
+    _playNextAudioChunk() {
+      if (this.voiceAudioQueue.length === 0) {
+        this.voiceIsPlaying = false;
+        if (this.liveStatus === 'ai_speaking') this.liveStatus = 'listening';
+        return;
+      }
+      this.voiceIsPlaying = true;
+      this.liveStatus = 'ai_speaking';
+
+      if (!this.voicePlayCtx || this.voicePlayCtx.state === 'closed') {
+        this.voicePlayCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+        this.voiceScheduledTime = this.voicePlayCtx.currentTime;
+      }
+
+      // Drain all queued chunks and schedule them back-to-back
+      while (this.voiceAudioQueue.length > 0) {
+        const b64 = this.voiceAudioQueue.shift();
+        const buf = this._base64ToBuf(b64);
+        const i16 = new Int16Array(buf);
+        const f32 = new Float32Array(i16.length);
+        for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 32768.0;
+
+        const ab = this.voicePlayCtx.createBuffer(1, f32.length, 24000);
+        ab.getChannelData(0).set(f32);
+        const src = this.voicePlayCtx.createBufferSource();
+        src.buffer = ab;
+        src.connect(this.voicePlayCtx.destination);
+        src.start(Math.max(this.voiceScheduledTime, this.voicePlayCtx.currentTime));
+        this.voiceScheduledTime = Math.max(this.voiceScheduledTime, this.voicePlayCtx.currentTime) + ab.duration;
+      }
+
+      // Poll for more chunks while playing, then transition back to listening
+      const checkDone = () => {
+        if (!this.voicePlayCtx) return;
+        if (this.voiceAudioQueue.length > 0) {
+          this._playNextAudioChunk(); return;
+        }
+        const remaining = (this.voiceScheduledTime - this.voicePlayCtx.currentTime) * 1000;
+        if (remaining > 50) {
+          setTimeout(checkDone, Math.min(remaining, 200));
+        } else {
+          this.voiceIsPlaying = false;
+          if (this.liveStatus === 'ai_speaking') this.liveStatus = 'listening';
+        }
+      };
+      setTimeout(checkDone, 100);
+    },
+
+    // ---- Tear down Live session ----
+    stopLiveSession() {
+      if (this.voiceAudioCtx) { try { this.voiceAudioCtx.close(); } catch(e){} this.voiceAudioCtx = null; }
+      if (this.voicePlayCtx)  { try { this.voicePlayCtx.close();  } catch(e){} this.voicePlayCtx = null; }
+      if (this.voiceMicStream) { this.voiceMicStream.getTracks().forEach(t => t.stop()); this.voiceMicStream = null; }
+      if (this.liveWs) { try { this.liveWs.close(); } catch(e){} this.liveWs = null; }
+      this.liveStatus = 'idle';
+      this.voiceAudioQueue = [];
+      this.voiceIsPlaying = false;
+      this.voiceCurrentAiText = '';
+    },
+
     saveSettings() {
       // Sync settings into the active test
       const t = this.tests.find(t => t.id === this.activeTestId);
@@ -2251,11 +2570,12 @@ function app() {
       setTimeout(() => this.saved = false, 2000);
     },
 
-    startExamPage() {
+    startExamPage(voice = false) {
       this.messages = [];
       this.examStarted = false;
       this.result = null;
       this.inputText = '';
+      this.voiceMode = voice;
       this.page = 'exam';
       this.$nextTick(() => this.initQuill());
     },
@@ -2263,6 +2583,11 @@ function app() {
     async startExam() {
       this.examStarted = true;
       this.setupFocusMonitoring();
+      // Voice mode: connect to Gemini Live API instead of REST
+      if (this.voiceMode) {
+        await this.initLiveSession();
+        return;
+      }
       this.isLoading = true;
       const systemPrompt = this.buildSystemPrompt();
       const response = await this.callGemini(systemPrompt, []);
@@ -2354,6 +2679,7 @@ function app() {
       if (!this.examStarted || this.messages.length < 2 || this.isScoring) return;
       if (!confirm('試験を終了して採点しますか？')) return;
       this.teardownFocusMonitoring();
+      if (this.voiceMode) this.stopLiveSession();
       this.isScoring = true;
 
       const activeCriteria = this.settings.criteria.filter(c => c.name);
@@ -2467,6 +2793,8 @@ ${conversationLog}
 
     retryExam() {
       this.teardownFocusMonitoring();
+      if (this.voiceMode) this.stopLiveSession();
+      this.voiceMode = false;
       this.focusViolationCount = 0;
       this.focusViolations = [];
       this.focusViolationFlagged = false;
