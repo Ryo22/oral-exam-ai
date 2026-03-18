@@ -1812,7 +1812,7 @@ function app() {
         try { this.classes = JSON.parse(storedClasses); } catch(e) {}
       }
       if (this.classes.length === 0) {
-        this.classes = [{ id: 'default', name: 'クラスA' }];
+        this.classes = [{ id: 'default', name: 'クラス1' }];
         localStorage.setItem('exam_classes', JSON.stringify(this.classes));
       }
       // Auto-detect class from URL parameter
