@@ -953,7 +953,7 @@
                   </div>
                   <input type="number"
                     :value="settings.difficultyDistribution[i]"
-                    @input="settings.difficultyDistribution[i] = parseInt($event.target.value) || 0"
+                    @input="settings.difficultyDistribution[i] = parseInt($event.target.value) || 0; const s = settings.difficultyDistribution.reduce((a,b)=>a+b,0); if(s > 0) settings.autoQuestionCount = s;"
                     min="0" max="20"
                     class="w-full text-center border border-gc-border rounded-lg px-1 py-2 text-sm bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue"/>
                 </div>
