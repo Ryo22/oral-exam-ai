@@ -1378,6 +1378,25 @@
     <div x-show="liveStatus === 'error' && liveErrorMsg" class="bg-red-50 px-4 py-2 border-b border-red-100">
       <p class="text-xs text-red-600 leading-relaxed" x-text="liveErrorMsg"></p>
     </div>
+    <!-- Real-time AI transcription display -->
+    <div x-show="liveStatus === 'ai_speaking' && voiceCurrentAiText"
+      class="px-4 py-3 border-b border-gc-border bg-blue-50 max-h-40 overflow-y-auto">
+      <p class="text-xs text-blue-500 font-medium mb-1 flex items-center gap-1">
+        <span class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse inline-block"></span>
+        AIが発話中...
+      </p>
+      <p class="text-sm text-blue-900 leading-relaxed whitespace-pre-wrap"
+        x-text="_cleanAiTextRealtime(voiceCurrentAiText)"></p>
+    </div>
+    <!-- Real-time user speech display -->
+    <div x-show="(liveStatus === 'listening' || liveStatus === 'ready') && _pendingUserText"
+      class="px-4 py-2 border-b border-gc-border bg-green-50">
+      <p class="text-xs text-green-600 font-medium mb-0.5 flex items-center gap-1">
+        <span class="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse inline-block"></span>
+        認識中...
+      </p>
+      <p class="text-sm text-green-900 leading-relaxed" x-text="_pendingUserText"></p>
+    </div>
     <!-- Mic visualizer + hint -->
     <div class="flex flex-col items-center gap-3 px-4 py-4">
       <!-- Animated mic icon -->
@@ -2592,7 +2611,8 @@ function app() {
             system_instruction: { parts: [{ text: this.buildSystemPrompt() }] },
             generation_config: {
               response_modalities: ['AUDIO'],
-              speech_config: { voice_config: { prebuilt_voice_config: { voice_name: 'Kore' } } }
+              speech_config: { voice_config: { prebuilt_voice_config: { voice_name: 'Kore' } } },
+              thinking_config: { thinking_budget: 0 }
             },
             input_audio_transcription: {},
             output_audio_transcription: {}
@@ -2805,23 +2825,51 @@ function app() {
       return marked.parse(text);
     },
 
-    // Strip AI internal commentary lines (e.g. "**Title** English explanation.")
-    // that the model sometimes prepends before the actual Japanese response.
+    // Returns true if string contains Japanese/CJK characters
+    _hasJapanese(s) {
+      return /[\u3000-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]/.test(s);
+    },
+
+    // Strip AI internal commentary (English meta-sentences) from the final AI turn text.
+    // Splits into sentence chunks and keeps only those containing Japanese characters.
     _cleanAiText(text) {
       if (!text) return text;
-      // Remove lines that are purely internal meta-commentary:
-      // Pattern: lines starting with **Title** followed by English text
-      // Keep lines that contain Japanese characters or are short exam questions
-      const lines = text.split('\n');
-      const cleaned = lines.filter(line => {
-        const t = line.trim();
-        if (!t) return false; // drop blank lines at boundaries
-        // Drop lines that match ** meta-commentary pattern AND contain no Japanese
-        if (/^\*\*[^*]+\*\*/.test(t) && !/[\u3000-\u9FFF\uF900-\uFAFF]/.test(t)) return false;
-        return true;
-      }).join('\n').trim();
-      // Also strip inline **bold** markers themselves (keep the text between them)
-      return cleaned.replace(/\*\*([^*]+)\*\*/g, '$1').trim();
+      // Remove **bold** markers first
+      let t = text.replace(/\*\*([^*]+)\*\*/g, '$1');
+      // Split on sentence-ending punctuation (English . ! ? or Japanese 。！？)
+      // followed by a space+capital or newline
+      const segments = t.split(/(?<=[.!?。！？])\s+(?=[A-Z\u3000-\u9FFF\uF900-\uFAFF])/);
+      const hasAnyEnglishOnly = segments.some(s => s.trim().length > 15 && !this._hasJapanese(s));
+      // Only filter if there are clearly English-only segments to remove
+      if (hasAnyEnglishOnly) {
+        const jpSegments = segments.filter(s => this._hasJapanese(s));
+        if (jpSegments.length > 0) return jpSegments.join(' ').trim();
+      }
+      return t.trim();
+    },
+
+    // Real-time version: lighter filter for streaming display (incomplete sentences OK)
+    _cleanAiTextRealtime(text) {
+      if (!text) return '';
+      // Find the last Japanese character position — everything before a long
+      // English-only stretch at the START can be trimmed.
+      // Simple heuristic: take only the Japanese-containing portions
+      const t = text.replace(/\*\*([^*]+)\*\*/g, '$1');
+      // Remove leading English paragraphs (before first Japanese character)
+      const firstJapIdx = t.search(/[\u3000-\u9FFF\uF900-\uFAFF\uFF00-\uFFEF]/);
+      if (firstJapIdx > 60) {
+        // There's a long English preamble — start from first Japanese char (at sentence start)
+        const beforeJap = t.substring(0, firstJapIdx);
+        // Find last sentence boundary before first Japanese char
+        const lastBound = Math.max(
+          beforeJap.lastIndexOf('. '),
+          beforeJap.lastIndexOf('! '),
+          beforeJap.lastIndexOf('? '),
+          beforeJap.lastIndexOf('\n')
+        );
+        return t.substring(lastBound > 0 ? lastBound + 2 : firstJapIdx).trim();
+      }
+      return t.trim();
     },
 
     stopLiveSession() {
@@ -3159,10 +3207,20 @@ ${distLines}
 7. 簡潔に、試験官らしく振る舞う
 8. 【重要】内部思考・計画メモ・英語の注釈（例: **Initiating Exam** や **Refusing Aid Request** などの太字見出し）は絶対に出力しない。試験官として自然な日本語のみで発言すること`;
 
+      const noMetaRule = `
+【絶対厳守】発話ルール:
+- 思考過程・計画・意図の説明を一切しゃべらないこと
+- 英語での発言・注釈・コメントは一切しないこと
+- "I'm now ready to...", "The first query is...", "I've formulated..." のような文は絶対に発話しないこと
+- 日本語の質問・回答のみを、そのまま発話すること
+- 悪い例（禁止）: "I'm now ready to commence the exam. The first query: 「地政学とは何か...」"
+- 良い例（正しい）: 「地政学とは何か、定義を説明してください。」`;
+
       return `あなたは${isLearning ? '学習をサポートする教育者' : '厳格で公平な口頭試問の試験官'}です。
 試問テーマ: ${this.settings.theme}
 ${isLearning ? 'モード: 【学習モード】ヒントや解説の提供が許可されています。' : ''}
 あなたの役割:${roleLines}
+${noMetaRule}
 ${questionBlock}
 
 評価観点（試験中は言及しない）:
