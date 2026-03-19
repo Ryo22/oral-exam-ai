@@ -1429,29 +1429,93 @@
       <p class="text-xs text-center leading-relaxed"
         :class="voiceMuted ? 'text-orange-500 font-medium' : 'text-gray-400'"
         x-text="voiceMuted ? '🔇 ミュート中 — マイクがオフです' : 'マイクに向かって自然に話してください。AIが自動で応答します。'"></p>
-      <div class="flex items-center gap-3 mt-1">
-        <!-- Mute toggle button -->
+      <!-- Button row: mute / settings / end -->
+      <div class="flex items-center gap-2 mt-1">
+        <!-- Mute toggle -->
         <button @click="voiceMuted = !voiceMuted"
-          :class="voiceMuted
-            ? 'bg-orange-100 hover:bg-orange-200 text-orange-600 border border-orange-200'
-            : 'bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gc-border'"
-          class="flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl transition-colors">
-          <!-- Mic-off icon (muted) -->
+          :class="voiceMuted ? 'bg-orange-100 hover:bg-orange-200 text-orange-600 border border-orange-200' : 'bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gc-border'"
+          class="flex items-center gap-1.5 text-sm px-3 py-2 rounded-xl transition-colors">
           <svg x-show="voiceMuted" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
           </svg>
-          <!-- Mic icon (active) -->
           <svg x-show="!voiceMuted" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
           </svg>
           <span x-text="voiceMuted ? 'ミュート解除' : 'ミュート'"></span>
         </button>
-        <!-- End exam button -->
+        <!-- Settings toggle -->
+        <button @click="showVoiceSettings = !showVoiceSettings"
+          :class="showVoiceSettings ? 'bg-blue-100 text-gc-blue border-gc-blue' : 'bg-gray-100 hover:bg-gray-200 text-gray-600 border-gc-border'"
+          class="flex items-center gap-1.5 text-sm px-3 py-2 rounded-xl transition-colors border">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          音声設定
+        </button>
+        <!-- End exam -->
         <button @click="endExam()"
           :disabled="!examStarted || isScoring"
-          class="text-sm bg-red-100 hover:bg-red-200 text-red-600 px-4 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          class="text-sm bg-red-100 hover:bg-red-200 text-red-600 px-3 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           x-text="isScoring ? '採点中...' : '試験終了'"></button>
+      </div>
+
+      <!-- ===== Voice advanced settings panel ===== -->
+      <div x-show="showVoiceSettings" x-transition
+        class="w-full mt-3 bg-gray-50 border border-gc-border rounded-xl p-4 space-y-4 text-left">
+
+        <!-- Playback speed -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-xs font-medium text-gray-700 flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 text-gc-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253"/>
+              </svg>
+              AI話す速度
+            </label>
+            <span class="text-xs font-bold text-gc-blue w-10 text-right" x-text="voicePlaybackRate.toFixed(1) + 'x'"></span>
+          </div>
+          <input type="range" min="0.5" max="2.0" step="0.1"
+            x-model.number="voicePlaybackRate"
+            class="w-full h-1.5 rounded-full appearance-none bg-gc-border accent-gc-blue cursor-pointer">
+          <div class="flex justify-between text-[10px] text-gray-400 mt-1">
+            <span>遅い 0.5x</span><span>標準 1.0x</span><span>速い 2.0x</span>
+          </div>
+        </div>
+
+        <!-- Silence delay (response wait time) -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-xs font-medium text-gray-700 flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 text-gc-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              応答待機時間（無音後にAIが話し始めるまで）
+            </label>
+          </div>
+          <div class="flex items-center gap-2">
+            <button @click="voiceSilenceDelaySec = +(Math.max(0.1, voiceSilenceDelaySec - 0.1)).toFixed(1)"
+              class="w-8 h-8 rounded-lg bg-white border border-gc-border text-gray-600 hover:bg-gray-100 flex items-center justify-center text-lg font-medium transition-colors">−</button>
+            <div class="flex-1 relative">
+              <input type="number" min="0.1" max="10.0" step="0.1"
+                x-model.number="voiceSilenceDelaySec"
+                @change="voiceSilenceDelaySec = +(Math.max(0.1, Math.min(10.0, voiceSilenceDelaySec))).toFixed(1)"
+                class="w-full text-center bg-white border border-gc-border rounded-lg px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gc-blue">
+              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">秒</span>
+            </div>
+            <button @click="voiceSilenceDelaySec = +(Math.min(10.0, voiceSilenceDelaySec + 0.1)).toFixed(1)"
+              class="w-8 h-8 rounded-lg bg-white border border-gc-border text-gray-600 hover:bg-gray-100 flex items-center justify-center text-lg font-medium transition-colors">＋</button>
+          </div>
+          <div class="flex items-center justify-between mt-2">
+            <p class="text-[11px] text-gray-400">変更は再接続後に有効になります</p>
+            <button x-show="liveWs && liveWs.readyState === 1"
+              @click="reconnectLiveSession()"
+              class="text-xs bg-gc-blue hover:bg-gc-blue-dark text-white px-3 py-1 rounded-lg transition-colors">
+              再接続して適用
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2002,6 +2066,9 @@ function app() {
     voiceIsPlaying: false,
     voiceCurrentAiText: '',
     voiceMuted: false,
+    voicePlaybackRate: 1.0,       // AI speech playback speed (0.5x – 2.0x)
+    voiceSilenceDelaySec: 0.8,    // seconds of silence before AI responds
+    showVoiceSettings: false,     // toggle voice advanced settings panel
     showEndConfirm: false,
     result: null,
     showLog: false,
@@ -2642,7 +2709,12 @@ function app() {
               thinking_config: { thinking_budget: 0 }
             },
             input_audio_transcription: {},
-            output_audio_transcription: {}
+            output_audio_transcription: {},
+            realtime_input_config: {
+              automatic_activity_detection: {
+                silence_duration_ms: Math.round(this.voiceSilenceDelaySec * 1000)
+              }
+            }
           }
         };
         this.liveWs.send(JSON.stringify(setup));
@@ -2823,9 +2895,12 @@ function app() {
         ab.getChannelData(0).set(f32);
         const src = this.voicePlayCtx.createBufferSource();
         src.buffer = ab;
+        src.playbackRate.value = this.voicePlaybackRate;  // apply speed setting
         src.connect(this.voicePlayCtx.destination);
-        src.start(Math.max(this.voiceScheduledTime, this.voicePlayCtx.currentTime));
-        this.voiceScheduledTime = Math.max(this.voiceScheduledTime, this.voicePlayCtx.currentTime) + ab.duration;
+        const startAt = Math.max(this.voiceScheduledTime, this.voicePlayCtx.currentTime);
+        src.start(startAt);
+        // actual playback duration shrinks/grows with playback rate
+        this.voiceScheduledTime = startAt + ab.duration / this.voicePlaybackRate;
       }
 
       // Poll for more chunks while playing, then transition back to listening
@@ -2843,6 +2918,15 @@ function app() {
         }
       };
       setTimeout(checkDone, 100);
+    },
+
+    // ---- Reconnect Live session (apply new settings like silenceDurationMs) ----
+    async reconnectLiveSession() {
+      const wasListening = this.liveStatus === 'listening' || this.liveStatus === 'ready' || this.liveStatus === 'ai_speaking';
+      if (!wasListening) return;
+      this.stopLiveSession();
+      await this.$nextTick();
+      await this.initLiveSession();
     },
 
     // ---- Tear down Live session ----
@@ -2912,6 +2996,7 @@ function app() {
       this.voiceCurrentAiText = '';
       this._pendingUserText = '';
       this.voiceMuted = false;
+      this.showVoiceSettings = false;
     },
 
     saveSettings() {
