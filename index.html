@@ -1465,6 +1465,34 @@
       <div x-show="showVoiceSettings" x-transition
         class="w-full mt-3 bg-gray-50 border border-gc-border rounded-xl p-4 space-y-4 text-left">
 
+        <!-- Voice selector -->
+        <div>
+          <label class="text-xs font-medium text-gray-700 flex items-center gap-1 mb-1.5">
+            <svg class="w-3.5 h-3.5 text-gc-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            AIの声
+          </label>
+          <select x-model="voiceVoiceName"
+            class="w-full bg-white border border-gc-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gc-blue">
+            <optgroup label="女性">
+              <option value="Kore">Kore（落ち着いた・デフォルト）</option>
+              <option value="Aoede">Aoede（明るい・親しみやすい）</option>
+              <option value="Leda">Leda（若々しい）</option>
+              <option value="Achernar">Achernar（ソフト）</option>
+              <option value="Sulafat">Sulafat（温かみのある）</option>
+            </optgroup>
+            <optgroup label="男性">
+              <option value="Charon">Charon（明確・知的）</option>
+              <option value="Fenrir">Fenrir（元気・力強い）</option>
+              <option value="Puck">Puck（陽気・フレンドリー）</option>
+              <option value="Orus">Orus（落ち着いた・厳格）</option>
+              <option value="Gacrux">Gacrux（成熟・深み）</option>
+            </optgroup>
+          </select>
+          <p class="text-[11px] text-gray-400 mt-1">変更は再接続後に有効になります</p>
+        </div>
+
         <!-- Playback speed -->
         <div>
           <div class="flex items-center justify-between mb-1.5">
@@ -1472,7 +1500,7 @@
               <svg class="w-3.5 h-3.5 text-gc-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253"/>
               </svg>
-              AI話す速度
+              AI話す速度（ピッチ変化なし）
             </label>
             <span class="text-xs font-bold text-gc-blue w-10 text-right" x-text="voicePlaybackRate.toFixed(1) + 'x'"></span>
           </div>
@@ -1507,16 +1535,22 @@
             <button @click="voiceSilenceDelaySec = +(Math.min(10.0, voiceSilenceDelaySec + 0.1)).toFixed(1)"
               class="w-8 h-8 rounded-lg bg-white border border-gc-border text-gray-600 hover:bg-gray-100 flex items-center justify-center text-lg font-medium transition-colors">＋</button>
           </div>
-          <div class="flex items-center justify-between mt-2">
-            <p class="text-[11px] text-gray-400">変更は再接続後に有効になります</p>
-            <button x-show="liveWs && liveWs.readyState === 1"
-              @click="reconnectLiveSession()"
-              class="text-xs bg-gc-blue hover:bg-gc-blue-dark text-white px-3 py-1 rounded-lg transition-colors">
-              再接続して適用
-            </button>
-          </div>
+          <p class="text-[11px] text-gray-400 mt-1">変更は再接続後に有効になります</p>
         </div>
-      </div>
+
+        <!-- Reconnect button (applies voice + silence delay changes) -->
+        <button x-show="liveWs && liveWs.readyState === 1"
+          @click="reconnectLiveSession()"
+          class="w-full text-sm bg-gc-blue hover:bg-gc-blue-dark text-white py-2 rounded-xl transition-colors flex items-center justify-center gap-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          再接続して設定を適用（声・待機時間）
+        </button>
+        <div x-show="!(liveWs && liveWs.readyState === 1)"
+          class="text-[11px] text-center text-gray-400">
+          ※ 接続中のセッションがある場合のみ再接続ボタンが表示されます</div>
+      </div><!-- end settings panel -->
     </div>
   </div>
 
@@ -2068,6 +2102,7 @@ function app() {
     voiceMuted: false,
     voicePlaybackRate: 1.0,       // AI speech playback speed (0.5x – 2.0x)
     voiceSilenceDelaySec: 0.8,    // seconds of silence before AI responds
+    voiceVoiceName: 'Kore',       // Gemini Live API voice name
     showVoiceSettings: false,     // toggle voice advanced settings panel
     showEndConfirm: false,
     result: null,
@@ -2705,7 +2740,7 @@ function app() {
             system_instruction: { parts: [{ text: this.buildSystemPrompt() }] },
             generation_config: {
               response_modalities: ['AUDIO'],
-              speech_config: { voice_config: { prebuilt_voice_config: { voice_name: 'Kore' } } },
+              speech_config: { voice_config: { prebuilt_voice_config: { voice_name: this.voiceVoiceName } } },
               thinking_config: { thinking_budget: 0 }
             },
             input_audio_transcription: {},
@@ -2891,16 +2926,17 @@ function app() {
         const f32 = new Float32Array(i16.length);
         for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 32768.0;
 
-        const ab = this.voicePlayCtx.createBuffer(1, f32.length, 24000);
-        ab.getChannelData(0).set(f32);
+        // Resample PCM to change speed WITHOUT changing pitch (time-stretch)
+        const resampled = this._resampleForSpeed(f32, this.voicePlaybackRate);
+        const ab = this.voicePlayCtx.createBuffer(1, resampled.length, 24000);
+        ab.getChannelData(0).set(resampled);
         const src = this.voicePlayCtx.createBufferSource();
         src.buffer = ab;
-        src.playbackRate.value = this.voicePlaybackRate;  // apply speed setting
+        // playbackRate stays 1.0 — pitch is preserved by resampling
         src.connect(this.voicePlayCtx.destination);
         const startAt = Math.max(this.voiceScheduledTime, this.voicePlayCtx.currentTime);
         src.start(startAt);
-        // actual playback duration shrinks/grows with playback rate
-        this.voiceScheduledTime = startAt + ab.duration / this.voicePlaybackRate;
+        this.voiceScheduledTime = startAt + ab.duration;
       }
 
       // Poll for more chunks while playing, then transition back to listening
@@ -2918,6 +2954,22 @@ function app() {
         }
       };
       setTimeout(checkDone, 100);
+    },
+
+    // ---- Pitch-preserving speed change via linear interpolation resampling ----
+    // Changes the buffer length (duration) without altering the sample frequency (pitch).
+    _resampleForSpeed(f32, speed) {
+      if (Math.abs(speed - 1.0) < 0.005) return f32; // no-op at 1.0x
+      const newLen = Math.max(1, Math.round(f32.length / speed));
+      const out = new Float32Array(newLen);
+      for (let i = 0; i < newLen; i++) {
+        const srcPos = i * speed;
+        const lo = Math.floor(srcPos);
+        const hi = Math.min(lo + 1, f32.length - 1);
+        const frac = srcPos - lo;
+        out[i] = f32[lo] * (1 - frac) + f32[hi] * frac;
+      }
+      return out;
     },
 
     // ---- Reconnect Live session (apply new settings like silenceDurationMs) ----
