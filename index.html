@@ -1500,7 +1500,7 @@
               <svg class="w-3.5 h-3.5 text-gc-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253"/>
               </svg>
-              AI話す速度（ピッチ変化なし）
+              AI話す速度
             </label>
             <span class="text-xs font-bold text-gc-blue w-10 text-right" x-text="voicePlaybackRate.toFixed(1) + 'x'"></span>
           </div>
@@ -1539,7 +1539,8 @@
         </div>
 
         <!-- Reconnect button (applies voice + silence delay changes) -->
-        <button x-show="liveWs && liveWs.readyState === 1"
+        <button
+          x-show="liveStatus === 'listening' || liveStatus === 'ready' || liveStatus === 'ai_speaking'"
           @click="reconnectLiveSession()"
           class="w-full text-sm bg-gc-blue hover:bg-gc-blue-dark text-white py-2 rounded-xl transition-colors flex items-center justify-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1547,9 +1548,9 @@
           </svg>
           再接続して設定を適用（声・待機時間）
         </button>
-        <div x-show="!(liveWs && liveWs.readyState === 1)"
+        <div x-show="liveStatus === 'idle' || liveStatus === 'error'"
           class="text-[11px] text-center text-gray-400">
-          ※ 接続中のセッションがある場合のみ再接続ボタンが表示されます</div>
+          ※ 音声セッション接続中に再接続ボタンが表示されます</div>
       </div><!-- end settings panel -->
     </div>
   </div>
@@ -2765,10 +2766,14 @@ function app() {
         // Setup complete → start mic and kick off conversation
         if (data.setupComplete) {
           this.liveStatus = 'ready';
-          // Ask AI to start the exam (first question)
+          // If reconnecting mid-exam, resume from last AI message; otherwise start fresh
+          const kickoff = this._reconnectContext
+            ? this._reconnectContext
+            : '試験を開始してください。最初の質問をしてください。';
+          this._reconnectContext = null;
           this.liveWs.send(JSON.stringify({
             client_content: {
-              turns: [{ role: 'user', parts: [{ text: '試験を開始してください。最初の質問をしてください。' }] }],
+              turns: [{ role: 'user', parts: [{ text: kickoff }] }],
               turn_complete: true
             }
           }));
@@ -2926,8 +2931,8 @@ function app() {
         const f32 = new Float32Array(i16.length);
         for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 32768.0;
 
-        // Resample PCM to change speed WITHOUT changing pitch (time-stretch)
-        const resampled = this._resampleForSpeed(f32, this.voicePlaybackRate);
+        // OLA time-stretch: change speed WITHOUT changing pitch
+        const resampled = this._timeStretch(f32, this.voicePlaybackRate);
         const ab = this.voicePlayCtx.createBuffer(1, resampled.length, 24000);
         ab.getChannelData(0).set(resampled);
         const src = this.voicePlayCtx.createBufferSource();
@@ -2956,28 +2961,48 @@ function app() {
       setTimeout(checkDone, 100);
     },
 
-    // ---- Pitch-preserving speed change via linear interpolation resampling ----
-    // Changes the buffer length (duration) without altering the sample frequency (pitch).
-    _resampleForSpeed(f32, speed) {
-      if (Math.abs(speed - 1.0) < 0.005) return f32; // no-op at 1.0x
-      const newLen = Math.max(1, Math.round(f32.length / speed));
-      const out = new Float32Array(newLen);
-      for (let i = 0; i < newLen; i++) {
-        const srcPos = i * speed;
-        const lo = Math.floor(srcPos);
-        const hi = Math.min(lo + 1, f32.length - 1);
-        const frac = srcPos - lo;
-        out[i] = f32[lo] * (1 - frac) + f32[hi] * frac;
+    // ---- Pitch-preserving time stretch via OLA (Overlap-Add) ----
+    // Repositions Hann-windowed frames along the input time axis at rate=speed,
+    // but writes them to output at a fixed hop — duration changes, pitch stays same.
+    _timeStretch(f32, speed) {
+      if (Math.abs(speed - 1.0) < 0.01) return f32;
+      const FRAME = 1024;   // window size (samples)
+      const HOP   = 512;    // output hop = FRAME/2 (50% overlap)
+      const outputLen = Math.max(FRAME, Math.round(f32.length / speed));
+      const out  = new Float32Array(outputLen);
+      const norm = new Float32Array(outputLen);
+      // Pre-compute Hann window
+      const hann = new Float32Array(FRAME);
+      for (let i = 0; i < FRAME; i++) {
+        hann[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (FRAME - 1)));
+      }
+      // Overlap-add: for each output frame position, read from scaled input position
+      for (let outPos = 0; outPos + FRAME <= outputLen; outPos += HOP) {
+        const inPos = Math.round(outPos * speed);
+        if (inPos + FRAME > f32.length) break;
+        for (let i = 0; i < FRAME; i++) {
+          const w = hann[i];
+          out[outPos + i]  += f32[inPos + i] * w;
+          norm[outPos + i] += w * w;  // power normalization
+        }
+      }
+      // Normalize accumulated frames
+      for (let i = 0; i < outputLen; i++) {
+        if (norm[i] > 1e-6) out[i] /= norm[i];
       }
       return out;
     },
 
-    // ---- Reconnect Live session (apply new settings like silenceDurationMs) ----
+    // ---- Reconnect Live session (apply voice / silence delay changes mid-exam) ----
     async reconnectLiveSession() {
-      const wasListening = this.liveStatus === 'listening' || this.liveStatus === 'ready' || this.liveStatus === 'ai_speaking';
-      if (!wasListening) return;
+      const isActive = ['listening','ready','ai_speaking'].includes(this.liveStatus);
+      // Save last AI message so we can resume naturally after reconnect
+      const lastAiMsg = [...this.messages].reverse().find(m => m.role === 'assistant');
+      this._reconnectContext = lastAiMsg
+        ? `音声設定変更のため再接続しました。試験を継続してください。あなたの直前の発言は「${lastAiMsg.content.slice(0, 200).replace(/\n/g, ' ')}」です。その続きから試験を再開してください。`
+        : null;
       this.stopLiveSession();
-      await this.$nextTick();
+      await new Promise(r => setTimeout(r, 400));
       await this.initLiveSession();
     },
 
