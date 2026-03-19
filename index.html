@@ -224,18 +224,10 @@
         <button @click="studentUser = null; studentName = ''; studentEmail = ''; studentNameConfirmed = false;"
           class="text-xs text-gray-400 hover:text-gray-700 transition-colors shrink-0">変更</button>
       </div>
-      <button @click="startExamPage(false)"
+      <button @click="startExamPage()"
         :disabled="!settings.theme || !apiKey"
         class="w-full bg-gc-green hover:bg-gc-green-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3.5 rounded-2xl transition-colors text-base">
-        試験を開始する（テキスト）
-      </button>
-      <button @click="startExamPage(true)"
-        :disabled="!settings.theme || !apiKey"
-        class="w-full bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed text-gc-blue disabled:text-gray-300 border border-gc-blue disabled:border-gray-200 font-medium py-3.5 rounded-2xl transition-colors text-base flex items-center justify-center gap-2 shadow-sm">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
-        </svg>
-        試験を開始する（音声）
+        試験へ進む
       </button>
       <p x-show="!settings.theme || !apiKey" class="text-center text-xs text-amber-600">
         ※ 管理者によるAPIキーとテーマの設定が必要です
@@ -1302,10 +1294,28 @@
           x-text="'⚠ ' + focusViolationCount + '回'"></span>
       </div>
     </div>
-    <button @click="endExam()"
-      :disabled="!examStarted || (messages.length < 2 && !voiceMode) || isScoring"
-      class="text-sm bg-red-100 hover:bg-red-200 text-red-600 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-      x-text="isScoring ? '採点中...' : '試験終了'"></button>
+    <div class="flex items-center gap-1.5">
+      <!-- Mid-exam mode toggle (only when exam is running) -->
+      <button x-show="examStarted && !isScoring"
+        @click="switchVoiceMode(!voiceMode)"
+        :title="voiceMode ? 'テキスト入力に切り替え' : '音声入力に切り替え'"
+        :class="voiceMode ? 'bg-gc-blue text-white hover:bg-gc-blue-dark' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        class="flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors border border-transparent">
+        <!-- Text icon (shown in voice mode → click to go text) -->
+        <svg x-show="voiceMode" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+        </svg>
+        <!-- Mic icon (shown in text mode → click to go voice) -->
+        <svg x-show="!voiceMode" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+        </svg>
+        <span x-text="voiceMode ? 'テキスト' : '音声'"></span>
+      </button>
+      <button @click="endExam()"
+        :disabled="!examStarted || (messages.length < 2 && !voiceMode) || isScoring"
+        class="text-sm bg-red-100 hover:bg-red-200 text-red-600 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        x-text="isScoring ? '採点中...' : '試験終了'"></button>
+    </div>
   </header>
 
   <div class="flex-1 overflow-y-auto px-4 py-4 space-y-4" id="messages-container">
@@ -1325,6 +1335,25 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
         </svg>
         <span>学習モード：「ヒントをください」「答えを教えて」と言えばサポートしてもらえます</span>
+      </div>
+      <!-- Mode selector: text vs voice -->
+      <div class="flex gap-3 w-full max-w-xs mb-4">
+        <button @click="voiceMode = false"
+          :class="!voiceMode ? 'border-gc-blue bg-blue-50 text-gc-blue' : 'border-gc-border bg-white text-gray-400 hover:bg-gray-50'"
+          class="flex-1 flex flex-col items-center gap-1.5 border-2 rounded-xl py-3 px-2 transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+          </svg>
+          <span class="text-xs font-medium">テキスト入力</span>
+        </button>
+        <button @click="voiceMode = true"
+          :class="voiceMode ? 'border-gc-blue bg-blue-50 text-gc-blue' : 'border-gc-border bg-white text-gray-400 hover:bg-gray-50'"
+          class="flex-1 flex flex-col items-center gap-1.5 border-2 rounded-xl py-3 px-2 transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+          </svg>
+          <span class="text-xs font-medium">音声入力</span>
+        </button>
       </div>
       <button @click="startExam()" class="bg-gc-blue hover:bg-gc-blue-dark text-white font-medium px-8 py-3 rounded-xl transition-colors"
         x-text="settings.learningMode ? '学習開始' : '試験開始'"></button>
@@ -3087,14 +3116,33 @@ function app() {
       setTimeout(() => this.saved = false, 2000);
     },
 
-    startExamPage(voice = false) {
+    startExamPage() {
       this.messages = [];
       this.examStarted = false;
       this.result = null;
       this.inputText = '';
-      this.voiceMode = voice;
+      // voiceMode keeps its current value; user selects on exam start screen
       this.page = 'exam';
       this.$nextTick(() => this.initQuill());
+    },
+
+    async switchVoiceMode(toVoice) {
+      if (toVoice === this.voiceMode) return;
+      if (toVoice) {
+        // Text → Voice: preserve conversation context
+        const lastAiMsg = [...this.messages].reverse().find(m => m.role === 'assistant');
+        this._reconnectContext = lastAiMsg
+          ? `音声モードに切り替えました。試験を継続してください。直前のあなたの質問は「${lastAiMsg.content.slice(0, 200).replace(/\n/g, ' ')}」です。その続きから試験を進めてください。`
+          : null;
+        this.voiceMode = true;
+        await this.initLiveSession();
+      } else {
+        // Voice → Text: stop live session, show text input
+        this.stopLiveSession();
+        this.voiceMode = false;
+        await this.$nextTick();
+        this.initQuill();
+      }
     },
 
     async startExam() {
