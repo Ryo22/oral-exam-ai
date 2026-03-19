@@ -1401,32 +1401,58 @@
     <div class="flex flex-col items-center gap-3 px-4 py-4">
       <!-- Animated mic icon -->
       <div class="relative flex items-center justify-center">
-        <!-- Ripple rings (shown when listening) -->
-        <div x-show="liveStatus === 'listening' || liveStatus === 'ready'"
+        <!-- Ripple rings (shown when listening, not when muted) -->
+        <div x-show="!voiceMuted && (liveStatus === 'listening' || liveStatus === 'ready')"
           class="absolute w-16 h-16 rounded-full bg-green-100 animate-ping opacity-60"></div>
         <div x-show="liveStatus === 'ai_speaking'"
           class="absolute w-16 h-16 rounded-full bg-blue-100 animate-ping opacity-60"></div>
         <!-- Central mic/speaker circle -->
         <div class="w-14 h-14 rounded-full flex items-center justify-center z-10 transition-colors"
-          :class="liveStatus === 'ai_speaking' ? 'bg-gc-blue' :
+          :class="voiceMuted ? 'bg-orange-400' :
+                  liveStatus === 'ai_speaking' ? 'bg-gc-blue' :
                   liveStatus === 'listening' || liveStatus === 'ready' ? 'bg-gc-green' : 'bg-gray-200'">
-          <!-- Mic icon when listening -->
-          <svg x-show="liveStatus !== 'ai_speaking'" class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <!-- Mic-off icon when muted -->
+          <svg x-show="voiceMuted" class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
+          </svg>
+          <!-- Mic icon when listening (not muted) -->
+          <svg x-show="!voiceMuted && liveStatus !== 'ai_speaking'" class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
           </svg>
           <!-- Speaker icon when AI speaking -->
-          <svg x-show="liveStatus === 'ai_speaking'" class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg x-show="!voiceMuted && liveStatus === 'ai_speaking'" class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253"/>
           </svg>
         </div>
       </div>
-      <p class="text-xs text-gray-400 text-center leading-relaxed">
-        マイクに向かって自然に話してください。AIが自動で応答します。
-      </p>
-      <button @click="endExam()"
-        :disabled="!examStarted || isScoring"
-        class="mt-1 text-sm bg-red-100 hover:bg-red-200 text-red-600 px-6 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        x-text="isScoring ? '採点中...' : '試験終了'"></button>
+      <p class="text-xs text-center leading-relaxed"
+        :class="voiceMuted ? 'text-orange-500 font-medium' : 'text-gray-400'"
+        x-text="voiceMuted ? '🔇 ミュート中 — マイクがオフです' : 'マイクに向かって自然に話してください。AIが自動で応答します。'"></p>
+      <div class="flex items-center gap-3 mt-1">
+        <!-- Mute toggle button -->
+        <button @click="voiceMuted = !voiceMuted"
+          :class="voiceMuted
+            ? 'bg-orange-100 hover:bg-orange-200 text-orange-600 border border-orange-200'
+            : 'bg-gray-100 hover:bg-gray-200 text-gray-600 border border-gc-border'"
+          class="flex items-center gap-1.5 text-sm px-4 py-2 rounded-xl transition-colors">
+          <!-- Mic-off icon (muted) -->
+          <svg x-show="voiceMuted" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
+          </svg>
+          <!-- Mic icon (active) -->
+          <svg x-show="!voiceMuted" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+          </svg>
+          <span x-text="voiceMuted ? 'ミュート解除' : 'ミュート'"></span>
+        </button>
+        <!-- End exam button -->
+        <button @click="endExam()"
+          :disabled="!examStarted || isScoring"
+          class="text-sm bg-red-100 hover:bg-red-200 text-red-600 px-4 py-2 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          x-text="isScoring ? '採点中...' : '試験終了'"></button>
+      </div>
     </div>
   </div>
 
@@ -1975,6 +2001,7 @@ function app() {
     voiceAudioQueue: [],
     voiceIsPlaying: false,
     voiceCurrentAiText: '',
+    voiceMuted: false,
     showEndConfirm: false,
     result: null,
     showLog: false,
@@ -2746,6 +2773,7 @@ function app() {
         // ScriptProcessor is deprecated but universally supported; replace with AudioWorklet in future
         const processor = this.voiceAudioCtx.createScriptProcessor(4096, 1, 1);
         processor.onaudioprocess = (e) => {
+          if (this.voiceMuted) return; // muted — don't send audio
           if (this.liveWs && this.liveWs.readyState === WebSocket.OPEN && this.liveStatus !== 'ai_speaking') {
             const pcm16 = this._float32ToPCM16(e.inputBuffer.getChannelData(0));
             const b64 = this._bufToBase64(pcm16.buffer);
@@ -2883,6 +2911,7 @@ function app() {
       this.voiceIsPlaying = false;
       this.voiceCurrentAiText = '';
       this._pendingUserText = '';
+      this.voiceMuted = false;
     },
 
     saveSettings() {
