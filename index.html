@@ -657,12 +657,7 @@
             <button x-show="examResults.length > 0" @click="exportAllResults()"
               class="text-xs text-emerald-700 hover:text-emerald-800 transition-colors flex items-center gap-1">
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-              採点CSV
-            </button>
-            <button x-show="examResults.some(r => r.conversationLog && r.conversationLog.length)" @click="exportConversationLogs()"
-              class="text-xs text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-              会話ログCSV
+              CSV
             </button>
             <button x-show="examResults.length > 0"
               @click="if(confirm('全ての採点結果を削除しますか？')) { examResults = []; _supabase.from('exam_results').delete().neq('id', ''); }"
@@ -2775,7 +2770,6 @@ ${logText}
 
     exportAllResults() {
       if (!this.examResults.length) return;
-      // Build CSV header
       const criteriaNames = this.examResults[0].criteria.map(c => c.name);
       const hasQuestions = this.examResults.some(r => r.questionScores && r.questionScores.length > 0);
       const questionHeaders = hasQuestions
@@ -2783,11 +2777,14 @@ ${logText}
         : 0;
       let headers = ['日時', '受験者名', 'メールアドレス', 'テーマ', '合計点', ...criteriaNames.map(n => n + '_点数')];
       for (let i = 1; i <= questionHeaders; i++) headers.push('問' + i + '_点数');
-      headers.push('総合コメント');
+      headers.push('総合コメント', '会話ログ');
       const rows = this.examResults.map(r => {
         const criteriaScores = r.criteria.map(c => c.score);
         const qScores = [];
         for (let i = 0; i < questionHeaders; i++) qScores.push((r.questionScores||[])[i]?.score ?? '');
+        const log = (r.conversationLog || [])
+          .map(m => `[${m.role === 'user' ? '受験者' : 'AI試験官'}] ${m.content}`)
+          .join('\n');
         return [
           new Date(r.date).toLocaleString('ja-JP'),
           r.studentName || '',
@@ -2797,6 +2794,7 @@ ${logText}
           ...criteriaScores,
           ...qScores,
           r.overallComment || '',
+          log,
         ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
       });
       const csv = '\uFEFF' + headers.map(h => `"${h}"`).join(',') + '\n' + rows.join('\n');
