@@ -812,6 +812,11 @@
                   x-text="r.published ? '公開を取り消す' : '採点結果を公開する'"></button>
                 <button @click="startEditResult(r.id)"
                   class="text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-1.5 rounded-lg transition-colors">採点を修正</button>
+                <button @click="downloadSingleResult(r)"
+                  class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                  結果をダウンロード
+                </button>
                 <button x-show="r.adminScore" @click="resetToAiScore(r.id)"
                   class="text-xs text-gray-400 hover:text-gray-600 transition-colors">AI採点に戻す</button>
                 <div class="flex-1"></div>
@@ -1945,9 +1950,18 @@
 
     <!-- Date and theme -->
     <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm">
-      <p class="text-xs text-gray-400 mb-1"
-        x-text="mypageSelectedResult && new Date(mypageSelectedResult.date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })"></p>
-      <p class="text-base font-semibold text-gray-900" x-text="mypageSelectedResult && mypageSelectedResult.theme"></p>
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <p class="text-xs text-gray-400 mb-1"
+            x-text="mypageSelectedResult && new Date(mypageSelectedResult.date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })"></p>
+          <p class="text-base font-semibold text-gray-900" x-text="mypageSelectedResult && mypageSelectedResult.theme"></p>
+        </div>
+        <button @click="downloadSingleResult(mypageSelectedResult)"
+          class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 flex-none">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          結果をダウンロード
+        </button>
+      </div>
     </div>
 
     <!-- Score summary card (only if showScoreToStudent) -->
@@ -2766,6 +2780,57 @@ ${logText}
       };
       this.examResults.push(entry);
       this.saveResults();
+    },
+
+    downloadSingleResult(r) {
+      if (!r) return;
+      const q = v => `"${String(v).replace(/"/g, '""')}"`;
+      const dateStr = new Date(r.date).toLocaleString('ja-JP');
+      const score = r.adminScore || r;
+      const csvRows = [];
+
+      // --- 会話ログセクション ---
+      csvRows.push(['日時', '受験者名', 'メールアドレス', 'テーマ', 'メッセージ番号', '発話者', '内容'].map(q).join(','));
+      (r.conversationLog || []).forEach((msg, i) => {
+        csvRows.push([
+          dateStr,
+          r.studentName || '',
+          r.studentEmail || '',
+          r.theme || '',
+          i + 1,
+          msg.role === 'user' ? '受験者' : 'AI試験官',
+          msg.content || ''
+        ].map(q).join(','));
+      });
+
+      // --- 1行空けて採点結果セクション ---
+      csvRows.push('');
+      csvRows.push([q('ラベル'), q('内容')].join(','));
+      csvRows.push([q('日時'),           q(dateStr)].join(','));
+      csvRows.push([q('受験者名'),       q(r.studentName || '')].join(','));
+      csvRows.push([q('メールアドレス'), q(r.studentEmail || '')].join(','));
+      csvRows.push([q('テーマ'),         q(r.theme || '')].join(','));
+      csvRows.push([q('合計点'),         q(score.totalScore ?? r.totalScore)].join(','));
+      (score.criteria || r.criteria || []).forEach(c => {
+        csvRows.push([q(c.name + '_点数'),    q(`${c.score}/${c.maxScore}`)].join(','));
+        if (c.comment) csvRows.push([q(c.name + '_コメント'), q(c.comment)].join(','));
+      });
+      (r.questionScores || []).forEach((qs, i) => {
+        csvRows.push([q(`問${i + 1}_点数`), q(`${qs.score}/${qs.maxScore}`)].join(','));
+      });
+      csvRows.push([q('総合コメント'), q(score.overallComment || r.overallComment || '')].join(','));
+      (r.improvements || []).forEach((imp, i) => {
+        csvRows.push([q(`改善点${i + 1}`), q(imp)].join(','));
+      });
+
+      const csv = '\uFEFF' + csvRows.join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      const name = (r.studentName || '受験者').replace(/\s/g, '_');
+      const date = new Date(r.date).toISOString().slice(0, 10);
+      a.download = `採点結果_${name}_${date}.csv`;
+      a.click();
     },
 
     exportAllResults() {
