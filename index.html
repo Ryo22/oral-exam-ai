@@ -2770,34 +2770,56 @@ ${logText}
 
     exportAllResults() {
       if (!this.examResults.length) return;
-      const criteriaNames = this.examResults[0].criteria.map(c => c.name);
-      const hasQuestions = this.examResults.some(r => r.questionScores && r.questionScores.length > 0);
-      const questionHeaders = hasQuestions
-        ? this.examResults.reduce((max, r) => Math.max(max, (r.questionScores||[]).length), 0)
-        : 0;
-      let headers = ['日時', '受験者名', 'メールアドレス', 'テーマ', '合計点', ...criteriaNames.map(n => n + '_点数')];
-      for (let i = 1; i <= questionHeaders; i++) headers.push('問' + i + '_点数');
-      headers.push('総合コメント', '会話ログ');
-      const rows = this.examResults.map(r => {
-        const criteriaScores = r.criteria.map(c => c.score);
-        const qScores = [];
-        for (let i = 0; i < questionHeaders; i++) qScores.push((r.questionScores||[])[i]?.score ?? '');
-        const log = (r.conversationLog || [])
-          .map(m => `[${m.role === 'user' ? '受験者' : 'AI試験官'}] ${m.content}`)
-          .join('\n');
-        return [
-          new Date(r.date).toLocaleString('ja-JP'),
-          r.studentName || '',
-          r.studentEmail || '',
-          r.theme || '',
-          r.totalScore,
-          ...criteriaScores,
-          ...qScores,
-          r.overallComment || '',
-          log,
-        ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+      const q = v => `"${String(v).replace(/"/g, '""')}"`;
+      const csvRows = [];
+
+      this.examResults.forEach((r, idx) => {
+        const dateStr = new Date(r.date).toLocaleString('ja-JP');
+        const score = r.adminScore || r;
+
+        // --- 会話ログセクション ---
+        // ヘッダーは各受験者ブロックの先頭に出力
+        csvRows.push(['日時', '受験者名', 'メールアドレス', 'テーマ', 'メッセージ番号', '発話者', '内容'].map(q).join(','));
+        (r.conversationLog || []).forEach((msg, i) => {
+          csvRows.push([
+            dateStr,
+            r.studentName || '',
+            r.studentEmail || '',
+            r.theme || '',
+            i + 1,
+            msg.role === 'user' ? '受験者' : 'AI試験官',
+            msg.content || ''
+          ].map(q).join(','));
+        });
+
+        // --- 1行空けて採点結果セクション ---
+        csvRows.push('');
+        csvRows.push([q('ラベル'), q('内容')].join(','));
+        csvRows.push([q('日時'),         q(dateStr)].join(','));
+        csvRows.push([q('受験者名'),     q(r.studentName || '')].join(','));
+        csvRows.push([q('メールアドレス'), q(r.studentEmail || '')].join(','));
+        csvRows.push([q('テーマ'),       q(r.theme || '')].join(','));
+        csvRows.push([q('合計点'),       q(score.totalScore ?? r.totalScore)].join(','));
+        (score.criteria || r.criteria || []).forEach(c => {
+          csvRows.push([q(c.name + '_点数'),    q(`${c.score}/${c.maxScore}`)].join(','));
+          if (c.comment) csvRows.push([q(c.name + '_コメント'), q(c.comment)].join(','));
+        });
+        (r.questionScores || []).forEach((qs, i) => {
+          csvRows.push([q(`問${i + 1}_点数`), q(`${qs.score}/${qs.maxScore}`)].join(','));
+        });
+        csvRows.push([q('総合コメント'), q(score.overallComment || r.overallComment || '')].join(','));
+        (r.improvements || []).forEach((imp, i) => {
+          csvRows.push([q(`改善点${i + 1}`), q(imp)].join(','));
+        });
+
+        // 受験者間の区切り（最後以外）
+        if (idx < this.examResults.length - 1) {
+          csvRows.push('');
+          csvRows.push('');
+        }
       });
-      const csv = '\uFEFF' + headers.map(h => `"${h}"`).join(',') + '\n' + rows.join('\n');
+
+      const csv = '\uFEFF' + csvRows.join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
