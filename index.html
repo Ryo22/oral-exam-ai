@@ -128,6 +128,7 @@
   .msg-html strong { font-weight:700; }
   .msg-html em { font-style:italic; }
 </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gc-surface text-gray-800 min-h-screen font-sans" x-data="app()" x-init="init()">
 
@@ -357,7 +358,7 @@
     <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm">
       <label class="block text-xs text-gray-600 font-medium mb-2">Google Sign-In クライアントID <span class="text-gray-400 font-normal">（任意）</span></label>
       <input type="text" x-model="googleClientId"
-        @change="localStorage.setItem('google_client_id', googleClientId); initGoogleSignIn();"
+        @change="saveAppSetting('google_client_id', googleClientId); initGoogleSignIn();"
         placeholder="xxx.apps.googleusercontent.com"
         class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue"/>
       <p class="text-xs text-gray-400 mt-1">Google Cloud ConsoleでOAuth 2.0クライアントIDを取得。HTTPSまたはlocalhostで動作します。</p>
@@ -572,7 +573,7 @@
           <span class="text-sm text-gray-700 block">過去の採点結果をマイページに表示</span>
           <p class="text-xs text-gray-400 mt-0.5">ONにすると、受験者が自分の名前でログイン後に公開済み結果の一覧が表示されます</p>
         </div>
-        <button @click="allowStudentHistory = !allowStudentHistory; localStorage.setItem('allow_student_history', allowStudentHistory)"
+        <button @click="allowStudentHistory = !allowStudentHistory; saveAppSetting('allow_student_history', allowStudentHistory)"
           :class="allowStudentHistory ? 'bg-gc-green' : 'bg-gray-300'"
           class="w-12 h-6 rounded-full flex items-center transition-colors flex-none mt-0.5 px-0.5">
           <span :class="allowStudentHistory ? 'ml-6' : 'ml-0'"
@@ -584,7 +585,7 @@
       </div>
       <label class="flex items-center gap-3 cursor-pointer">
         <span class="text-sm text-gray-700 flex-1 min-w-0 truncate">スコア・グレード</span>
-        <button @click="showScoreToStudent = !showScoreToStudent; localStorage.setItem('show_score_to_student', showScoreToStudent)"
+        <button @click="showScoreToStudent = !showScoreToStudent; saveAppSetting('show_score_to_student', showScoreToStudent)"
           :class="showScoreToStudent ? 'bg-gc-green' : 'bg-gray-300'"
           class="w-12 h-6 rounded-full flex items-center transition-colors flex-none px-0.5">
           <span :class="showScoreToStudent ? 'ml-6' : 'ml-0'"
@@ -593,7 +594,7 @@
       </label>
       <label class="flex items-center gap-3 cursor-pointer">
         <span class="text-sm text-gray-700 flex-1 min-w-0 truncate">総合コメント</span>
-        <button @click="showCommentToStudent = !showCommentToStudent; localStorage.setItem('show_comment_to_student', showCommentToStudent)"
+        <button @click="showCommentToStudent = !showCommentToStudent; saveAppSetting('show_comment_to_student', showCommentToStudent)"
           :class="showCommentToStudent ? 'bg-gc-green' : 'bg-gray-300'"
           class="w-12 h-6 rounded-full flex items-center transition-colors flex-none px-0.5">
           <span :class="showCommentToStudent ? 'ml-6' : 'ml-0'"
@@ -610,7 +611,7 @@
           <span class="text-sm text-gray-700 block">フォーカス監視（画面離脱検知）</span>
           <p class="text-xs text-gray-400 mt-0.5">試験中に他の画面へ移動した回数を記録。問題数×3回または12回超過で要注意フラグを立てます</p>
         </div>
-        <button @click="focusMonitoringEnabled = !focusMonitoringEnabled; localStorage.setItem('focus_monitoring_enabled', focusMonitoringEnabled)"
+        <button @click="focusMonitoringEnabled = !focusMonitoringEnabled; saveAppSetting('focus_monitoring_enabled', focusMonitoringEnabled)"
           :class="focusMonitoringEnabled ? 'bg-gc-green' : 'bg-gray-300'"
           class="w-12 h-6 rounded-full flex items-center transition-colors flex-none mt-0.5 px-0.5">
           <span :class="focusMonitoringEnabled ? 'ml-6' : 'ml-0'"
@@ -659,7 +660,7 @@
               CSV
             </button>
             <button x-show="examResults.length > 0"
-              @click="if(confirm('全ての採点結果を削除しますか？')) { examResults = []; localStorage.removeItem('exam_results'); }"
+              @click="if(confirm('全ての採点結果を削除しますか？')) { examResults = []; _supabase.from('exam_results').delete().neq('id', ''); }"
               class="text-xs text-red-400 hover:text-red-600 transition-colors">削除</button>
           </div>
         </div>
@@ -2082,6 +2083,11 @@ if (typeof marked !== 'undefined') {
   marked.setOptions({ breaks: true, gfm: true });
 }
 
+// Supabase client
+const SUPABASE_URL = 'https://enroevnddicemufefguz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVucm9ldm5kZGljZW11ZmVmZ3V6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwNzgyMjQsImV4cCI6MjA4OTY1NDIyNH0.iQExh16Pebio4pI3NXGU4sC4GCiBV8UC1cOc9bWHfRc';
+const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 function app() {
   const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
@@ -2169,7 +2175,8 @@ function app() {
     showViolationWarning: false,
     _focusHandlers: null,
 
-    init() {
+    async init() {
+      // Local settings (device-specific, keep in localStorage)
       const storedKey = localStorage.getItem('gemini_api_key');
       if (storedKey) this.apiKey = storedKey;
       const storedVoiceModel = localStorage.getItem('voice_model');
@@ -2189,68 +2196,9 @@ function app() {
         localStorage.removeItem('gemini_model');
       }
 
-      const stored = localStorage.getItem('exam_settings_v2');
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (parsed.theme !== undefined) this.settings = parsed;
-        } catch(e) {}
-      }
-      // Ensure criteria is in new format
-      if (this.settings.criteria.length > 0 && typeof this.settings.criteria[0] === 'string') {
-        this.settings.criteria = this.settings.criteria.map(c => ({ name: c, description: '' }));
-      }
-      // Ensure questions array exists (backward compat)
-      if (!this.settings.questions) this.settings.questions = [];
-      // Ensure new AI question settings exist (backward compat)
-      if (!this.settings.autoQuestionCount) this.settings.autoQuestionCount = 5;
-      if (!this.settings.difficultyDistribution) this.settings.difficultyDistribution = [0, 0, 0, 0, 0];
-      // Load tests (multiple test configurations)
-      const storedTests = localStorage.getItem('exam_tests_v1');
-      if (storedTests) {
-        try { this.tests = JSON.parse(storedTests); } catch(e) {}
-      }
-      if (this.tests.length === 0) {
-        // Migrate from old single-test settings
-        this.tests = [{ id: 'test_default', name: 'テスト1', settings: JSON.parse(JSON.stringify(this.settings)) }];
-        localStorage.setItem('exam_tests_v1', JSON.stringify(this.tests));
-      }
-      this.activeTestId = this.tests[0].id;
-      // Load the active test's settings (overrides the exam_settings_v2 load above)
-      this.settings = JSON.parse(JSON.stringify(this.tests[0].settings));
-      // Ensure backward compat fields on loaded settings
-      if (!this.settings.questions) this.settings.questions = [];
-      if (!this.settings.autoQuestionCount) this.settings.autoQuestionCount = 5;
-      if (!this.settings.difficultyDistribution) this.settings.difficultyDistribution = [0, 0, 0, 0, 0];
-      if (this.settings.criteria.length > 0 && typeof this.settings.criteria[0] === 'string') {
-        this.settings.criteria = this.settings.criteria.map(c => ({ name: c, description: '' }));
-      }
-      // Load admin password
-      const storedPw = localStorage.getItem('admin_password');
-      if (storedPw) this.adminPassword = storedPw;
-      // Load exam results
-      const storedResults = localStorage.getItem('exam_results');
-      if (storedResults) {
-        try { this.examResults = JSON.parse(storedResults); } catch(e) {}
-      }
-      // Load Google Client ID
-      const storedGoogleClientId = localStorage.getItem('google_client_id');
-      if (storedGoogleClientId) this.googleClientId = storedGoogleClientId;
-      const storedShowScore = localStorage.getItem('show_score_to_student');
-      if (storedShowScore !== null) this.showScoreToStudent = storedShowScore === 'true';
-      const storedShowComment = localStorage.getItem('show_comment_to_student');
-      if (storedShowComment !== null) this.showCommentToStudent = storedShowComment === 'true';
-      const storedAllowHistory = localStorage.getItem('allow_student_history');
-      if (storedAllowHistory !== null) this.allowStudentHistory = storedAllowHistory === 'true';
-      // Load classes
-      const storedClasses = localStorage.getItem('exam_classes');
-      if (storedClasses) {
-        try { this.classes = JSON.parse(storedClasses); } catch(e) {}
-      }
-      if (this.classes.length === 0) {
-        this.classes = [{ id: 'default', name: 'クラス1' }];
-        localStorage.setItem('exam_classes', JSON.stringify(this.classes));
-      }
+      // Load shared data from Supabase
+      await this.loadFromSupabase();
+
       // Auto-detect class from URL parameter
       try {
         const urlParams = new URLSearchParams(window.location.search);
@@ -2259,9 +2207,7 @@ function app() {
           this.studentClassId = classFromUrl;
         }
       } catch(e) {}
-      // Load focus monitoring setting
-      const storedFocusMonitor = localStorage.getItem('focus_monitoring_enabled');
-      if (storedFocusMonitor !== null) this.focusMonitoringEnabled = storedFocusMonitor !== 'false';
+
       // Initialize Google Sign-In if client ID is set
       if (this.googleClientId) this.$nextTick(() => this.initGoogleSignIn());
     },
@@ -2289,7 +2235,7 @@ function app() {
     changeAdminPassword() {
       if (!this.adminNewPassword.trim()) return;
       this.adminPassword = this.adminNewPassword.trim();
-      localStorage.setItem('admin_password', this.adminPassword);
+      this.saveAppSetting('admin_password', this.adminPassword);
       this.adminNewPassword = '';
       alert('パスワードを変更しました');
     },
@@ -2304,7 +2250,7 @@ function app() {
     },
 
     saveClassesToStorage() {
-      localStorage.setItem('exam_classes', JSON.stringify(this.classes));
+        _supabase.from('classes').upsert(this.classes.map(c => ({ id: c.id, name: c.name })));
     },
 
     startEditClass(id, name) {
@@ -2343,8 +2289,19 @@ function app() {
     },
 
     // Test management
-    saveTestsToStorage() {
-      localStorage.setItem('exam_tests_v1', JSON.stringify(this.tests));
+    async saveTestsToStorage() {
+      const rows = this.tests.map(t => ({
+        id: t.id,
+        name: t.name,
+        class_id: t.classId || null,
+        settings: t.settings || {}
+      }));
+      await _supabase.from('tests').upsert(rows);
+      // Delete tests that no longer exist
+      if (this.tests.length > 0) {
+        const ids = this.tests.map(t => t.id);
+        await _supabase.from('tests').delete().not('id', 'in', `(${ids.map(id => `"${id}"`).join(',')})`);
+      }
     },
 
     switchTest(id) {
@@ -2466,8 +2423,133 @@ function app() {
       this.showPastResults = true;
     },
 
-    saveResults() {
-      localStorage.setItem('exam_results', JSON.stringify(this.examResults));
+    async saveResults() {
+      // Upsert all results to Supabase
+      const rows = this.examResults.map(r => ({
+        id: String(r.id),
+        test_id: r.testId || null,
+        class_id: r.classId || null,
+        student_name: r.studentName || '',
+        student_email: r.studentEmail || '',
+        theme: r.theme || '',
+        date: r.date || new Date().toISOString(),
+        published: r.published || false,
+        total_score: r.totalScore || 0,
+        criteria: r.criteria || [],
+        question_scores: r.questionScores || [],
+        overall_comment: r.overallComment || '',
+        improvements: r.improvements || [],
+        ai_score: r.aiScore || null,
+        admin_score: r.adminScore || null,
+        focus_violation_count: r.focusViolationCount || 0,
+        focus_violation_flagged: r.focusViolationFlagged || false,
+        focus_violations: r.focusViolations || [],
+        conversation_log: r.conversationLog || []
+      }));
+      if (rows.length > 0) {
+        await _supabase.from('exam_results').upsert(rows);
+      }
+    },
+
+    async loadFromSupabase() {
+      // Load app settings
+      const { data: settingsData } = await _supabase.from('app_settings').select('*');
+      if (settingsData) {
+        settingsData.forEach(({ key, value }) => {
+          if (key === 'admin_password') this.adminPassword = value;
+          if (key === 'google_client_id') this.googleClientId = value;
+          if (key === 'show_score_to_student') this.showScoreToStudent = value === 'true';
+          if (key === 'show_comment_to_student') this.showCommentToStudent = value === 'true';
+          if (key === 'allow_student_history') this.allowStudentHistory = value === 'true';
+          if (key === 'focus_monitoring_enabled') this.focusMonitoringEnabled = value !== 'false';
+        });
+      }
+
+      // Load classes
+      const { data: classesData } = await _supabase.from('classes').select('*').order('created_at');
+      if (classesData && classesData.length > 0) {
+        this.classes = classesData.map(c => ({ id: c.id, name: c.name }));
+      } else {
+        this.classes = [{ id: 'default', name: 'クラス1' }];
+        await _supabase.from('classes').upsert([{ id: 'default', name: 'クラス1' }]);
+      }
+
+      // Load tests
+      const { data: testsData } = await _supabase.from('tests').select('*').order('created_at');
+      if (testsData && testsData.length > 0) {
+        this.tests = testsData.map(t => ({
+          id: t.id,
+          name: t.name,
+          classId: t.class_id,
+          settings: t.settings || {}
+        }));
+      } else {
+        // Migrate from localStorage if exists
+        const storedTests = localStorage.getItem('exam_tests_v1');
+        if (storedTests) {
+          try { this.tests = JSON.parse(storedTests); } catch(e) {}
+        }
+        if (this.tests.length === 0) {
+          this.tests = [{ id: 'test_default', name: 'テスト1', settings: JSON.parse(JSON.stringify(this.settings)) }];
+        }
+        // Save migrated tests to Supabase
+        const rows = this.tests.map(t => ({
+          id: t.id, name: t.name, class_id: t.classId || null, settings: t.settings || {}
+        }));
+        await _supabase.from('tests').upsert(rows);
+        localStorage.removeItem('exam_tests_v1');
+      }
+
+      this.activeTestId = this.tests[0].id;
+      this.settings = JSON.parse(JSON.stringify(this.tests[0].settings || this.settings));
+      // Backward compat
+      if (!this.settings.questions) this.settings.questions = [];
+      if (!this.settings.autoQuestionCount) this.settings.autoQuestionCount = 5;
+      if (!this.settings.difficultyDistribution) this.settings.difficultyDistribution = [0, 0, 0, 0, 0];
+      if (!this.settings.criteria) this.settings.criteria = [];
+      if (this.settings.criteria.length > 0 && typeof this.settings.criteria[0] === 'string') {
+        this.settings.criteria = this.settings.criteria.map(c => ({ name: c, description: '' }));
+      }
+
+      // Load exam results
+      const { data: resultsData } = await _supabase.from('exam_results').select('*').order('date', { ascending: false });
+      if (resultsData) {
+        this.examResults = resultsData.map(r => ({
+          id: r.id,
+          date: r.date,
+          theme: r.theme,
+          studentName: r.student_name,
+          studentEmail: r.student_email,
+          classId: r.class_id,
+          testId: r.test_id,
+          published: r.published,
+          totalScore: r.total_score,
+          criteria: r.criteria,
+          questionScores: r.question_scores,
+          overallComment: r.overall_comment,
+          improvements: r.improvements,
+          aiScore: r.ai_score,
+          adminScore: r.admin_score,
+          focusViolationCount: r.focus_violation_count,
+          focusViolationFlagged: r.focus_violation_flagged,
+          focusViolations: r.focus_violations,
+          conversationLog: r.conversation_log,
+        }));
+      } else {
+        // Migrate from localStorage if exists
+        const storedResults = localStorage.getItem('exam_results');
+        if (storedResults) {
+          try {
+            this.examResults = JSON.parse(storedResults);
+            await this.saveResults();
+            localStorage.removeItem('exam_results');
+          } catch(e) {}
+        }
+      }
+    },
+
+    async saveAppSetting(key, value) {
+      await _supabase.from('app_settings').upsert({ key, value: String(value) });
     },
 
     saveResult() {
@@ -3105,12 +3187,18 @@ function app() {
       this.showVoiceSettings = false;
     },
 
-    saveSettings() {
+    async saveSettings() {
       // Sync settings into the active test
       const t = this.tests.find(t => t.id === this.activeTestId);
-      if (t) t.settings = JSON.parse(JSON.stringify(this.settings));
-      localStorage.setItem('exam_tests_v1', JSON.stringify(this.tests));
-      localStorage.setItem('exam_settings_v2', JSON.stringify(this.settings)); // backward compat
+      if (t) {
+        t.settings = JSON.parse(JSON.stringify(this.settings));
+        await _supabase.from('tests').upsert({
+          id: t.id,
+          name: t.name,
+          class_id: t.classId || null,
+          settings: t.settings
+        });
+      }
       localStorage.setItem('gemini_model', this.selectedModel);
       this.saved = true;
       setTimeout(() => this.saved = false, 2000);
