@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>口頭試問AI</title>
+<title>対話型学習AI</title>
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
@@ -141,48 +141,8 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
         </svg>
       </div>
-      <h1 class="text-3xl font-bold mb-2 text-gray-900">口頭試問AI</h1>
-      <p class="text-gray-500 text-sm">AIが試験官となり、あなたの理解度を評価します</p>
-    </div>
-
-    <!-- Mode selection (always visible) -->
-    <div class="space-y-2">
-      <p class="text-xs text-gray-600 font-medium">モードを選択</p>
-      <!-- Exam mode -->
-      <div @click="freeTalkMode = false"
-        :class="!freeTalkMode ? 'ring-2 ring-gc-blue border-gc-blue' : 'border-gc-border hover:border-gray-300'"
-        class="bg-white rounded-xl p-3 border cursor-pointer transition-all">
-        <div class="flex items-center gap-2.5">
-          <div :class="!freeTalkMode ? 'bg-gc-blue' : 'bg-gray-200'"
-            class="w-4 h-4 rounded-full flex items-center justify-center flex-none transition-colors">
-            <div x-show="!freeTalkMode" class="w-2 h-2 bg-white rounded-full"></div>
-          </div>
-          <div>
-            <p class="text-sm font-medium text-gray-800">試験モード</p>
-            <p class="text-xs text-gray-400">管理者が設定したテーマで採点</p>
-          </div>
-        </div>
-      </div>
-      <!-- Free talk mode -->
-      <div @click="freeTalkMode = true"
-        :class="freeTalkMode ? 'ring-2 ring-gc-blue border-gc-blue' : 'border-gc-border hover:border-gray-300'"
-        class="bg-white rounded-xl p-3 border cursor-pointer transition-all space-y-2">
-        <div class="flex items-center gap-2.5">
-          <div :class="freeTalkMode ? 'bg-gc-blue' : 'bg-gray-200'"
-            class="w-4 h-4 rounded-full flex items-center justify-center flex-none transition-colors">
-            <div x-show="freeTalkMode" class="w-2 h-2 bg-white rounded-full"></div>
-          </div>
-          <div>
-            <p class="text-sm font-medium text-gray-800">フリートーク</p>
-            <p class="text-xs text-gray-400">テーマを決めず自由に話せます</p>
-          </div>
-        </div>
-        <div x-show="freeTalkMode" @click.stop class="pl-6">
-          <input type="text" x-model="freeTalkTopic"
-            placeholder="話したいテーマ（任意）"
-            class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue"/>
-        </div>
-      </div>
+      <h1 class="text-3xl font-bold mb-2 text-gray-900">対話型学習AI</h1>
+      <p class="text-gray-500 text-sm">AIとの対話を通じて、学びを深めましょう</p>
     </div>
 
     <!-- How it works -->
@@ -253,7 +213,7 @@
       </button>
     </div>
 
-    <!-- Confirmed: show start button -->
+    <!-- Confirmed: show mode selection + start button -->
     <div x-show="studentUser || studentNameConfirmed" x-transition.duration.0ms class="space-y-4" @keydown.enter.prevent>
       <div class="flex items-center gap-3 bg-white rounded-xl p-3 border border-gc-border shadow-sm">
         <img x-show="studentUser && studentUser.picture" :src="studentUser && studentUser.picture" class="w-9 h-9 rounded-full" />
@@ -266,10 +226,51 @@
         <button @click="signOutStudent()"
           class="text-xs text-gray-400 hover:text-gray-700 transition-colors shrink-0">変更</button>
       </div>
+
+      <!-- Mode selection -->
+      <div class="space-y-2">
+        <p class="text-xs text-gray-600 font-medium">モードを選択</p>
+        <!-- Exam mode -->
+        <div @click="freeTalkMode = false"
+          :class="!freeTalkMode ? 'ring-2 ring-gc-blue border-gc-blue' : 'border-gc-border hover:border-gray-300'"
+          class="bg-white rounded-xl p-3 border cursor-pointer transition-all">
+          <div class="flex items-center gap-2.5">
+            <div :class="!freeTalkMode ? 'bg-gc-blue' : 'bg-gray-200'"
+              class="w-4 h-4 rounded-full flex items-center justify-center flex-none transition-colors">
+              <div x-show="!freeTalkMode" class="w-2 h-2 bg-white rounded-full"></div>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-gray-800">試験モード</p>
+              <p class="text-xs text-gray-400">管理者が設定したテーマで採点</p>
+            </div>
+          </div>
+        </div>
+        <!-- Free talk mode -->
+        <div @click="freeTalkMode = true"
+          :class="freeTalkMode ? 'ring-2 ring-gc-blue border-gc-blue' : 'border-gc-border hover:border-gray-300'"
+          class="bg-white rounded-xl p-3 border cursor-pointer transition-all space-y-2">
+          <div class="flex items-center gap-2.5">
+            <div :class="freeTalkMode ? 'bg-gc-blue' : 'bg-gray-200'"
+              class="w-4 h-4 rounded-full flex items-center justify-center flex-none transition-colors">
+              <div x-show="freeTalkMode" class="w-2 h-2 bg-white rounded-full"></div>
+            </div>
+            <div>
+              <p class="text-sm font-medium text-gray-800">フリートーク</p>
+              <p class="text-xs text-gray-400">テーマを決めず自由に話せます</p>
+            </div>
+          </div>
+          <div x-show="freeTalkMode" @click.stop class="pl-6">
+            <input type="text" x-model="freeTalkTopic"
+              placeholder="話したいテーマ（任意）"
+              class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue"/>
+          </div>
+        </div>
+      </div>
+
       <button @click="startExamPage()"
         :disabled="!apiKey || (!freeTalkMode && !settings.theme)"
         class="w-full bg-gc-green hover:bg-gc-green-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3.5 rounded-2xl transition-colors text-base">
-        試験へ進む
+        次へ
       </button>
       <p x-show="!apiKey" class="text-center text-xs text-amber-600">
         ※ 管理者によるAPIキーの設定が必要です
@@ -1352,7 +1353,7 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
         </svg>
       </div>
-      <h2 class="text-xl font-semibold mb-2 text-gray-900">口頭試問を開始</h2>
+      <h2 class="text-xl font-semibold mb-2 text-gray-900">対話を開始</h2>
       <p class="text-gray-500 text-sm mb-2" x-text="freeTalkMode ? (freeTalkTopic ? 'テーマ: ' + freeTalkTopic : '🗣 フリートーク') : 'テーマ: ' + settings.theme"></p>
       <p class="text-gray-400 text-xs mb-2" x-text="'評価基準: ' + settings.criteria.filter(c=>c.name).map(c=>c.name).join(' / ')"></p>
       <p class="text-gray-400 text-xs mb-4" x-text="settings.learningMode ? 'ヒントや解説を求めることができます。気軽に学習してください。' : '試験中は正解・解説は教えません。自分の言葉で答えてください。'"></p>
