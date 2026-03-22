@@ -363,16 +363,6 @@
     <template x-if="adminTab === 'system'">
       <div class="space-y-5">
 
-    <!-- Google Sign-In Client ID (optional) -->
-    <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm">
-      <label class="block text-xs text-gray-600 font-medium mb-2">Google Sign-In クライアントID <span class="text-gray-400 font-normal">（任意）</span></label>
-      <input type="text" x-model="googleClientId"
-        @change="saveAppSetting('google_client_id', googleClientId); initGoogleSignIn();"
-        placeholder="xxx.apps.googleusercontent.com"
-        class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue"/>
-      <p class="text-xs text-gray-400 mt-1">Google Cloud ConsoleでOAuth 2.0クライアントIDを取得。HTTPSまたはlocalhostで動作します。</p>
-    </div>
-
     <!-- API Key -->
     <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm">
       <label class="block text-xs text-gray-600 font-medium mb-2">Gemini API Key</label>
@@ -3154,7 +3144,11 @@ ${logText}
     // ---- Connect to Gemini Live API ----
     async initLiveSession() {
       this.liveStatus = 'connecting';
-      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.${this.liveApiVersion}.GenerativeService.BidiGenerateContent?key=${this.apiKey}`;
+      // 選択済みモデルに対応するAPIバージョンを優先的に使用
+      // fetchModels() で自動検出済みなら availableLiveModels から取得、なければ liveApiVersion を使用
+      const detectedModel = this.availableLiveModels.find(m => m.id === this.voiceModel);
+      const apiVersion = detectedModel?.version || this.liveApiVersion || 'v1beta';
+      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.BidiGenerateContent?key=${this.apiKey}`;
       try {
         this.liveWs = new WebSocket(wsUrl);
       } catch(e) {
