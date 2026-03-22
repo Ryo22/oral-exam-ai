@@ -384,6 +384,11 @@
         class="flex-1 py-3 text-sm font-medium border-b-2 transition-colors">
         テスト・クラス管理
       </button>
+      <button @click="adminTab = 'results'"
+        :class="adminTab === 'results' ? 'border-gc-blue text-gc-blue' : 'border-transparent text-gray-500 hover:text-gray-700'"
+        class="flex-1 py-3 text-sm font-medium border-b-2 transition-colors">
+        採点結果
+      </button>
       <button @click="adminTab = 'system'"
         :class="adminTab === 'system' ? 'border-gc-blue text-gc-blue' : 'border-transparent text-gray-500 hover:text-gray-700'"
         class="flex-1 py-3 text-sm font-medium border-b-2 transition-colors">
@@ -473,7 +478,75 @@
     <template x-if="adminTab === 'tests'">
       <div class="space-y-5">
 
-    <!-- Class management -->
+    <!-- Test management (top) -->
+    <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-3">
+      <div class="flex items-center justify-between">
+        <p class="text-xs text-gray-600 font-medium">テスト管理</p>
+        <button @click="addTest()"
+          class="text-xs text-gc-blue hover:text-gc-blue-dark bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          追加
+        </button>
+      </div>
+      <template x-for="t in tests" :key="t.id">
+        <div class="border border-gc-border rounded-xl p-3 space-y-3">
+          <!-- Test name row -->
+          <div x-show="editingTestId !== t.id" class="flex items-center gap-2">
+            <span class="flex-1 text-sm font-medium text-gray-800 truncate" x-text="t.name"></span>
+            <button @click="startEditTest(t.id, t.name)" title="名前を変更"
+              class="text-gray-400 hover:text-gc-blue transition-colors shrink-0 p-1 rounded hover:bg-blue-50">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </button>
+            <button @click="switchTest(t.id); page='settings'"
+              class="text-xs text-gc-blue hover:text-gc-blue-dark bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded transition-colors shrink-0">設定</button>
+            <button x-show="tests.length > 1" @click="deleteTest(t.id)"
+              class="text-xs text-red-400 hover:text-red-600 transition-colors shrink-0">削除</button>
+          </div>
+          <div x-show="editingTestId === t.id" class="flex items-center gap-2">
+            <input type="text" x-model="editingTestName"
+              @keydown.enter="saveTestName(t.id)" @keydown.escape="cancelEditTest()" @blur="saveTestName(t.id)"
+              class="flex-1 border border-gc-blue rounded-lg px-2.5 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue"
+              x-effect="if(editingTestId === t.id) $el.focus()" placeholder="テスト名"/>
+            <button @click.prevent="saveTestName(t.id)" class="text-xs bg-gc-blue text-white px-2.5 py-1.5 rounded-lg hover:bg-gc-blue-dark transition-colors shrink-0">保存</button>
+            <button @click.prevent="cancelEditTest()" class="text-xs text-gray-400 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors shrink-0">取消</button>
+          </div>
+
+          <!-- Class assignment -->
+          <div x-show="classes.length > 0">
+            <p class="text-xs text-gray-500 mb-1.5">クラス割り当て</p>
+            <div class="flex flex-wrap gap-2">
+              <template x-for="c in classes" :key="c.id">
+                <label class="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+                  <input type="checkbox"
+                    :checked="t.classIds && t.classIds.includes(c.id)"
+                    @change="toggleTestClass(t.id, c.id, $event.target.checked)"
+                    class="rounded border-gray-300 text-gc-blue focus:ring-gc-blue"/>
+                  <span x-text="c.name" class="text-gray-700"></span>
+                </label>
+              </template>
+            </div>
+          </div>
+
+          <!-- URL buttons -->
+          <div class="flex flex-wrap gap-1.5">
+            <button @click="copyTestUrl(t.id)"
+              class="text-xs text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded transition-colors flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+              テストURL
+            </button>
+            <template x-for="c in classes.filter(c => t.classIds && t.classIds.includes(c.id))" :key="c.id">
+              <button @click="copyTestClassUrl(t.id, c.id)"
+                class="text-xs text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded transition-colors flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                <span x-text="c.name + ' URL'"></span>
+              </button>
+            </template>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Class management (below tests) -->
     <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-3">
       <div class="flex items-center justify-between">
         <p class="text-xs text-gray-600 font-medium">クラス管理</p>
@@ -485,115 +558,29 @@
       </div>
       <template x-for="c in classes" :key="c.id">
         <div class="space-y-1">
-          <!-- View mode -->
           <div x-show="editingClassId !== c.id" class="flex items-center gap-2 text-sm">
             <span class="flex-1 text-gray-800 truncate font-medium" x-text="c.name"></span>
             <button @click="startEditClass(c.id, c.name)" title="名前を変更"
               class="text-gray-400 hover:text-gc-blue transition-colors shrink-0 p-1 rounded hover:bg-blue-50">
               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             </button>
-            <button @click="copyClassUrl(c.id)"
-              class="text-xs text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded transition-colors flex items-center gap-1 shrink-0">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-              URL
-            </button>
             <button x-show="classes.length > 1" @click="removeClass(c.id)"
               class="text-xs text-red-400 hover:text-red-600 transition-colors shrink-0">削除</button>
           </div>
-          <!-- Edit mode -->
           <div x-show="editingClassId === c.id" class="flex items-center gap-2">
             <input type="text" x-model="editingClassName"
-              @keydown.enter="saveClassName(c.id)"
-              @keydown.escape="cancelEditClass()"
-              @blur="saveClassName(c.id)"
+              @keydown.enter="saveClassName(c.id)" @keydown.escape="cancelEditClass()" @blur="saveClassName(c.id)"
               class="flex-1 border border-gc-blue rounded-lg px-2.5 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue"
-              x-effect="if(editingClassId === c.id) $el.focus()"
-              placeholder="クラス名"/>
-            <button @click.prevent="saveClassName(c.id)"
-              class="text-xs bg-gc-blue text-white px-2.5 py-1.5 rounded-lg hover:bg-gc-blue-dark transition-colors shrink-0">保存</button>
-            <button @click.prevent="cancelEditClass()"
-              class="text-xs text-gray-400 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors shrink-0">取消</button>
+              x-effect="if(editingClassId === c.id) $el.focus()" placeholder="クラス名"/>
+            <button @click.prevent="saveClassName(c.id)" class="text-xs bg-gc-blue text-white px-2.5 py-1.5 rounded-lg hover:bg-gc-blue-dark transition-colors shrink-0">保存</button>
+            <button @click.prevent="cancelEditClass()" class="text-xs text-gray-400 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors shrink-0">取消</button>
           </div>
         </div>
       </template>
-      <p class="text-xs text-gray-400">「URL」ボタンでクラスごとのURLをコピーして受験者に共有してください。</p>
     </div>
 
-    <!-- Test management -->
-    <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-3">
-      <div class="flex items-center justify-between">
-        <p class="text-xs text-gray-600 font-medium">テスト管理</p>
-        <button @click="addTest()"
-          class="text-xs text-gc-blue hover:text-gc-blue-dark bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-lg transition-colors flex items-center gap-1">
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-          追加
-        </button>
       </div>
-      <template x-for="t in tests" :key="t.id">
-        <div class="space-y-1">
-          <!-- View mode -->
-          <div x-show="editingTestId !== t.id" class="flex items-center gap-2">
-            <!-- Active indicator dot -->
-            <span :class="activeTestId === t.id ? 'bg-gc-green' : 'bg-gray-200'"
-              class="w-2 h-2 rounded-full shrink-0 transition-colors"></span>
-            <!-- Name button (click to switch) -->
-            <button @click="switchTest(t.id)"
-              :class="activeTestId === t.id ? 'text-gray-900 font-semibold' : 'text-gray-500 hover:text-gray-800'"
-              class="flex-1 text-sm text-left truncate transition-colors"
-              x-text="t.name + (activeTestId === t.id ? '（使用中）' : '')"></button>
-            <!-- Rename -->
-            <button @click="startEditTest(t.id, t.name)" title="名前を変更"
-              class="text-gray-400 hover:text-gc-blue transition-colors shrink-0 p-1 rounded hover:bg-blue-50">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-            </button>
-            <!-- Open settings -->
-            <button @click="switchTest(t.id); page='settings'"
-              class="text-xs text-gc-blue hover:text-gc-blue-dark bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded transition-colors shrink-0">設定</button>
-            <!-- Delete -->
-            <button x-show="tests.length > 1" @click="deleteTest(t.id)"
-              class="text-xs text-red-400 hover:text-red-600 transition-colors shrink-0">削除</button>
-          </div>
-          <!-- Edit mode -->
-          <div x-show="editingTestId === t.id" class="flex items-center gap-2">
-            <input type="text" x-model="editingTestName"
-              @keydown.enter="saveTestName(t.id)"
-              @keydown.escape="cancelEditTest()"
-              @blur="saveTestName(t.id)"
-              class="flex-1 border border-gc-blue rounded-lg px-2.5 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue"
-              x-effect="if(editingTestId === t.id) $el.focus()"
-              placeholder="テスト名"/>
-            <button @click.prevent="saveTestName(t.id)"
-              class="text-xs bg-gc-blue text-white px-2.5 py-1.5 rounded-lg hover:bg-gc-blue-dark transition-colors shrink-0">保存</button>
-            <button @click.prevent="cancelEditTest()"
-              class="text-xs text-gray-400 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors shrink-0">取消</button>
-          </div>
-        </div>
-      </template>
-      <p class="text-xs text-gray-400">テストを切り替えると、テーマ・評価基準・問題リストが切り替わります。</p>
-    </div>
-
-    <!-- Quick actions -->
-    <div class="grid grid-cols-2 gap-3">
-      <button @click="page='settings'"
-        class="bg-white hover:bg-gray-50 text-gray-700 font-medium py-3.5 rounded-xl transition-colors text-sm flex items-center justify-center gap-2 border border-gc-border shadow-sm">
-        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-        </svg>
-        テーマ・評価基準
-      </button>
-      <button @click="startExamPage()" :disabled="!settings.theme || !apiKey"
-        class="bg-green-50 hover:bg-green-100 disabled:bg-gray-100 disabled:cursor-not-allowed text-gc-green disabled:text-gray-400 font-medium py-3.5 rounded-xl transition-colors text-sm flex items-center justify-center gap-2 border border-green-200 disabled:border-gray-200 shadow-sm">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
-        テスト受験
-      </button>
-    </div>
-
-      </div><!-- end space-y-5 tests tab part 1 -->
-    </template><!-- end adminTab === 'tests' part 1 -->
+    </template>
 
     <!-- システム設定 part 2: 表示・監視・パスワード -->
     <template x-if="adminTab === 'system'">
@@ -674,8 +661,8 @@
       </div><!-- end space-y-5 system tab part 2 -->
     </template><!-- end adminTab === 'system' part 2 -->
 
-    <!-- テスト管理 part 2: 採点結果一覧 -->
-    <template x-if="adminTab === 'tests'">
+    <!-- ========== TAB: 採点結果一覧 ========== -->
+    <template x-if="adminTab === 'results'">
       <div>
 
     <!-- Results list -->
@@ -2354,12 +2341,41 @@ function app() {
         }
       });
 
-      // Auto-detect class from URL parameter
+      // Auto-detect test and class from URL parameters
       try {
         const urlParams = new URLSearchParams(window.location.search);
+        const testFromUrl = urlParams.get('test');
         const classFromUrl = urlParams.get('class');
+        // Load specific test from URL
+        if (testFromUrl) {
+          const t = this.tests.find(t => t.id === testFromUrl);
+          if (t) {
+            this.activeTestId = testFromUrl;
+            this.settings = JSON.parse(JSON.stringify(t.settings));
+            if (!this.settings.questions) this.settings.questions = [];
+            if (!this.settings.autoQuestionCount) this.settings.autoQuestionCount = 5;
+            if (!this.settings.difficultyDistribution) this.settings.difficultyDistribution = [0,0,0,0,0];
+            if (!this.settings.criteria) this.settings.criteria = [];
+            if (this.settings.criteria.length > 0 && typeof this.settings.criteria[0] === 'string') {
+              this.settings.criteria = this.settings.criteria.map(c => ({ name: c, description: '' }));
+            }
+          }
+        }
+        // Load class from URL
         if (classFromUrl && this.classes.find(c => c.id === classFromUrl)) {
           this.studentClassId = classFromUrl;
+          // Auto-select test assigned to this class if only one
+          if (!testFromUrl) {
+            const classTests = this.tests.filter(t => t.classIds && t.classIds.includes(classFromUrl));
+            if (classTests.length === 1) {
+              this.activeTestId = classTests[0].id;
+              this.settings = JSON.parse(JSON.stringify(classTests[0].settings));
+              if (!this.settings.questions) this.settings.questions = [];
+              if (!this.settings.autoQuestionCount) this.settings.autoQuestionCount = 5;
+              if (!this.settings.difficultyDistribution) this.settings.difficultyDistribution = [0,0,0,0,0];
+              if (!this.settings.criteria) this.settings.criteria = [];
+            }
+          }
         }
       } catch(e) {}
     },
@@ -2439,6 +2455,30 @@ function app() {
       const url = this.getClassUrl(classId);
       navigator.clipboard.writeText(url).then(() => alert('URLをコピーしました:\n' + url)).catch(() => prompt('このURLをコピーしてください:', url));
     },
+    getTestUrl(testId) {
+      const base = window.location.origin + window.location.pathname;
+      return base + '?test=' + testId;
+    },
+    copyTestUrl(testId) {
+      const url = this.getTestUrl(testId);
+      navigator.clipboard.writeText(url).then(() => alert('テストURLをコピーしました:\n' + url)).catch(() => prompt('このURLをコピーしてください:', url));
+    },
+    copyTestClassUrl(testId, classId) {
+      const base = window.location.origin + window.location.pathname;
+      const url = base + '?test=' + testId + '&class=' + classId;
+      navigator.clipboard.writeText(url).then(() => alert('URLをコピーしました:\n' + url)).catch(() => prompt('このURLをコピーしてください:', url));
+    },
+    toggleTestClass(testId, classId, checked) {
+      const t = this.tests.find(t => t.id === testId);
+      if (!t) return;
+      if (!t.classIds) t.classIds = [];
+      if (checked) {
+        if (!t.classIds.includes(classId)) t.classIds.push(classId);
+      } else {
+        t.classIds = t.classIds.filter(id => id !== classId);
+      }
+      _supabase.from('tests').update({ class_ids: t.classIds }).eq('id', testId);
+    },
 
     // Test management
     async saveTestsToStorage() {
@@ -2446,6 +2486,7 @@ function app() {
         id: t.id,
         name: t.name,
         class_id: t.classId || null,
+        class_ids: t.classIds || [],
         settings: t.settings || {}
       }));
       await _supabase.from('tests').upsert(rows);
@@ -2491,7 +2532,7 @@ function app() {
         difficultyDistribution: [0,0,0,0,0],
         learningMode: false
       };
-      this.tests.push({ id, name, settings: defaultSettings });
+      this.tests.push({ id, name, classIds: [], settings: defaultSettings });
       this.switchTest(id);
       this.$nextTick(() => { this.editingTestId = id; this.editingTestName = name; });
     },
@@ -2633,6 +2674,7 @@ function app() {
           id: t.id,
           name: t.name,
           classId: t.class_id,
+          classIds: Array.isArray(t.class_ids) ? t.class_ids : (t.class_ids ? JSON.parse(t.class_ids) : []),
           settings: t.settings || {}
         }));
       } else {
@@ -2642,11 +2684,11 @@ function app() {
           try { this.tests = JSON.parse(storedTests); } catch(e) {}
         }
         if (this.tests.length === 0) {
-          this.tests = [{ id: 'test_default', name: 'テスト1', settings: JSON.parse(JSON.stringify(this.settings)) }];
+          this.tests = [{ id: 'test_default', name: 'テスト1', classIds: [], settings: JSON.parse(JSON.stringify(this.settings)) }];
         }
         // Save migrated tests to Supabase
         const rows = this.tests.map(t => ({
-          id: t.id, name: t.name, class_id: t.classId || null, settings: t.settings || {}
+          id: t.id, name: t.name, class_id: t.classId || null, class_ids: t.classIds || [], settings: t.settings || {}
         }));
         await _supabase.from('tests').upsert(rows);
         localStorage.removeItem('exam_tests_v1');
@@ -3544,6 +3586,7 @@ ${logText}
           id: t.id,
           name: t.name,
           class_id: t.classId || null,
+          class_ids: t.classIds || [],
           settings: t.settings
         });
       }
