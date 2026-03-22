@@ -427,8 +427,8 @@
           <template x-if="availableLiveModels.length === 0">
             <optgroup label="デフォルト（「モデル取得」で自動検出）">
               <option value="gemini-2.5-flash-native-audio-latest|v1beta">gemini-2.5-flash-native-audio-latest（v1beta）</option>
-              <option value="gemini-2.5-flash-preview-native-audio-dialog|v1alpha">gemini-2.5-flash-preview-native-audio-dialog（v1alpha）</option>
-              <option value="gemini-2.0-flash-live-001|v1alpha">gemini-2.0-flash-live-001（v1alpha）</option>
+              <option value="gemini-2.5-flash-preview-native-audio-dialog|v1beta">gemini-2.5-flash-preview-native-audio-dialog（v1beta）</option>
+              <option value="gemini-2.0-flash-live-001|v1beta">gemini-2.0-flash-live-001（v1beta）</option>
             </optgroup>
           </template>
           <template x-if="availableLiveModels.length > 0">
@@ -2214,8 +2214,8 @@ function app() {
     examStarted: false,
     // ---- Voice mode (Gemini Live API) ----
     voiceMode: false,
-    voiceModel: 'gemini-2.5-flash-preview-native-audio-dialog',
-    liveApiVersion: 'v1alpha',
+    voiceModel: 'gemini-2.5-flash-native-audio-latest',
+    liveApiVersion: 'v1beta',
     availableLiveModels: [],  // [{id, label, version}] — populated by fetchModels()
     liveWs: null,
     liveStatus: 'idle',   // 'idle'|'connecting'|'ready'|'listening'|'ai_speaking'|'error'
@@ -2280,6 +2280,11 @@ function app() {
       if (storedVoiceModel) this.voiceModel = storedVoiceModel;
       const storedLiveApiVer = localStorage.getItem('live_api_version');
       if (storedLiveApiVer) this.liveApiVersion = storedLiveApiVer;
+      // v1alpha は廃止: v1beta に強制移行
+      if (this.liveApiVersion === 'v1alpha') {
+        this.liveApiVersion = 'v1beta';
+        localStorage.setItem('live_api_version', 'v1beta');
+      }
 
       const storedModel = localStorage.getItem('gemini_model');
       const deprecatedModels = [
