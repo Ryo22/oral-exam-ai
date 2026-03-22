@@ -145,12 +145,44 @@
       <p class="text-gray-500 text-sm">AIが試験官となり、あなたの理解度を評価します</p>
     </div>
 
-    <!-- Theme display (read-only) -->
-    <div class="bg-white rounded-2xl p-5 border border-gc-border shadow-sm">
-      <p class="text-xs text-gray-500 mb-2 font-medium">試問テーマ</p>
-      <p x-text="settings.theme || '（テーマ未設定）'"
-         :class="settings.theme ? 'text-gray-900 font-medium' : 'text-gray-400 italic'"
-         class="text-base leading-relaxed"></p>
+    <!-- Mode selection (always visible) -->
+    <div class="space-y-2">
+      <p class="text-xs text-gray-600 font-medium">モードを選択</p>
+      <!-- Exam mode -->
+      <div @click="freeTalkMode = false"
+        :class="!freeTalkMode ? 'ring-2 ring-gc-blue border-gc-blue' : 'border-gc-border hover:border-gray-300'"
+        class="bg-white rounded-xl p-3 border cursor-pointer transition-all">
+        <div class="flex items-center gap-2.5">
+          <div :class="!freeTalkMode ? 'bg-gc-blue' : 'bg-gray-200'"
+            class="w-4 h-4 rounded-full flex items-center justify-center flex-none transition-colors">
+            <div x-show="!freeTalkMode" class="w-2 h-2 bg-white rounded-full"></div>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-gray-800">試験モード</p>
+            <p class="text-xs text-gray-400">管理者が設定したテーマで採点</p>
+          </div>
+        </div>
+      </div>
+      <!-- Free talk mode -->
+      <div @click="freeTalkMode = true"
+        :class="freeTalkMode ? 'ring-2 ring-gc-blue border-gc-blue' : 'border-gc-border hover:border-gray-300'"
+        class="bg-white rounded-xl p-3 border cursor-pointer transition-all space-y-2">
+        <div class="flex items-center gap-2.5">
+          <div :class="freeTalkMode ? 'bg-gc-blue' : 'bg-gray-200'"
+            class="w-4 h-4 rounded-full flex items-center justify-center flex-none transition-colors">
+            <div x-show="freeTalkMode" class="w-2 h-2 bg-white rounded-full"></div>
+          </div>
+          <div>
+            <p class="text-sm font-medium text-gray-800">フリートーク</p>
+            <p class="text-xs text-gray-400">テーマを決めず自由に話せます</p>
+          </div>
+        </div>
+        <div x-show="freeTalkMode" @click.stop class="pl-6">
+          <input type="text" x-model="freeTalkTopic"
+            placeholder="話したいテーマ（任意）"
+            class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue"/>
+        </div>
+      </div>
     </div>
 
     <!-- How it works -->
@@ -235,12 +267,15 @@
           class="text-xs text-gray-400 hover:text-gray-700 transition-colors shrink-0">変更</button>
       </div>
       <button @click="startExamPage()"
-        :disabled="!settings.theme || !apiKey"
+        :disabled="!apiKey || (!freeTalkMode && !settings.theme)"
         class="w-full bg-gc-green hover:bg-gc-green-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3.5 rounded-2xl transition-colors text-base">
         試験へ進む
       </button>
-      <p x-show="!settings.theme || !apiKey" class="text-center text-xs text-amber-600">
-        ※ 管理者によるAPIキーとテーマの設定が必要です
+      <p x-show="!apiKey" class="text-center text-xs text-amber-600">
+        ※ 管理者によるAPIキーの設定が必要です
+      </p>
+      <p x-show="apiKey && !freeTalkMode && !settings.theme" class="text-center text-xs text-amber-600">
+        ※ 試験モードは管理者によるテーマ設定が必要です
       </p>
       <!-- My Page button (shown when history is allowed) -->
       <button x-show="allowStudentHistory"
@@ -1287,7 +1322,7 @@
     </button>
     <div class="text-center">
       <div class="flex items-center justify-center gap-2">
-        <div class="text-sm font-medium truncate max-w-40 text-gray-900" x-text="settings.theme"></div>
+        <div class="text-sm font-medium truncate max-w-40 text-gray-900" x-text="freeTalkMode ? (freeTalkTopic || 'フリートーク') : settings.theme"></div>
         <span x-show="settings.learningMode"
           class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200 shrink-0">学習</span>
       </div>
@@ -1331,7 +1366,7 @@
         </svg>
       </div>
       <h2 class="text-xl font-semibold mb-2 text-gray-900">口頭試問を開始</h2>
-      <p class="text-gray-500 text-sm mb-2" x-text="'テーマ: ' + settings.theme"></p>
+      <p class="text-gray-500 text-sm mb-2" x-text="freeTalkMode ? (freeTalkTopic ? 'テーマ: ' + freeTalkTopic : '🗣 フリートーク') : 'テーマ: ' + settings.theme"></p>
       <p class="text-gray-400 text-xs mb-2" x-text="'評価基準: ' + settings.criteria.filter(c=>c.name).map(c=>c.name).join(' / ')"></p>
       <p class="text-gray-400 text-xs mb-4" x-text="settings.learningMode ? 'ヒントや解説を求めることができます。気軽に学習してください。' : '試験中は正解・解説は教えません。自分の言葉で答えてください。'"></p>
       <div x-show="settings.learningMode"
@@ -2243,6 +2278,8 @@ function app() {
     checkResultsName: '',
     studentPastResults: [],
     showPastResults: false,
+    freeTalkMode: false,
+    freeTalkTopic: '',
     mypageSelectedResult: null,
     mypageShowLog: false,
     mypageShowChat: false,
@@ -2781,7 +2818,7 @@ ${logText}
       const entry = {
         id: Date.now(),
         date: new Date().toISOString(),
-        theme: this.settings.theme,
+        theme: this.freeTalkMode ? (this.freeTalkTopic.trim() || 'フリートーク') : this.settings.theme,
         studentName: name || '（未入力）',
         studentEmail: email || '',
         classId: classId,
@@ -3777,6 +3814,29 @@ ${conversationLog}
     },
 
     buildSystemPrompt() {
+      // フリートークモード用プロンプト
+      if (this.freeTalkMode) {
+        const topic = this.freeTalkTopic.trim();
+        return `あなたは親切で知的な学習サポートAIです。
+${topic ? `今日の話題: 「${topic}」` : '特定のテーマを決めず、受験者が話したいことについて自由に対話します。'}
+
+あなたの役割:
+1. ${topic ? `「${topic}」に関連した質問から会話を始める` : '受験者が話したいテーマを引き出す質問から始める'}
+2. 受験者の発言を深掘りし、理解を促す質問をする
+3. 必要に応じて補足説明・別の視点・具体例を提供する
+4. 会話を通じて受験者の考えや理解を深める
+5. 温かみのある、対話的な口調で話す
+6. 一度に一つのことだけ聞く
+
+【絶対厳守】発話ルール:
+- 思考過程・計画・意図の説明を一切しゃべらないこと
+- 英語での発言・注釈・コメントは一切しないこと
+- 日本語の質問・回答のみを、そのまま発話すること
+- "I'm now ready to...", "Let me start..." のような文は絶対に発話しないこと
+
+${topic ? `「${topic}」について話し合いましょう。` : '何でも話しましょう。'}まず最初の質問から始めてください。`;
+      }
+
       const activeCriteria = this.settings.criteria.filter(c => c.name);
       const criteriaText = activeCriteria.map((c, i) =>
         `${i + 1}. ${c.name}${c.description ? '（' + c.description + '）' : ''}`
