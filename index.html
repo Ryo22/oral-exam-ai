@@ -1058,6 +1058,66 @@
       </p>
     </section>
 
+    <!-- Document Upload for AI Question Generation -->
+    <section>
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h2 class="text-sm font-medium text-gray-700">参考ドキュメント</h2>
+          <p class="text-xs text-gray-400 mt-0.5">アップロードした資料をもとにAIが問題・評価基準を自動生成します</p>
+        </div>
+      </div>
+
+      <!-- Upload area -->
+      <label class="block cursor-pointer">
+        <div class="border-2 border-dashed border-gc-border rounded-xl p-5 text-center hover:border-gc-blue hover:bg-blue-50 transition-colors"
+          :class="settings.documentText ? 'border-emerald-300 bg-emerald-50' : ''">
+          <input type="file" class="hidden" accept=".txt,.pdf,.md,.csv" @change="handleDocumentUpload($event)">
+          <template x-if="!settings.documentText">
+            <div>
+              <svg class="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              <p class="text-sm font-medium text-gray-600">クリックしてファイルをアップロード</p>
+              <p class="text-xs text-gray-400 mt-1">TXT / PDF / Markdown / CSV（最大5MB）</p>
+            </div>
+          </template>
+          <template x-if="settings.documentText">
+            <div class="flex items-center gap-3">
+              <svg class="w-8 h-8 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <div class="text-left">
+                <p class="text-sm font-medium text-emerald-700" x-text="settings.documentName || 'ドキュメント読み込み済み'"></p>
+                <p class="text-xs text-emerald-600" x-text="(settings.documentText.length).toLocaleString() + ' 文字'"></p>
+              </div>
+            </div>
+          </template>
+        </div>
+      </label>
+
+      <!-- Actions when document is loaded -->
+      <template x-if="settings.documentText">
+        <div class="mt-3 space-y-2">
+          <button @click="generateFromDocument()" :disabled="isGeneratingFromDoc"
+            class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2.5 rounded-xl transition-colors text-sm flex items-center justify-center gap-2">
+            <template x-if="!isGeneratingFromDoc">
+              <span>✨ この資料から問題・評価基準を自動生成</span>
+            </template>
+            <template x-if="isGeneratingFromDoc">
+              <span class="flex items-center gap-2">
+                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                AIが分析中...
+              </span>
+            </template>
+          </button>
+          <button @click="settings.documentText = ''; settings.documentName = ''"
+            class="w-full border border-gray-300 text-gray-600 hover:bg-gray-50 font-medium py-2 rounded-xl transition-colors text-sm">
+            ドキュメントを削除
+          </button>
+        </div>
+      </template>
+    </section>
+
     <!-- Info -->
     <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
       <div class="flex gap-2">
@@ -2248,6 +2308,7 @@ function app() {
     showEndConfirm: false,
     result: null,
     showLog: false,
+    isGeneratingFromDoc: false,
     saved: false,
     showScoreToStudent: true,
     showCommentToStudent: true,
@@ -2796,6 +2857,8 @@ function app() {
       if (!this.settings.autoQuestionCount) this.settings.autoQuestionCount = 5;
       if (!this.settings.difficultyDistribution) this.settings.difficultyDistribution = [0, 0, 0, 0, 0];
       if (!this.settings.criteria) this.settings.criteria = [];
+      if (!this.settings.documentText) this.settings.documentText = '';
+      if (!this.settings.documentName) this.settings.documentName = '';
       if (this.settings.criteria.length > 0 && typeof this.settings.criteria[0] === 'string') {
         this.settings.criteria = this.settings.criteria.map(c => ({ name: c, description: '' }));
       }
@@ -3676,6 +3739,102 @@ ${logText}
       this.showVoiceSettings = false;
     },
 
+    async handleDocumentUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const MAX_SIZE = 5 * 1024 * 1024;
+      if (file.size > MAX_SIZE) { alert('ファイルサイズは5MB以下にしてください。'); return; }
+
+      this.settings.documentName = file.name;
+
+      if (file.type === 'application/pdf') {
+        // Use Gemini Files API approach: read as base64 and send inline
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const base64 = e.target.result.split(',')[1];
+          // Extract text via Gemini
+          try {
+            const endpoint = `${GEMINI_BASE}${this.selectedModel}:generateContent?key=${this.apiKey}`;
+            const res = await fetch(endpoint, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{
+                  role: 'user',
+                  parts: [
+                    { inline_data: { mime_type: 'application/pdf', data: base64 } },
+                    { text: 'このPDFの全テキスト内容をそのまま抽出してください。整形不要。' }
+                  ]
+                }]
+              })
+            });
+            const data = await res.json();
+            this.settings.documentText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          } catch(e) {
+            alert('PDF読み込みに失敗しました。TXTなど別の形式をお試しください。');
+          }
+        };
+        reader.readAsDataURL(file);
+      } else {
+        // TXT / MD / CSV → plain text
+        const reader = new FileReader();
+        reader.onload = (e) => { this.settings.documentText = e.target.result; };
+        reader.readAsText(file, 'UTF-8');
+      }
+    },
+
+    async generateFromDocument() {
+      if (!this.settings.documentText || !this.apiKey) return;
+      this.isGeneratingFromDoc = true;
+      try {
+        const endpoint = `${GEMINI_BASE}${this.selectedModel}:generateContent?key=${this.apiKey}`;
+        const prompt = `以下の資料をもとに、口頭試問（口述試験）用の設定を生成してください。
+
+【資料内容】
+${this.settings.documentText.slice(0, 15000)}
+
+必ず以下のJSON形式のみで回答してください（コードブロック不要）:
+{
+  "theme": "<試問テーマ（資料の主題を簡潔に）>",
+  "questions": [
+    { "question": "<問題文>", "expectedAnswer": "<想定する答え（要点）>", "notes": "", "difficulty": 2 },
+    { "question": "<問題文>", "expectedAnswer": "<想定する答え（要点）>", "notes": "", "difficulty": 3 },
+    { "question": "<問題文>", "expectedAnswer": "<想定する答え（要点）>", "notes": "", "difficulty": 3 },
+    { "question": "<問題文>", "expectedAnswer": "<想定する答え（要点）>", "notes": "", "difficulty": 4 },
+    { "question": "<問題文>", "expectedAnswer": "<想定する答え（要点）>", "notes": "", "difficulty": 4 }
+  ],
+  "criteria": [
+    { "name": "<評価基準名>", "description": "<説明>" },
+    { "name": "<評価基準名>", "description": "<説明>" },
+    { "name": "<評価基準名>", "description": "<説明>" }
+  ]
+}`;
+
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.4 }
+          })
+        });
+        const data = await res.json();
+        let raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        raw = raw.replace(/```json|```/g, '').trim();
+        const parsed = JSON.parse(raw);
+
+        if (parsed.theme) this.settings.theme = parsed.theme;
+        if (parsed.questions) this.settings.questions = parsed.questions;
+        if (parsed.criteria) this.settings.criteria = parsed.criteria;
+
+        await this.saveSettings();
+        alert('✅ 問題・評価基準を自動生成しました！内容を確認して保存してください。');
+      } catch(e) {
+        alert('生成に失敗しました: ' + (e.message || e));
+      }
+      this.isGeneratingFromDoc = false;
+    },
+
     async saveSettings() {
       // Sync settings into the active test
       const t = this.tests.find(t => t.id === this.activeTestId);
@@ -4057,11 +4216,16 @@ ${distLines}
 - 悪い例（禁止）: "Lv.1の難易度から出題します。地政学とは何か、定義を説明してください。"
 - 良い例（正しい）: 「地政学とは何か、定義を説明してください。」`;
 
+      const documentBlock = this.settings.documentText
+        ? `\n【参考資料】（この内容に基づいて試問を行うこと。受験者には資料を見せず、口頭で問うこと）:\n${this.settings.documentText.slice(0, 12000)}\n`
+        : '';
+
       return `あなたは${isLearning ? '学習をサポートする教育者' : '厳格で公平な口頭試問の試験官'}です。
 試問テーマ: ${this.settings.theme}
 ${isLearning ? 'モード: 【学習モード】ヒントや解説の提供が許可されています。' : ''}
 あなたの役割:${roleLines}
 ${noMetaRule}
+${documentBlock}
 ${questionBlock}
 
 評価観点（試験中は言及しない）:
