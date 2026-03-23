@@ -344,13 +344,18 @@
       </div>
       <h1 class="text-base font-semibold text-gray-900">管理画面</h1>
     </div>
-    <button @click="adminLogout()" class="text-xs text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-      </svg>
-      ログアウト
-    </button>
-  </header>
+      <div class="flex items-center gap-3">
+        <button @click="page = 'student'" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg transition-colors font-medium">
+          👤 生徒画面へ
+        </button>
+        <button @click="adminLogout()" class="text-xs text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
+          ログアウト
+        </button>
+      </div>
+    </header>
 
   <!-- Tab bar -->
   <div class="bg-white border-b border-gc-border sticky top-[57px] z-10">
@@ -2435,6 +2440,10 @@ function app() {
       this.authLoading = false;
     },
 
+    async adminLogout() {
+      await this.logoutSystem();
+    },
+
     async submitAuth() {
       if (!this.authEmail || !this.authPassword) return;
       this.authError = '';
@@ -2476,18 +2485,19 @@ function app() {
       // Check auth session for Google Auth
       if (typeof _supabase !== 'undefined' && _supabase) {
         const { data: { session } } = await _supabase.auth.getSession();
-        if (session) {
-          this.currentUser = session.user;
-          this.isGoogleAdmin = session.user.email === 'ryo.ishigami.1129@gmail.com';
+        if (session?.user) {
+          await this.handleSessionStart(session.user);
         }
         
-        _supabase.auth.onAuthStateChange((event, session) => {
-          if (session) {
-            this.currentUser = session.user;
-            this.isGoogleAdmin = session.user.email === 'ryo.ishigami.1129@gmail.com';
+        _supabase.auth.onAuthStateChange(async (event, session) => {
+          if (session?.user) {
+            await this.handleSessionStart(session.user);
           } else {
             this.currentUser = null;
+            this.studentUser = null;
+            this.userRole = 'student';
             this.isGoogleAdmin = false;
+            this.studentNameConfirmed = false;
           }
         });
       }
@@ -2520,32 +2530,6 @@ function app() {
 
       // Load shared data from Supabase
       await this.loadFromSupabase();
-
-      // Supabase Auth: 既存セッションを復元
-      const { data: { session } } = await _supabase.auth.getSession();
-      if (session?.user) {
-        this.studentUser = {
-          name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email,
-          email: session.user.email,
-          picture: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || ''
-        };
-        this.studentNameConfirmed = true;
-      }
-
-      // Supabase Auth: ログイン状態の変化を監視
-      _supabase.auth.onAuthStateChange((event, session) => {
-        if (session?.user) {
-          this.studentUser = {
-            name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email,
-            email: session.user.email,
-            picture: session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || ''
-          };
-          this.studentNameConfirmed = true;
-        } else {
-          this.studentUser = null;
-          this.studentNameConfirmed = false;
-        }
-      });
 
       // Auto-detect test and class from URL parameters
       try {
