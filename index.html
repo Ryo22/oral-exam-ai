@@ -180,6 +180,18 @@
       </select>
     </div>
 
+    <!-- Test selector -->
+    <div class="space-y-2" x-show="availableTestsForStudent.length > 1 && !activeTestId">
+      <p class="text-xs text-gray-600 font-medium">テストを選択してください</p>
+      <select :value="activeTestId" @change="selectTestForStudent($event.target.value)"
+        class="w-full bg-white border border-gc-border rounded-xl px-4 py-3 text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue">
+        <option value="">テストを選択...</option>
+        <template x-for="t in availableTestsForStudent" :key="t.id">
+          <option :value="t.id" x-text="t.name"></option>
+        </template>
+      </select>
+    </div>
+
     <!-- Student identification: redirect to unified auth page -->
     <div x-show="!currentUser" class="space-y-3">
       <button @click="loginWithGoogle()"
@@ -2558,20 +2570,32 @@ function app() {
           if (!testFromUrl) {
             const classTests = this.tests.filter(t => t.classIds && t.classIds.includes(classFromUrl));
             if (classTests.length === 1) {
-              this.activeTestId = classTests[0].id;
-              this.settings = JSON.parse(JSON.stringify(classTests[0].settings));
-              if (!this.settings.questions) this.settings.questions = [];
-              if (!this.settings.autoQuestionCount) this.settings.autoQuestionCount = 5;
-              if (!this.settings.difficultyDistribution) this.settings.difficultyDistribution = [0,0,0,0,0];
-              if (!this.settings.criteria) this.settings.criteria = [];
+              this.selectTestForStudent(classTests[0].id);
             }
           }
         }
       } catch(e) {}
     },
 
+    get availableTestsForStudent() {
+      return this.tests.filter(t => !t.classIds || t.classIds.length === 0 || (this.studentClassId && t.classIds.includes(this.studentClassId)));
+    },
+
+    selectTestForStudent(id) {
+      this.activeTestId = id;
+      const t = this.tests.find(x => x.id === id);
+      if (t) {
+        this.settings = JSON.parse(JSON.stringify(t.settings));
+        if (!this.settings.questions) this.settings.questions = [];
+        if (!this.settings.criteria) this.settings.criteria = [];
+      }
+    },
+
     saveApiKey() {
       localStorage.setItem('gemini_api_key', this.apiKey);
+      if (typeof _supabase !== 'undefined' && _supabase) {
+        _supabase.from('app_settings').upsert({ key: 'gemini_api_key', value: this.apiKey }).then();
+      }
     },
 
     adminLogin() {
@@ -2845,6 +2869,7 @@ function app() {
           if (key === 'show_comment_to_student') this.showCommentToStudent = value === 'true';
           if (key === 'allow_student_history') this.allowStudentHistory = value === 'true';
           if (key === 'focus_monitoring_enabled') this.focusMonitoringEnabled = value === 'true';
+          if (key === 'gemini_api_key' && value) this.apiKey = value;
         });
       }
 
