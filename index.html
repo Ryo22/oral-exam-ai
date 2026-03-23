@@ -2315,6 +2315,10 @@ function app() {
     studentName: '',
     studentEmail: '',
     studentNameConfirmed: false,
+        // Auth state
+    currentUser: null,
+    isGoogleAdmin: false,
+    authLoading: true,
     googleClientId: '',
     focusMonitoringEnabled: false,
     focusViolationCount: 0,
@@ -2323,7 +2327,43 @@ function app() {
     showViolationWarning: false,
     _focusHandlers: null,
 
+        async loginWithGoogle() {
+      if (typeof _supabase === 'undefined' || !_supabase) return alert('Supabaseが設定されていません。');
+      await _supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.href }
+      });
+    },
+    async logoutGoogle() {
+      if (typeof _supabase !== 'undefined' && _supabase) {
+        await _supabase.auth.signOut();
+      }
+      this.currentUser = null;
+      this.isGoogleAdmin = false;
+      this.page = 'student';
+    },
+
     async init() {
+      // Check auth session for Google Auth
+      if (typeof _supabase !== 'undefined' && _supabase) {
+        const { data: { session } } = await _supabase.auth.getSession();
+        if (session) {
+          this.currentUser = session.user;
+          this.isGoogleAdmin = session.user.email === 'ryo.ishigami.1129@gmail.com';
+        }
+        
+        _supabase.auth.onAuthStateChange((event, session) => {
+          if (session) {
+            this.currentUser = session.user;
+            this.isGoogleAdmin = session.user.email === 'ryo.ishigami.1129@gmail.com';
+          } else {
+            this.currentUser = null;
+            this.isGoogleAdmin = false;
+          }
+        });
+      }
+      this.authLoading = false;
+
       // Local settings (device-specific, keep in localStorage)
       const storedKey = localStorage.getItem('gemini_api_key');
       if (storedKey) this.apiKey = storedKey;
