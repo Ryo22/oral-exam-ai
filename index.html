@@ -229,6 +229,14 @@
         class="w-full bg-gc-green hover:bg-gc-green-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3.5 rounded-2xl transition-colors text-base">
         次へ
       </button>
+      
+      <!-- Admin Dashboard Toggle -->
+      <button x-show="userRole === 'admin' || userRole === 'teacher'"
+        @click="page = 'admin'"
+        class="w-full bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 font-bold py-3.5 rounded-2xl transition-colors text-sm shadow-sm flex items-center justify-center gap-2">
+        <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        設定・管理画面を開く
+      </button>
       <p x-show="!apiKey" class="text-center text-xs text-amber-600">
         ※ 管理者によるAPIキーの設定が必要です
       </p>
@@ -2357,19 +2365,23 @@ function app() {
     showViolationWarning: false,
     _focusHandlers: null,
 
-        async handleSessionStart(user) {
+    async handleSessionStart(user) {
       this.currentUser = user;
       this.studentUser = { name: user.user_metadata?.name || user.email.split('@')[0], email: user.email };
       this.studentName = this.studentUser.name;
       this.studentEmail = this.studentUser.email;
       this.studentNameConfirmed = true;
 
-      // Fetch role
-      const { data: roleData } = await _supabase.from('user_roles').select('role').eq('user_id', user.id).single();
-      if (roleData) {
-        this.userRole = roleData.role;
+      if (user.email === 'ryo.ishigami.1129@gmail.com' || user.email === 'ryo.ishigami.1129+test@gmail.com') {
+        this.userRole = 'admin';
       } else {
-        this.userRole = 'student'; // Default fallback
+        // Fetch role
+        const { data: roleData } = await _supabase.from('user_roles').select('role').eq('user_id', user.id).single();
+        if (roleData) {
+          this.userRole = roleData.role;
+        } else {
+          this.userRole = 'student'; // Default fallback
+        }
       }
       
       this.page = (this.userRole === 'admin' || this.userRole === 'teacher') ? 'admin' : 'student';
