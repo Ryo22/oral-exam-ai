@@ -115,6 +115,8 @@ function app() {
     focusViolations: [],
     focusViolationFlagged: false,
     showViolationWarning: false,
+    _pendingTestIdFromUrl: '',
+    _pendingClassIdFromUrl: '',
     _focusHandlers: null,
 
     async handleSessionStart(user) {
@@ -182,6 +184,13 @@ function app() {
     },
 
     async init() {
+      // --- Capture URL params FIRST (before Supabase overwrites settings) ---
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        this._pendingTestIdFromUrl = urlParams.get('test') || '';
+        this._pendingClassIdFromUrl = urlParams.get('class') || '';
+      } catch(e) {}
+
       // Check auth session for Google Auth
       if (typeof _supabase !== 'undefined' && _supabase) {
         const { data: { session } } = await _supabase.auth.getSession();
@@ -210,7 +219,6 @@ function app() {
       if (storedVoiceModel) this.voiceModel = storedVoiceModel;
       const storedLiveApiVer = localStorage.getItem('live_api_version');
       if (storedLiveApiVer) this.liveApiVersion = storedLiveApiVer;
-      // v1alpha は廃止: v1beta に強制移行
       if (this.liveApiVersion === 'v1alpha') {
         this.liveApiVersion = 'v1beta';
         localStorage.setItem('live_api_version', 'v1beta');
@@ -228,39 +236,31 @@ function app() {
         localStorage.removeItem('gemini_model');
       }
 
-      // Load shared data from Supabase
+      // Load shared data from Supabase (does NOT overwrite this.settings when URL params are present)
       await this.loadFromSupabase();
 
-      // Auto-detect test and class from URL parameters
+      // --- Resolve URL params AFTER data is loaded ---
       try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const testFromUrl = urlParams.get('test');
-        const classFromUrl = urlParams.get('class');
-        // Load specific test from URL
-        if (testFromUrl) {
-          const t = this.tests.find(t => t.id === testFromUrl);
-          if (t) {
-            this.activeTestId = testFromUrl;
-            this.settings = JSON.parse(JSON.stringify(t.settings));
-            if (!this.settings.questions) this.settings.questions = [];
-            if (!this.settings.autoQuestionCount) this.settings.autoQuestionCount = 5;
-            if (!this.settings.difficultyDistribution) this.settings.difficultyDistribution = [0,0,0,0,0];
-            if (!this.settings.criteria) this.settings.criteria = [];
-            if (this.settings.criteria.length > 0 && typeof this.settings.criteria[0] === 'string') {
-              this.settings.criteria = this.settings.criteria.map(c => ({ name: c, description: '' }));
-            }
-          }
+        const testId = this._pendingTestIdFromUrl;
+        const classId = this._pendingClassIdFromUrl;
+
+        if (classId && this.classes.find(c => c.id === classId)) {
+          this.studentClassId = classId;
         }
-        // Load class from URL
-        if (classFromUrl && this.classes.find(c => c.id === classFromUrl)) {
-          this.studentClassId = classFromUrl;
-          // Auto-select test assigned to this class if only one
-          if (!testFromUrl) {
-            const classTests = this.tests.filter(t => t.classIds && t.classIds.includes(classFromUrl));
-            if (classTests.length === 1) {
-              this.selectTestForStudent(classTests[0].id);
-            }
+
+        if (testId) {
+          // Load specific test by URL
+          const t = this.tests.find(t => t.id === testId);
+          if (t) {
+            this.selectTestForStudent(testId);
           }
+        } else if (classId) {
+          // Auto-select the only test for this class
+          const classTests = this.tests.filter(t => t.classIds && t.classIds.includes(classId));
+          if (classTests.length === 1) {
+            this.selectTestForStudent(classTests[0].id);
+          }
+          // If multiple tests, student will see the selector dropdown
         }
       } catch(e) {}
     },
@@ -342,10 +342,16 @@ function app() {
     },
 
     removeClass(id) {
-      const hasResults = this.examResults.some(r => r.classId === id);
-      if (hasResults && !confirm('このクラスには採点結果があります。本当に削除しますか？')) return;
+      if (!confirm('このクラスを削除しますか？\nクラスに割り当てられたテストの割り当てたては解除されます。')) return;
+      // Unassign class from all tests
+      this.tests.forEach(t => {
+        if (t.classIds && t.classIds.includes(id)) {
+          t.classIds = t.classIds.filter(cid => cid !== id);
+        }
+      });
       this.classes = this.classes.filter(c => c.id !== id);
       this.saveClassesToStorage();
+      this.saveTestsToStorage();
     },
 
     getClassUrl(classId) {
@@ -613,17 +619,20 @@ function app() {
         localStorage.removeItem('exam_tests_v1');
       }
 
-      this.activeTestId = this.tests[0].id;
-      this.settings = JSON.parse(JSON.stringify(this.tests[0].settings || this.settings));
-      // Backward compat
-      if (!this.settings.questions) this.settings.questions = [];
-      if (!this.settings.autoQuestionCount) this.settings.autoQuestionCount = 5;
-      if (!this.settings.difficultyDistribution) this.settings.difficultyDistribution = [0, 0, 0, 0, 0];
-      if (!this.settings.criteria) this.settings.criteria = [];
-      if (!this.settings.documentText) this.settings.documentText = '';
-      if (!this.settings.documentName) this.settings.documentName = '';
-      if (this.settings.criteria.length > 0 && typeof this.settings.criteria[0] === 'string') {
-        this.settings.criteria = this.settings.criteria.map(c => ({ name: c, description: '' }));
+      this.activeTestId = this.tests.length > 0 ? this.tests[0].id : '';
+      // Only set this.settings from DB if no URL params are pending
+      if (!this._pendingTestIdFromUrl && this.tests.length > 0) {
+        this.settings = JSON.parse(JSON.stringify(this.tests[0].settings || this.settings));
+        // Backward compat
+        if (!this.settings.questions) this.settings.questions = [];
+        if (!this.settings.autoQuestionCount) this.settings.autoQuestionCount = 5;
+        if (!this.settings.difficultyDistribution) this.settings.difficultyDistribution = [0, 0, 0, 0, 0];
+        if (!this.settings.criteria) this.settings.criteria = [];
+        if (!this.settings.documentText) this.settings.documentText = '';
+        if (!this.settings.documentName) this.settings.documentName = '';
+        if (this.settings.criteria.length > 0 && typeof this.settings.criteria[0] === 'string') {
+          this.settings.criteria = this.settings.criteria.map(c => ({ name: c, description: '' }));
+        }
       }
 
       // Load exam results
