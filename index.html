@@ -2311,11 +2311,16 @@ function app() {
     async submitAuth() {
       if (!this.authEmail || !this.authPassword) return;
       this.authError = '';
+      const APP_URL = 'https://ryo22.github.io/oral-exam-ai/';
       try {
         if (this.authMode === 'signup') {
-          const { error } = await _supabase.auth.signUp({ email: this.authEmail, password: this.authPassword });
+          const { error } = await _supabase.auth.signUp({
+            email: this.authEmail,
+            password: this.authPassword,
+            options: { emailRedirectTo: APP_URL }
+          });
           if (error) throw error;
-          alert('確認メールを送信しました。メール内のリンクをクリックしてからログインしてください。');
+          alert('確認メールを送信しました。メール内のリンクをクリックし、このページへ戻ってからログインしてください。');
           this.authMode = 'login';
         } else {
           const { error } = await _supabase.auth.signInWithPassword({ email: this.authEmail, password: this.authPassword });
