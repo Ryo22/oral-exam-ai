@@ -2316,7 +2316,7 @@ function app() {
     studentEmail: '',
     studentNameConfirmed: false,
     googleClientId: '',
-    focusMonitoringEnabled: true,
+    focusMonitoringEnabled: false,
     focusViolationCount: 0,
     focusViolations: [],
     focusViolationFlagged: false,
@@ -2691,7 +2691,7 @@ function app() {
           if (key === 'show_score_to_student') this.showScoreToStudent = value === 'true';
           if (key === 'show_comment_to_student') this.showCommentToStudent = value === 'true';
           if (key === 'allow_student_history') this.allowStudentHistory = value === 'true';
-          if (key === 'focus_monitoring_enabled') this.focusMonitoringEnabled = value !== 'false';
+          if (key === 'focus_monitoring_enabled') this.focusMonitoringEnabled = value === 'true';
         });
       }
 
@@ -2922,7 +2922,10 @@ ${logText}
         conversationLog: JSON.parse(JSON.stringify(this.messages)),
       };
       this.examResults.push(entry);
-      this.saveResults();
+      this.saveResults().then(() => {
+        // Also fetch to ensure any remote changes are synced
+        if (this.fetchExamResults) this.fetchExamResults();
+      });
     },
 
     downloadSingleResult(r) {
