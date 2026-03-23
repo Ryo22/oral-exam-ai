@@ -149,15 +149,15 @@
     <div class="space-y-2">
       <div class="flex items-center gap-3 text-sm">
         <span class="text-lg">🎤</span>
-        <div><span class="text-gray-700">テキスト・音声で解答</span><span class="text-gray-400 text-xs ml-2">を入力</span></div>
+        <span class="text-gray-700">テキスト・音声で解答を入力できます</span>
       </div>
       <div class="flex items-center gap-3 text-sm">
         <span class="text-lg">🤖</span>
-        <div><span class="text-gray-700">AIが深掘り質問を繰り返します</span><span class="text-gray-400 text-xs ml-2">試験中は正解を教えません</span></div>
+        <div><span class="text-gray-700">AIが深掘り質問を繰り返します</span><span class="text-gray-400 text-xs ml-2">（試験中は正解を教えません）</span></div>
       </div>
       <div class="flex items-center gap-3 text-sm">
         <span class="text-lg">📊</span>
-        <div><span class="text-gray-700">終了後に採点・詳細分析</span><span class="text-gray-400 text-xs ml-2">評価基準ごとにコメント付き</span></div>
+        <div><span class="text-gray-700">終了後に採点・詳細フィードバック</span><span class="text-gray-400 text-xs ml-2">評価基準ごとにコメント付き</span></div>
       </div>
     </div>
 
@@ -173,58 +173,49 @@
       </select>
     </div>
 
-    <!-- Student identification -->
-    <div x-show="!studentUser && !studentNameConfirmed" class="space-y-4">
-      <!-- Google Sign-In (Supabase Auth) -->
-      <div class="space-y-3">
-        <p class="text-xs text-gray-500 text-center">Googleアカウントでログイン</p>
-        <button @click="signInWithGoogle()"
-          class="w-full flex items-center justify-center gap-3 bg-white border border-gc-border rounded-xl py-3 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-sm">
-          <svg viewBox="0 0 24 24" class="w-5 h-5 flex-none">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          Googleでログイン
-        </button>
-        <div class="flex items-center gap-3">
-          <div class="flex-1 h-px bg-gc-border"></div>
-          <span class="text-xs text-gray-400">または</span>
-          <div class="flex-1 h-px bg-gc-border"></div>
-        </div>
-      </div>
-      <!-- Name input fallback -->
-      <div class="space-y-2">
-        <p class="text-xs text-gray-600 font-medium">氏名を入力して開始してください</p>
-        <input type="text" x-model="studentName"
-          @keydown.enter.prevent
-          placeholder="お名前"
-          class="w-full bg-white border border-gc-border rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue"/>
-        <input type="email" x-model="studentEmail"
-          @keydown.enter.prevent
-          placeholder="メールアドレス（任意）"
-          class="w-full bg-white border border-gc-border rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue"/>
-      </div>
-      <button @click="if(studentName.trim()) studentNameConfirmed = true"
-        :disabled="!studentName.trim()"
-        class="w-full bg-gc-blue hover:bg-gc-blue-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-3.5 rounded-2xl transition-colors text-base">
-        次へ
+    <!-- Student identification: redirect to unified auth page -->
+    <div x-show="!currentUser" class="space-y-3">
+      <button @click="loginWithGoogle()"
+        class="w-full flex items-center justify-center gap-3 bg-white border border-gc-border rounded-xl py-3 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors shadow-sm">
+        <svg viewBox="0 0 24 24" class="w-5 h-5 flex-none">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Googleでログイン
       </button>
+      <div class="flex items-center gap-3">
+        <div class="flex-1 h-px bg-gc-border"></div>
+        <span class="text-xs text-gray-400">またはメールアドレスで</span>
+        <div class="flex-1 h-px bg-gc-border"></div>
+      </div>
+      <form @submit.prevent="submitAuth()" class="space-y-3">
+        <input type="email" x-model="authEmail" placeholder="メールアドレス" required
+          class="w-full bg-white border border-gc-border rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue text-sm" />
+        <input type="password" x-model="authPassword" placeholder="パスワード（6文字以上）" required minlength="6"
+          class="w-full bg-white border border-gc-border rounded-xl px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue text-sm" />
+        <p x-show="authError" class="text-xs text-red-500 text-center" x-text="authError"></p>
+        <button type="submit" class="w-full bg-gc-blue hover:bg-gc-blue-dark text-white font-medium py-3 rounded-xl transition-colors text-sm"
+          x-text="authMode === 'signup' ? '新規登録' : 'ログイン'"></button>
+      </form>
+      <div class="text-center">
+        <button @click="authMode = authMode === 'login' ? 'signup' : 'login'; authError = '';" class="text-xs text-gc-blue hover:underline"
+          x-text="authMode === 'login' ? 'アカウントをお持ちでない方は新規登録' : 'すでにアカウントをお持ちの場合はログイン'"></button>
+      </div>
     </div>
 
     <!-- Confirmed: show next button + mypage -->
-    <div x-show="studentUser || studentNameConfirmed" x-transition.duration.0ms class="space-y-4" @keydown.enter.prevent>
+    <div x-show="currentUser" x-transition.duration.0ms class="space-y-4" @keydown.enter.prevent>
       <div class="flex items-center gap-3 bg-white rounded-xl p-3 border border-gc-border shadow-sm">
-        <img x-show="studentUser && studentUser.picture" :src="studentUser && studentUser.picture" class="w-9 h-9 rounded-full" />
-        <div x-show="!(studentUser && studentUser.picture)" class="w-9 h-9 bg-green-100 rounded-full flex items-center justify-center text-gc-green text-sm font-bold"
-          x-text="(studentUser ? studentUser.name : studentName).charAt(0)"></div>
+        <div class="w-9 h-9 bg-green-100 rounded-full flex items-center justify-center text-gc-green text-sm font-bold"
+          x-text="(currentUser ? (currentUser.user_metadata?.name || currentUser.email) : '?').charAt(0).toUpperCase()"></div>
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium truncate text-gray-900" x-text="studentUser ? studentUser.name : studentName"></p>
-          <p class="text-xs text-gray-500 truncate" x-text="studentUser ? studentUser.email : (studentEmail || '　')"></p>
+          <p class="text-sm font-medium truncate text-gray-900" x-text="currentUser ? (currentUser.user_metadata?.name || currentUser.email.split('@')[0]) : ''"></p>
+          <p class="text-xs text-gray-500 truncate" x-text="currentUser ? currentUser.email : ''"></p>
         </div>
-        <button @click="signOutStudent()"
-          class="text-xs text-gray-400 hover:text-gray-700 transition-colors shrink-0">変更</button>
+        <button @click="logoutSystem()"
+          class="text-xs text-gray-400 hover:text-gray-700 transition-colors shrink-0">ログアウト</button>
       </div>
       <button @click="freeTalkMode = false; page = 'mode-select'"
         :disabled="!apiKey"
