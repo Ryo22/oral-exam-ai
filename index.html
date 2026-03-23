@@ -2465,28 +2465,19 @@ function app() {
         this.authError = err.message || 'エラーが発生しました';
       }
     },
-
     async logoutSystem() {
       if (_supabase) await _supabase.auth.signOut();
       this.currentUser = null;
       this.userRole = 'student';
-      this.page = 'auth';
+      this.page = 'student';
     },
 
     async loginWithGoogle() {
       if (typeof _supabase === 'undefined' || !_supabase) return alert('Supabaseが設定されていません。');
       await _supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: window.location.href }
+        options: { redirectTo: 'https://ryo22.github.io/oral-exam-ai/' }
       });
-    },
-    async logoutSystem() {
-      if (typeof _supabase !== 'undefined' && _supabase) {
-        await _supabase.auth.signOut();
-      }
-      this.currentUser = null;
-      this.isGoogleAdmin = false;
-      this.page = 'student';
     },
 
     async init() {
@@ -3250,16 +3241,6 @@ ${logText}
       a.href = URL.createObjectURL(blob);
       a.download = '会話ログ一覧_' + new Date().toISOString().slice(0,10) + '.csv';
       a.click();
-    },
-
-    async signInWithGoogle() {
-      const { error } = await _supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: 'https://ryo22.github.io/oral-exam-ai/'
-        }
-      });
-      if (error) alert('Googleログインエラー: ' + error.message);
     },
 
     async signOutStudent() {
