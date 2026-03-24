@@ -20,8 +20,19 @@ function app() {
     adminTab: 'tests',  // 'tests' | 'system'
     adminPassword: 'admin',
     get filteredResults() {
+      const classId = this.adminFilterClassId || 'all';
+      const testName = this.adminFilterTest; // Use test_name now
+      const searchText = (this.adminFilterText || '').toLowerCase();
+
       return [...this.examResults]
-        .filter(r => this.adminFilterClassId === 'all' || r.classId === this.adminFilterClassId)
+        .filter(r => {
+          const matchClass = classId === 'all' || r.classId === classId;
+          const matchTest = !testName || r.testId === testName || r.testName === testName;
+          const matchText = !searchText || 
+                            (r.studentName || '').toLowerCase().includes(searchText) || 
+                            (r.studentEmail || '').toLowerCase().includes(searchText);
+          return matchClass && matchTest && matchText;
+        })
         .sort((a, b) => new Date(b.date) - new Date(a.date));
     },
     examResults: [],
@@ -66,8 +77,9 @@ function app() {
     voiceVoiceName: 'Kore',       // Gemini Live API voice name
     showVoiceSettings: false,     // toggle voice advanced settings panel
     showEndConfirm: false,
-    result: null,
-    showLog: false,
+    // Admin filters
+    adminFilterTest: '',
+    adminFilterText: '',
     isGeneratingFromDoc: false,
     saved: false,
     showScoreToStudent: true,
@@ -622,6 +634,7 @@ function app() {
       return r.adminScore ? r.adminScore.totalScore : r.totalScore;
     },
 
+
     recalculateEditTotal() {
       if (!this.editingData) return;
       let total = 0;
@@ -651,6 +664,7 @@ function app() {
       const rows = this.examResults.map(r => ({
         id: String(r.id),
         test_id: r.testId || null,
+        test_name: r.testName || '',
         class_id: r.classId || null,
         student_name: r.studentName || '',
         student_email: r.studentEmail || '',
@@ -681,6 +695,7 @@ function app() {
           this.examResults = resultsData.map(r => ({
             id: r.id,
             testId: r.test_id,
+            testName: r.test_name || '',
             classId: r.class_id,
             studentName: r.student_name,
             studentEmail: r.student_email,
@@ -876,6 +891,7 @@ ${logText}
         studentEmail: email || '',
         classId: classId,
         testId: this.activeTestId,
+        testName: this.tests.find(t => t.id === this.activeTestId)?.name || '',
         published: this.showScoreToStudent || false,
         totalScore: this.result.totalScore,
         criteria: this.result.criteria,
