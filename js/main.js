@@ -736,25 +736,23 @@ function app() {
       }
     },
 
-    async saveRoster() {
-      await _supabase.from('app_settings').upsert({ key: 'roster', value: JSON.stringify(this.roster) });
-    },
-
-    addRosterStudent() {
+    async addRosterStudent() {
       if (!this.newRosterEntry.name.trim()) return;
-      this.roster.push({
-        id: Date.now().toString(),
-        classId: this.newRosterEntry.classId || (this.classes[0]?.id || ''),
-        studentNumber: this.newRosterEntry.studentNumber.trim(),
+      const row = {
+        class_id: this.newRosterEntry.classId || (this.classes[0]?.id || null) || null,
+        student_number: this.newRosterEntry.studentNumber.trim() || null,
         name: this.newRosterEntry.name.trim(),
-      });
-      this.saveRoster();
+      };
+      const { data, error } = await _supabase.from('roster').insert(row).select().single();
+      if (!error && data) {
+        this.roster.push({ id: data.id, classId: data.class_id, studentNumber: data.student_number, name: data.name });
+      }
       this.newRosterEntry = { classId: this.newRosterEntry.classId, studentNumber: '', name: '' };
     },
 
-    deleteRosterStudent(id) {
+    async deleteRosterStudent(id) {
+      await _supabase.from('roster').delete().eq('id', id);
       this.roster = this.roster.filter(s => s.id !== id);
-      this.saveRoster();
     },
 
     getRosterStudentResults(student) {
@@ -782,7 +780,6 @@ function app() {
             if (key === 'allow_student_history') this.allowStudentHistory = value === 'true';
             if (key === 'focus_monitoring_enabled') this.focusMonitoringEnabled = value === 'true';
             if (key === 'gemini_api_key' && value) this.apiKey = value;
-            if (key === 'roster') { try { this.roster = JSON.parse(value); } catch(e) { this.roster = []; } }
           });
         }
       } catch(e) { console.warn('app_settings load failed:', e); }
@@ -816,6 +813,19 @@ function app() {
           await _supabase.from('tests').upsert(rows);
         }
       } catch(e) { console.warn('tests load failed:', e); }
+
+      // Load roster
+      try {
+        const { data: rosterData, error } = await _supabase.from('roster').select('*').order('created_at');
+        if (!error && rosterData) {
+          this.roster = rosterData.map(s => ({
+            id: s.id,
+            classId: s.class_id,
+            studentNumber: s.student_number || '',
+            name: s.name,
+          }));
+        }
+      } catch(e) { console.warn('roster load failed:', e); }
 
       await this.loadExamResults();
     },
