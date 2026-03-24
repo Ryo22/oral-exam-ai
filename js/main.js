@@ -102,6 +102,9 @@ function app() {
     editingTestName: '',
     editingResultId: null,
     editingData: null,
+    rosterSelectedResult: null,
+    rosterImportPreview: [],
+    rosterImportShowing: false,
     checkResultsName: '',
     studentPastResults: [],
     showPastResults: false,
@@ -753,6 +756,81 @@ function app() {
     async deleteRosterStudent(id) {
       await _supabase.from('roster').delete().eq('id', id);
       this.roster = this.roster.filter(s => s.id !== id);
+    },
+
+    importRosterFromFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          let rows = [];
+          if (file.name.endsWith('.csv')) {
+            // CSV parse
+            const text = e.target.result;
+            const lines = text.split(/\r?\n/).filter(l => l.trim());
+            const header = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+            const colClass = header.findIndex(h => /クラス|class/i.test(h));
+            const colNum = header.findIndex(h => /学籍番号|id|student.?number/i.test(h));
+            const colName = header.findIndex(h => /氏名|名前|name/i.test(h));
+            for (let i = 1; i < lines.length; i++) {
+              const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+              if (!cols[colName]?.trim()) continue;
+              rows.push({
+                className: colClass >= 0 ? cols[colClass] : '',
+                studentNumber: colNum >= 0 ? cols[colNum] : '',
+                name: cols[colName] || '',
+              });
+            }
+          } else {
+            // Excel via SheetJS
+            const wb = XLSX.read(e.target.result, { type: 'binary' });
+            const ws = wb.Sheets[wb.SheetNames[0]];
+            const data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+            data.forEach(row => {
+              const name = row['氏名'] || row['名前'] || row['name'] || row['Name'] || '';
+              if (!name) return;
+              rows.push({
+                className: String(row['クラス'] || row['クラス名'] || row['class'] || ''),
+                studentNumber: String(row['学籍番号'] || row['ID'] || row['id'] || ''),
+                name: String(name),
+              });
+            });
+          }
+          // Resolve class names to IDs
+          this.rosterImportPreview = rows.map(r => ({
+            ...r,
+            classId: this.classes.find(c => c.name === r.className)?.id || '',
+          }));
+          this.rosterImportShowing = true;
+        } catch(err) {
+          alert('ファイルの読み込みに失敗しました: ' + err.message);
+        }
+      };
+      if (file.name.endsWith('.csv')) {
+        reader.readAsText(file, 'UTF-8');
+      } else {
+        reader.readAsBinaryString(file);
+      }
+      event.target.value = '';
+    },
+
+    async confirmRosterImport() {
+      const rows = this.rosterImportPreview.filter(r => r.name.trim());
+      if (!rows.length) return;
+      const inserts = rows.map(r => ({
+        class_id: r.classId || null,
+        student_number: r.studentNumber || null,
+        name: r.name.trim(),
+      }));
+      const { data, error } = await _supabase.from('roster').insert(inserts).select();
+      if (!error && data) {
+        data.forEach(s => this.roster.push({
+          id: s.id, classId: s.class_id, studentNumber: s.student_number || '', name: s.name,
+        }));
+      }
+      this.rosterImportShowing = false;
+      this.rosterImportPreview = [];
     },
 
     getRosterStudentResults(student) {

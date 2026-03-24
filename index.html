@@ -801,6 +801,12 @@
             </template>
           </div>
           <div class="flex items-center gap-2">
+            <!-- 名簿インポートボタン -->
+            <label class="text-xs bg-white hover:bg-gray-50 border border-gc-border text-gray-600 px-2 py-1 rounded transition-colors flex items-center gap-1 cursor-pointer">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12"/></svg>
+              名簿インポート
+              <input type="file" accept=".csv,.xlsx,.xls" class="hidden" @change="importRosterFromFile($event)"/>
+            </label>
             <button @click="loadExamResults()"
               class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded transition-colors flex items-center gap-1">
               <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
@@ -880,25 +886,19 @@
                       x-data="{ r: null }"
                       x-effect="r = getStudentTestResult(student, t)">
                       <template x-if="r">
-                        <div class="space-y-1">
+                        <button @click="rosterSelectedResult = r"
+                          class="w-full text-left space-y-1 hover:bg-blue-50 rounded-lg p-1.5 transition-colors cursor-pointer group">
                           <div :class="getDisplayScore(r) >= 80 ? 'text-emerald-600' : getDisplayScore(r) >= 60 ? 'text-yellow-600' : getDisplayScore(r) >= 40 ? 'text-orange-500' : 'text-red-500'"
-                            class="font-bold tabular-nums text-sm" x-text="getDisplayScore(r) + '点'"></div>
-                          <div class="text-[10px] text-gray-400" x-text="new Date(r.date).toLocaleString('ja-JP', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})"></div>
+                            class="font-bold tabular-nums text-sm text-center" x-text="getDisplayScore(r) + '点'"></div>
+                          <div class="text-[10px] text-gray-400 text-center" x-text="new Date(r.date).toLocaleString('ja-JP', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})"></div>
                           <div class="flex items-center justify-center gap-1 flex-wrap">
                             <span :class="r.published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
                               class="text-[10px] px-1.5 py-0.5 rounded-full" x-text="r.published ? '公開' : '未公開'"></span>
                             <span x-show="r.adminScore" class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">修正済</span>
                             <span x-show="r.focusViolationFlagged" class="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">⚠ 不正</span>
                           </div>
-                          <div class="flex items-center justify-center gap-1 mt-1">
-                            <button @click="togglePublish(r.id)"
-                              :class="r.published ? 'text-gray-400 hover:text-gray-600' : 'text-gc-green hover:text-gc-green-dark'"
-                              class="text-[10px] underline transition-colors"
-                              x-text="r.published ? '非公開に' : '公開する'"></button>
-                            <span class="text-gray-300">|</span>
-                            <button @click="startEditResult(r.id)" class="text-[10px] text-amber-600 hover:text-amber-800 underline transition-colors">修正</button>
-                          </div>
-                        </div>
+                          <div class="text-[10px] text-gc-blue opacity-0 group-hover:opacity-100 text-center transition-opacity">クリックして詳細</div>
+                        </button>
                       </template>
                       <template x-if="!r">
                         <span class="text-gray-300">未受験</span>
@@ -1278,6 +1278,145 @@
       class="w-full bg-gc-blue hover:bg-gc-blue-dark text-white font-medium py-3 rounded-xl transition-colors"
       x-text="saved ? '保存しました！' : '設定を保存'"></button>
   </main>
+</div>
+
+<!-- ========== ROSTER RESULT DETAIL MODAL ========== -->
+<div x-show="rosterSelectedResult !== null" class="fixed inset-0 bg-black/50 z-50 overflow-y-auto" style="display:none;"
+  @keydown.escape.window="rosterSelectedResult = null">
+  <div class="min-h-screen flex items-start justify-center p-4 py-8">
+    <div class="w-full max-w-xl bg-white rounded-2xl border border-gc-border shadow-2xl" x-data>
+      <template x-if="rosterSelectedResult">
+        <div>
+          <!-- Header -->
+          <div class="flex items-start justify-between gap-4 p-5 border-b border-gc-border">
+            <div>
+              <p class="text-xs text-gray-400 mb-0.5" x-text="new Date(rosterSelectedResult.date).toLocaleString('ja-JP')"></p>
+              <h3 class="text-base font-semibold text-gray-900" x-text="rosterSelectedResult.studentName"></h3>
+              <p class="text-sm text-gc-blue mt-0.5" x-text="getTestNameById(rosterSelectedResult.testId) || rosterSelectedResult.testName || rosterSelectedResult.theme"></p>
+            </div>
+            <div class="flex flex-col items-end gap-2 shrink-0">
+              <div :class="getDisplayScore(rosterSelectedResult) >= 80 ? 'text-emerald-600' : getDisplayScore(rosterSelectedResult) >= 60 ? 'text-yellow-600' : getDisplayScore(rosterSelectedResult) >= 40 ? 'text-orange-500' : 'text-red-500'"
+                class="text-3xl font-bold tabular-nums leading-none" x-text="getDisplayScore(rosterSelectedResult) + '点'"></div>
+              <span :class="rosterSelectedResult.adminScore ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'"
+                class="text-xs px-2 py-0.5 rounded-full" x-text="rosterSelectedResult.adminScore ? '修正済' : 'AI採点'"></span>
+            </div>
+          </div>
+          <!-- Body -->
+          <div class="p-5 space-y-4 max-h-[60vh] overflow-y-auto">
+            <!-- Overall comment -->
+            <p class="text-sm text-gray-600 leading-relaxed"
+              x-text="(rosterSelectedResult.adminScore || rosterSelectedResult).overallComment"></p>
+            <!-- Criteria -->
+            <template x-if="rosterSelectedResult.criteria && rosterSelectedResult.criteria.length > 0">
+              <div class="space-y-2">
+                <p class="text-xs font-medium text-gray-500">評価基準</p>
+                <template x-for="(c, i) in (rosterSelectedResult.adminScore || rosterSelectedResult).criteria" :key="i">
+                  <div class="space-y-1">
+                    <div class="flex items-center justify-between text-xs">
+                      <span class="text-gray-700" x-text="c.name"></span>
+                      <span :class="(c.score/c.maxScore*100) >= 80 ? 'text-emerald-600' : (c.score/c.maxScore*100) >= 60 ? 'text-yellow-600' : 'text-orange-500'"
+                        class="font-bold tabular-nums" x-text="c.score + ' / ' + c.maxScore"></span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                      <div :class="(c.score/c.maxScore*100) >= 80 ? 'bg-emerald-500' : (c.score/c.maxScore*100) >= 60 ? 'bg-yellow-500' : 'bg-orange-400'"
+                        class="h-full rounded-full" :style="'width:'+Math.min(100,(c.score/c.maxScore)*100)+'%'"></div>
+                    </div>
+                    <p class="text-xs text-gray-400" x-text="c.comment"></p>
+                  </div>
+                </template>
+              </div>
+            </template>
+            <!-- Conversation log toggle -->
+            <div x-show="rosterSelectedResult.conversationLog && rosterSelectedResult.conversationLog.length > 0"
+              x-data="{showLog:false}" class="border-t border-gc-border pt-3">
+              <button @click="showLog=!showLog" class="flex items-center justify-between w-full text-xs text-gray-500 hover:text-gray-800 transition-colors">
+                <span x-text="'会話ログ (' + rosterSelectedResult.conversationLog.length + ' メッセージ)'"></span>
+                <svg :class="showLog?'rotate-180':''" class="w-3.5 h-3.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+              </button>
+              <div x-show="showLog" class="mt-2 space-y-2 max-h-60 overflow-y-auto">
+                <template x-for="(msg, i) in rosterSelectedResult.conversationLog" :key="i">
+                  <div :class="msg.role==='user'?'flex justify-end':'flex justify-start'">
+                    <div :class="msg.role==='user'?'bg-blue-100 text-blue-900 rounded-2xl rounded-br-sm':'bg-gray-100 text-gray-700 rounded-2xl rounded-bl-sm'"
+                      class="text-xs px-3 py-2 max-w-[85%] leading-relaxed"
+                      x-html="msg.role==='assistant'?parseMarkdown(msg.content):msg.content"></div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </div>
+          <!-- Actions -->
+          <div class="flex items-center gap-2 p-4 border-t border-gc-border flex-wrap">
+            <button @click="togglePublish(rosterSelectedResult.id); rosterSelectedResult = examResults.find(r=>r.id===rosterSelectedResult.id)"
+              :class="rosterSelectedResult.published ? 'bg-gray-100 text-gray-600 hover:bg-gray-200' : 'bg-gc-green text-white hover:bg-gc-green-dark'"
+              class="text-xs px-3 py-1.5 rounded-lg transition-colors font-medium"
+              x-text="rosterSelectedResult.published ? '非公開にする' : '採点結果を公開する'"></button>
+            <button @click="startEditResult(rosterSelectedResult.id); rosterSelectedResult = null"
+              class="text-xs bg-amber-100 hover:bg-amber-200 text-amber-700 px-3 py-1.5 rounded-lg transition-colors">採点を修正</button>
+            <button @click="downloadSingleResult(rosterSelectedResult)"
+              class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              ダウンロード
+            </button>
+            <button x-show="rosterSelectedResult.adminScore"
+              @click="resetToAiScore(rosterSelectedResult.id); rosterSelectedResult = examResults.find(r=>r.id===rosterSelectedResult.id)"
+              class="text-xs text-gray-400 hover:text-gray-600 transition-colors">AI採点に戻す</button>
+            <div class="flex-1"></div>
+            <button @click="rosterSelectedResult = null" class="text-xs text-gray-400 hover:text-gray-600 transition-colors">閉じる</button>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
+
+<!-- ========== ROSTER IMPORT PREVIEW MODAL ========== -->
+<div x-show="rosterImportShowing" class="fixed inset-0 bg-black/50 z-50 overflow-y-auto" style="display:none;"
+  @keydown.escape.window="rosterImportShowing = false">
+  <div class="min-h-screen flex items-start justify-center p-4 py-8">
+    <div class="w-full max-w-xl bg-white rounded-2xl border border-gc-border shadow-2xl">
+      <div class="flex items-center justify-between p-5 border-b border-gc-border">
+        <div>
+          <h3 class="text-base font-semibold text-gray-900">名簿インポート確認</h3>
+          <p class="text-xs text-gray-400 mt-0.5" x-text="rosterImportPreview.length + '件のデータが見つかりました'"></p>
+        </div>
+        <button @click="rosterImportShowing = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="max-h-80 overflow-y-auto">
+        <table class="w-full text-xs border-collapse">
+          <thead class="bg-gray-50 sticky top-0">
+            <tr>
+              <th class="text-left px-4 py-2 font-medium text-gray-500 border-b border-gc-border">クラス</th>
+              <th class="text-left px-4 py-2 font-medium text-gray-500 border-b border-gc-border">学籍番号</th>
+              <th class="text-left px-4 py-2 font-medium text-gray-500 border-b border-gc-border">氏名</th>
+              <th class="text-left px-4 py-2 font-medium text-gray-500 border-b border-gc-border">クラス一致</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="(row, i) in rosterImportPreview" :key="i">
+              <tr class="border-b border-gc-border last:border-0">
+                <td class="px-4 py-2 text-gray-600" x-text="row.className || '—'"></td>
+                <td class="px-4 py-2 text-gray-600" x-text="row.studentNumber || '—'"></td>
+                <td class="px-4 py-2 font-medium text-gray-900" x-text="row.name"></td>
+                <td class="px-4 py-2">
+                  <span x-show="row.classId" class="text-emerald-600">✓ <span x-text="classes.find(c=>c.id===row.classId)?.name"></span></span>
+                  <span x-show="!row.classId" class="text-gray-400">未割当</span>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+      </div>
+      <div class="flex items-center gap-3 p-4 border-t border-gc-border">
+        <p class="text-xs text-gray-400 flex-1">クラス名が一致する場合は自動割当されます</p>
+        <button @click="rosterImportShowing = false" class="text-xs text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">キャンセル</button>
+        <button @click="confirmRosterImport()"
+          class="text-xs bg-gc-blue hover:bg-gc-blue-dark text-white px-4 py-1.5 rounded-lg transition-colors font-medium"
+          x-text="'登録する（' + rosterImportPreview.length + '件）'"></button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ========== SCORE EDIT MODAL ========== -->
@@ -2392,6 +2531,8 @@
   </div>
 </div>
 
+<!-- SheetJS for Excel/CSV import -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <!-- Google Picker API & Identity Services -->
 <script async defer src="https://apis.google.com/js/api.js"></script>
 <script async defer src="https://accounts.google.com/gsi/client"></script>
