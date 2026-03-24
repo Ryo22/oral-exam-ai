@@ -117,6 +117,7 @@ function app() {
     showViolationWarning: false,
     _pendingTestIdFromUrl: '',
     _pendingClassIdFromUrl: '',
+    _pendingUserText: '',
     _focusHandlers: null,
 
     async handleSessionStart(user) {
@@ -129,12 +130,16 @@ function app() {
       if (user.email === 'ryo.ishigami.1129@gmail.com' || user.email === 'ryo.ishigami.1129+test@gmail.com') {
         this.userRole = 'admin';
       } else {
-        // Fetch role
-        const { data: roleData } = await _supabase.from('user_roles').select('role').eq('user_id', user.id).single();
-        if (roleData) {
-          this.userRole = roleData.role;
-        } else {
-          this.userRole = 'student'; // Default fallback
+        // Fetch role safely (table may not exist)
+        try {
+          const { data: roleData, error } = await _supabase.from('user_roles').select('role').eq('user_id', user.id).single();
+          if (!error && roleData) {
+            this.userRole = roleData.role;
+          } else {
+            this.userRole = 'student';
+          }
+        } catch(e) {
+          this.userRole = 'student';
         }
       }
       
@@ -570,54 +575,59 @@ function app() {
 
     async loadFromSupabase() {
       // Load app settings
-      const { data: settingsData } = await _supabase.from('app_settings').select('*');
-      if (settingsData) {
-        settingsData.forEach(({ key, value }) => {
-          if (key === 'admin_password') this.adminPassword = value;
-          if (key === 'google_client_id') this.googleClientId = value;
-          if (key === 'show_score_to_student') this.showScoreToStudent = value === 'true';
-          if (key === 'show_comment_to_student') this.showCommentToStudent = value === 'true';
-          if (key === 'allow_student_history') this.allowStudentHistory = value === 'true';
-          if (key === 'focus_monitoring_enabled') this.focusMonitoringEnabled = value === 'true';
-          if (key === 'gemini_api_key' && value) this.apiKey = value;
-        });
-      }
+      try {
+        const { data: settingsData, error } = await _supabase.from('app_settings').select('*');
+        if (!error && settingsData) {
+          settingsData.forEach(({ key, value }) => {
+            if (key === 'admin_password') this.adminPassword = value;
+            if (key === 'google_client_id') this.googleClientId = value;
+            if (key === 'show_score_to_student') this.showScoreToStudent = value === 'true';
+            if (key === 'show_comment_to_student') this.showCommentToStudent = value === 'true';
+            if (key === 'allow_student_history') this.allowStudentHistory = value === 'true';
+            if (key === 'focus_monitoring_enabled') this.focusMonitoringEnabled = value === 'true';
+            if (key === 'gemini_api_key' && value) this.apiKey = value;
+          });
+        }
+      } catch(e) { console.warn('app_settings load failed:', e); }
 
       // Load classes
-      const { data: classesData } = await _supabase.from('classes').select('*').order('created_at');
-      if (classesData && classesData.length > 0) {
-        this.classes = classesData.map(c => ({ id: c.id, name: c.name }));
-      } else {
-        this.classes = [{ id: 'default', name: 'クラス1' }];
-        await _supabase.from('classes').upsert([{ id: 'default', name: 'クラス1' }]);
-      }
+      try {
+        const { data: classesData, error } = await _supabase.from('classes').select('*').order('created_at');
+        if (!error && classesData && classesData.length > 0) {
+          this.classes = classesData.map(c => ({ id: c.id, name: c.name }));
+        } else if (!error) {
+          this.classes = [{ id: 'default', name: 'クラス1' }];
+          await _supabase.from('classes').upsert([{ id: 'default', name: 'クラス1' }]);
+        }
+      } catch(e) { console.warn('classes load failed:', e); }
 
       // Load tests
-      const { data: testsData } = await _supabase.from('tests').select('*').order('created_at');
-      if (testsData && testsData.length > 0) {
-        this.tests = testsData.map(t => ({
-          id: t.id,
-          name: t.name,
-          classId: t.class_id,
-          classIds: Array.isArray(t.class_ids) ? t.class_ids : (t.class_ids ? JSON.parse(t.class_ids) : []),
-          settings: t.settings || {}
-        }));
-      } else {
-        // Migrate from localStorage if exists
-        const storedTests = localStorage.getItem('exam_tests_v1');
-        if (storedTests) {
-          try { this.tests = JSON.parse(storedTests); } catch(e) {}
+      try {
+        const { data: testsData, error } = await _supabase.from('tests').select('*').order('created_at');
+        if (!error && testsData && testsData.length > 0) {
+          this.tests = testsData.map(t => ({
+            id: t.id,
+            name: t.name,
+            classId: t.class_id,
+            classIds: Array.isArray(t.class_ids) ? t.class_ids : (t.class_ids ? JSON.parse(t.class_ids) : []),
+            settings: t.settings || {}
+          }));
+        } else if (!error) {
+          // Migrate from localStorage if exists
+          const storedTests = localStorage.getItem('exam_tests_v1');
+          if (storedTests) {
+            try { this.tests = JSON.parse(storedTests); } catch(e) {}
+          }
+          if (this.tests.length === 0) {
+            this.tests = [{ id: 'test_default', name: 'テスト1', classIds: [], settings: JSON.parse(JSON.stringify(this.settings)) }];
+          }
+          const rows = this.tests.map(t => ({
+            id: t.id, name: t.name, class_id: t.classId || null, class_ids: t.classIds || [], settings: t.settings || {}
+          }));
+          await _supabase.from('tests').upsert(rows);
+          localStorage.removeItem('exam_tests_v1');
         }
-        if (this.tests.length === 0) {
-          this.tests = [{ id: 'test_default', name: 'テスト1', classIds: [], settings: JSON.parse(JSON.stringify(this.settings)) }];
-        }
-        // Save migrated tests to Supabase
-        const rows = this.tests.map(t => ({
-          id: t.id, name: t.name, class_id: t.classId || null, class_ids: t.classIds || [], settings: t.settings || {}
-        }));
-        await _supabase.from('tests').upsert(rows);
-        localStorage.removeItem('exam_tests_v1');
-      }
+      } catch(e) { console.warn('tests load failed:', e); }
 
       this.activeTestId = this.tests.length > 0 ? this.tests[0].id : '';
       // Only set this.settings from DB if no URL params are pending
@@ -636,40 +646,41 @@ function app() {
       }
 
       // Load exam results
-      const { data: resultsData } = await _supabase.from('exam_results').select('*').order('date', { ascending: false });
-      if (resultsData) {
-        this.examResults = resultsData.map(r => ({
-          id: r.id,
-          date: r.date,
-          theme: r.theme,
-          studentName: r.student_name,
-          studentEmail: r.student_email,
-          classId: r.class_id,
-          testId: r.test_id,
-          published: r.published,
-          totalScore: r.total_score,
-          criteria: r.criteria,
-          questionScores: r.question_scores,
-          overallComment: r.overall_comment,
-          improvements: r.improvements,
-          aiScore: r.ai_score,
-          adminScore: r.admin_score,
-          focusViolationCount: r.focus_violation_count,
-          focusViolationFlagged: r.focus_violation_flagged,
-          focusViolations: r.focus_violations,
-          conversationLog: r.conversation_log,
-        }));
-      } else {
-        // Migrate from localStorage if exists
-        const storedResults = localStorage.getItem('exam_results');
-        if (storedResults) {
-          try {
-            this.examResults = JSON.parse(storedResults);
-            await this.saveResults();
-            localStorage.removeItem('exam_results');
-          } catch(e) {}
+      try {
+        const { data: resultsData, error } = await _supabase.from('exam_results').select('*').order('date', { ascending: false });
+        if (!error && resultsData) {
+          this.examResults = resultsData.map(r => ({
+            id: r.id,
+            date: r.date,
+            theme: r.theme,
+            studentName: r.student_name,
+            studentEmail: r.student_email,
+            classId: r.class_id,
+            testId: r.test_id,
+            published: r.published,
+            totalScore: r.total_score,
+            criteria: r.criteria,
+            questionScores: r.question_scores,
+            overallComment: r.overall_comment,
+            improvements: r.improvements,
+            aiScore: r.ai_score,
+            adminScore: r.admin_score,
+            focusViolationCount: r.focus_violation_count,
+            focusViolationFlagged: r.focus_violation_flagged,
+            focusViolations: r.focus_violations,
+            conversationLog: r.conversation_log,
+          }));
+        } else if (!error) {
+          const storedResults = localStorage.getItem('exam_results');
+          if (storedResults) {
+            try {
+              this.examResults = JSON.parse(storedResults);
+              await this.saveResults();
+              localStorage.removeItem('exam_results');
+            } catch(e) {}
+          }
         }
-      }
+      } catch(e) { console.warn('exam_results load failed:', e); }
     },
 
     async saveAppSetting(key, value) {
