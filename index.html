@@ -134,7 +134,7 @@
 
 <!-- ========== STUDENT HOME PAGE ========== -->
 <div x-show="page === 'student'" class="min-h-screen flex flex-col items-center justify-center px-4 py-10 bg-gc-surface relative">
-  <button x-show="userRole === 'admin'" @click="page = 'admin'" class="absolute top-4 right-4 text-xs bg-indigo-100 text-indigo-700 font-medium px-3 py-1.5 rounded-xl hover:bg-indigo-200 transition-colors shadow-sm">
+  <button x-show="userRole === 'admin' && !(_pendingTestIdFromUrl || _pendingClassIdFromUrl)" @click="page = 'admin'" class="absolute top-4 right-4 text-xs bg-indigo-100 text-indigo-700 font-medium px-3 py-1.5 rounded-xl hover:bg-indigo-200 transition-colors shadow-sm">
     ⚙️ 管理者画面へ戻る
   </button>
   <div class="w-full max-w-sm space-y-6 mt-8">
@@ -360,9 +360,6 @@
       <h1 class="text-base font-semibold text-gray-900">管理画面</h1>
     </div>
       <div class="flex items-center gap-3">
-        <button @click="page = 'student'" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg transition-colors font-medium">
-          👤 生徒画面へ
-        </button>
         <button @click="adminLogout()" class="text-xs text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>

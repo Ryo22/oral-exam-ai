@@ -157,7 +157,13 @@ function app() {
         this.userRole = 'student';
       }
       
-      this.page = (this.userRole === 'admin' || this.userRole === 'teacher') ? 'admin' : 'student';
+      // Check if we should jump to student page due to URL params
+      const hasUrlParams = !!(this._pendingTestIdFromUrl || this._pendingClassIdFromUrl);
+      if (hasUrlParams) {
+        this.page = 'student';
+      } else {
+        this.page = (this.userRole === 'admin' || this.userRole === 'teacher') ? 'admin' : 'student';
+      }
       
       // Load all settings/data from Supabase again after successful login to ensure everything is fetched
       if (this.userRole === 'admin' || this.userRole === 'teacher') {
