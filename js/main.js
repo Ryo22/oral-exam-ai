@@ -87,6 +87,10 @@ function app() {
     allowStudentHistory: false,
     examResults: [],
     realtimeChannel: null,
+    adminResultsSubTab: 'roster',
+    roster: [],
+    rosterFilterClassId: 'all',
+    newRosterEntry: { classId: '', studentNumber: '', name: '' },
     classes: [],
     studentClassId: '',
     adminFilterClassId: 'all',
@@ -692,34 +696,75 @@ function app() {
       }
     },
 
+    _mapResultRow(r) {
+      return {
+        id: r.id, testId: r.test_id, testName: r.test_name || '',
+        classId: r.class_id, studentName: r.student_name, studentEmail: r.student_email,
+        theme: r.theme, date: r.date, published: r.published, totalScore: r.total_score,
+        criteria: r.criteria, questionScores: r.question_scores, overallComment: r.overall_comment,
+        improvements: r.improvements, aiScore: r.ai_score, adminScore: r.admin_score,
+        focusViolationCount: r.focus_violation_count || 0,
+        focusViolationFlagged: r.focus_violation_flagged || false,
+        focusViolations: r.focus_violations || [], conversationLog: r.conversation_log || []
+      };
+    },
+
     async loadExamResults() {
       try {
         const { data: resultsData, error } = await _supabase.from('exam_results').select('*').order('date', { ascending: false });
         if (!error && resultsData) {
-          this.examResults = resultsData.map(r => ({
-            id: r.id,
-            testId: r.test_id,
-            testName: r.test_name || '',
-            classId: r.class_id,
-            studentName: r.student_name,
-            studentEmail: r.student_email,
-            theme: r.theme,
-            date: r.date,
-            published: r.published,
-            totalScore: r.total_score,
-            criteria: r.criteria,
-            questionScores: r.question_scores,
-            overallComment: r.overall_comment,
-            improvements: r.improvements,
-            aiScore: r.ai_score,
-            adminScore: r.admin_score,
-            focusViolationCount: r.focus_violation_count || 0,
-            focusViolationFlagged: r.focus_violation_flagged || false,
-            focusViolations: r.focus_violations || [],
-            conversationLog: r.conversation_log || []
-          }));
+          this.examResults = resultsData.map(r => this._mapResultRow(r));
         }
       } catch(e) { console.error('Results load failed:', e); }
+
+      // Supabase Realtime: 試験終了時にリアルタイム反映（ポーリング不要）
+      if (!this._realtimeResultsChannel) {
+        this._realtimeResultsChannel = _supabase
+          .channel('exam_results_live')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'exam_results' }, (payload) => {
+            const r = payload.new;
+            if (!this.examResults.find(e => String(e.id) === String(r.id))) {
+              this.examResults.unshift(this._mapResultRow(r));
+            }
+          })
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'exam_results' }, (payload) => {
+            const r = payload.new;
+            const idx = this.examResults.findIndex(e => String(e.id) === String(r.id));
+            if (idx !== -1) this.examResults.splice(idx, 1, this._mapResultRow(r));
+          })
+          .subscribe();
+      }
+    },
+
+    async saveRoster() {
+      await _supabase.from('app_settings').upsert({ key: 'roster', value: JSON.stringify(this.roster) });
+    },
+
+    addRosterStudent() {
+      if (!this.newRosterEntry.name.trim()) return;
+      this.roster.push({
+        id: Date.now().toString(),
+        classId: this.newRosterEntry.classId || (this.classes[0]?.id || ''),
+        studentNumber: this.newRosterEntry.studentNumber.trim(),
+        name: this.newRosterEntry.name.trim(),
+      });
+      this.saveRoster();
+      this.newRosterEntry = { classId: this.newRosterEntry.classId, studentNumber: '', name: '' };
+    },
+
+    deleteRosterStudent(id) {
+      this.roster = this.roster.filter(s => s.id !== id);
+      this.saveRoster();
+    },
+
+    getRosterStudentResults(student) {
+      return this.examResults
+        .filter(r => r.studentName === student.name)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+    },
+
+    getTestNameById(testId) {
+      return this.tests.find(t => t.id === testId)?.name || null;
     },
 
     async loadFromSupabase() {
@@ -737,6 +782,7 @@ function app() {
             if (key === 'allow_student_history') this.allowStudentHistory = value === 'true';
             if (key === 'focus_monitoring_enabled') this.focusMonitoringEnabled = value === 'true';
             if (key === 'gemini_api_key' && value) this.apiKey = value;
+            if (key === 'roster') { try { this.roster = JSON.parse(value); } catch(e) { this.roster = []; } }
           });
         }
       } catch(e) { console.warn('app_settings load failed:', e); }
