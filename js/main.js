@@ -761,6 +761,13 @@ function app() {
         .sort((a, b) => new Date(b.date) - new Date(a.date));
     },
 
+    getStudentTestResult(student, test) {
+      const results = this.examResults
+        .filter(r => r.studentName === student.name && r.testId === test.id)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      return results[0] || null;
+    },
+
     getTestNameById(testId) {
       return this.tests.find(t => t.id === testId)?.name || null;
     },
