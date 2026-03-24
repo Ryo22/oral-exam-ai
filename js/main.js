@@ -124,6 +124,10 @@ function app() {
     userRole: 'student', // 'student' | 'teacher' | 'admin'
     authLoading: true,
     googleClientId: '',
+    googlePickerApiKey: '',
+    googlePickerClientId: '',
+    _gisToken: null,
+    _pickerApiLoaded: false,
     focusMonitoringEnabled: false,
     focusViolationCount: 0,
     focusViolations: [],
@@ -726,6 +730,8 @@ function app() {
           settingsData.forEach(({ key, value }) => {
             if (key === 'admin_password') this.adminPassword = value;
             if (key === 'google_client_id') this.googleClientId = value;
+            if (key === 'google_picker_api_key') this.googlePickerApiKey = value;
+            if (key === 'google_picker_client_id') this.googlePickerClientId = value;
             if (key === 'show_score_to_student') this.showScoreToStudent = value === 'true';
             if (key === 'show_comment_to_student') this.showCommentToStudent = value === 'true';
             if (key === 'allow_student_history') this.allowStudentHistory = value === 'true';
@@ -1692,6 +1698,136 @@ ${this.settings.documentText.slice(0, 15000)}
         alert('生成に失敗しました: ' + (e.message || e));
       }
       this.isGeneratingFromDoc = false;
+    },
+    async openGooglePicker() {
+      if (!this.googlePickerApiKey || !this.googlePickerClientId) {
+        alert('Google Picker APIの設定（APIキー・クライアントID）が完了していません。システム設定画面で設定してください。');
+        return;
+      }
+
+      // 1. Authenticate with Google Identity Services (GIS)
+      if (!this._gisToken) {
+        try {
+          const client = google.accounts.oauth2.initTokenClient({
+            client_id: this.googlePickerClientId,
+            scope: 'https://www.googleapis.com/auth/drive.readonly',
+            callback: (response) => {
+              if (response.error) {
+                alert('認証に失敗しました: ' + response.error);
+                return;
+              }
+              this._gisToken = response.access_token;
+              this.createPicker();
+            },
+          });
+          client.requestAccessToken();
+        } catch (e) {
+          alert('Google APIの初期化に失敗しました。ライブラリの読み込みを待ってから再度お試しください。');
+        }
+      } else {
+        this.createPicker();
+      }
+    },
+
+    createPicker() {
+      if (!this._pickerApiLoaded) {
+        gapi.load('picker', {
+          callback: () => {
+            this._pickerApiLoaded = true;
+            this.showPicker();
+          }
+        });
+      } else {
+        this.showPicker();
+      }
+    },
+
+    showPicker() {
+      const view = new google.picker.DocsView(google.picker.ViewId.DOCS);
+      view.setMimeTypes('application/pdf,text/plain,application/vnd.google-apps.document,application/vnd.google-apps.spreadsheet,text/csv');
+      
+      const picker = new google.picker.PickerBuilder()
+        .enableFeature(google.picker.Feature.NAV_HIDDEN)
+        .setAppId(this.googlePickerClientId)
+        .setOAuthToken(this._gisToken)
+        .addView(view)
+        .setDeveloperKey(this.googlePickerApiKey)
+        .setCallback(this.handlePickerAction.bind(this))
+        .build();
+      picker.setVisible(true);
+    },
+
+    async handlePickerAction(data) {
+      if (data.action === google.picker.Action.PICKED) {
+        const file = data.docs[0];
+        const fileId = file.id;
+        const name = file.name;
+        const mimeType = file.mimeType;
+        
+        this.settings.documentName = `[Drive] ${name}`;
+        await this.loadGoogleDriveFileContent(fileId, mimeType);
+      }
+    },
+
+    async loadGoogleDriveFileContent(fileId, mimeType) {
+      this.isGeneratingFromDoc = true;
+      try {
+        let text = '';
+        const token = this._gisToken;
+
+        if (mimeType === 'application/pdf') {
+          // For PDF from Drive: fetch blob and use Gemini text extraction
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const blob = await res.blob();
+          
+          // Convert blob to base64
+          const base64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result.split(',')[1]);
+            reader.readAsDataURL(blob);
+          });
+
+          // Use Gemini to extract text (consistent with local upload)
+          const endpoint = `${GEMINI_BASE}${this.selectedModel}:generateContent?key=${this.apiKey}`;
+          const gRes = await fetch(endpoint, {
+            method: 'POST',
+            body: JSON.stringify({
+              contents: [{
+                role: 'user',
+                parts: [
+                  { inline_data: { mime_type: 'application/pdf', data: base64 } },
+                  { text: 'このPDFの全テキスト内容をそのまま抽出してください。整形不要。' }
+                ]
+              }]
+            })
+          });
+          const gData = await gRes.json();
+          text = gData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        } else if (mimeType.includes('google-apps')) {
+          // Export Google Docs/Sheets
+          const exportMimeType = mimeType.includes('spreadsheet') ? 'text/csv' : 'text/plain';
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${exportMimeType}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          text = await res.text();
+        } else {
+          // Direct download (Text/CSV)
+          const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          text = await res.text();
+        }
+
+        this.settings.documentText = text.slice(0, 50000);
+        alert('✅ Google Driveから資料を読み込みました。');
+      } catch (e) {
+        console.error('Picker content error:', e);
+        alert('ファイルの読み込みに失敗しました。共有設定やAPI構成を確認してください。');
+      } finally {
+        this.isGeneratingFromDoc = false;
+      }
     },
 
     async saveSettings() {

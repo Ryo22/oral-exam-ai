@@ -718,6 +718,26 @@
       </label>
     </div>
 
+    <!-- Google Picker Settings -->
+    <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-4">
+      <div class="flex items-center justify-between">
+        <p class="text-xs text-gray-600 font-medium">Google Picker 設定 (Drive連携用)</p>
+        <span class="text-[10px] text-gray-400">※ Google Cloud Consoleで取得した値を入力</span>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-[10px] text-gray-500 mb-1">API キー</label>
+          <input type="password" x-model="googlePickerApiKey" @change="saveAppSetting('google_picker_api_key', googlePickerApiKey)"
+            placeholder="AIza..." class="w-full text-xs border rounded-lg px-3 py-2 bg-gray-50 focus:bg-white outline-none"/>
+        </div>
+        <div>
+          <label class="block text-[10px] text-gray-500 mb-1">クライアント ID</label>
+          <input type="text" x-model="googlePickerClientId" @change="saveAppSetting('google_picker_client_id', googlePickerClientId)"
+            placeholder="...apps.googleusercontent.com" class="w-full text-xs border rounded-lg px-3 py-2 bg-gray-50 focus:bg-white outline-none"/>
+        </div>
+      </div>
+    </div>
+
     <!-- Password change -->
     <template x-if="userRole === 'admin'">
     <div class="space-y-5">
@@ -1264,8 +1284,17 @@
       <div class="flex items-center justify-between mb-3">
         <div>
           <h2 class="text-sm font-medium text-gray-700">参考ドキュメント</h2>
-          <p class="text-xs text-gray-400 mt-0.5">アップロードした資料をもとにAIが問題・評価基準を自動生成します</p>
+          <p class="text-xs text-gray-400 mt-0.5">参考資料をもとにAIが問題・評価基準を自動生成します</p>
         </div>
+        <!-- Google Drive Picker Trigger -->
+        <button @click="openGooglePicker()"
+          :disabled="!googlePickerApiKey || !googlePickerClientId"
+          class="flex items-center gap-1 text-xs text-gc-blue hover:text-gc-blue-dark bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors border border-blue-100 disabled:opacity-40 disabled:cursor-not-allowed">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M7.74 2c.42 0 .8.23 1 .59l8.28 14.36c.19.34.19.76 0 1.1L13 22.36a1.14 1.14 0 0 1-1.02.64c-.42 0-.8-.23-1-.59L2.7 8.05a1.14 1.14 0 0 1 0-1.1L6.72 2.6c.2-.36.58-.6 1.02-.6zm1.53 2.14L6 9.47l2.25 3.9h6.5l2.25-3.9-3.26-5.33h-4.47zM16.5 13H19l2.75 4.76a1 1 0 0 1 0 1L19.25 23a1 1 0 0 1-.87.5H13.12l3.38-5.75L16.5 13z"/>
+          </svg>
+          Google Driveから選択
+        </button>
       </div>
 
       <!-- Upload area -->
@@ -2440,6 +2469,9 @@
   </div>
 </div>
 
+<!-- Google Picker API & Identity Services -->
+<script async defer src="https://apis.google.com/js/api.js"></script>
+<script async defer src="https://accounts.google.com/gsi/client"></script>
 <script src="js/main.js"></script>
 
 </body>
