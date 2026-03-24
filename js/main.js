@@ -133,9 +133,13 @@ function app() {
       // Fetch role safely from user_roles table
       try {
         let role = 'student';
-        const { data: roleData, error } = await _supabase.from('user_roles').select('role').eq('user_id', user.id).single();
-        if (!error && roleData && roleData.role !== 'student') {
-          role = roleData.role;
+        const { data: roleData, error } = await _supabase.from('user_roles').select('role, is_admin').eq('user_id', user.id).single();
+        if (!error && roleData) {
+          if (roleData.is_admin === true) {
+            role = 'admin';
+          } else if (roleData.role !== 'student') {
+            role = roleData.role;
+          }
         }
 
         // Override with authorized_emails if role is still student
