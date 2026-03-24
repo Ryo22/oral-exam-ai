@@ -136,7 +136,13 @@ function app() {
         if (!error && roleData) {
           this.userRole = roleData.role;
         } else {
-          this.userRole = 'student';
+          // Check authorized_emails table next
+          const { data: authEmailData, error: authEmailError } = await _supabase.from('authorized_emails').select('role').eq('email', user.email).single();
+          if (!authEmailError && authEmailData) {
+            this.userRole = authEmailData.role;
+          } else {
+            this.userRole = 'student';
+          }
         }
       } catch(e) {
         this.userRole = 'student';
@@ -332,6 +338,23 @@ function app() {
 
     saveClassesToStorage() {
         _supabase.from('classes').upsert(this.classes.map(c => ({ id: c.id, name: c.name })));
+    },
+
+    async addTeacher() {
+      if (!this.newTeacherEmail) return;
+      const email = this.newTeacherEmail.trim().toLowerCase();
+      if (this.authorizedEmails.find(e => e.email === email)) return;
+      const entry = { email, role: 'teacher' };
+      this.authorizedEmails.push(entry);
+      this.newTeacherEmail = '';
+      const { error } = await _supabase.from('authorized_emails').upsert([entry]);
+      if (error) alert('教員の登録に失敗しました。');
+    },
+
+    async removeTeacher(email) {
+      if (!confirm('この教員アドレスを削除しますか？')) return;
+      this.authorizedEmails = this.authorizedEmails.filter(e => e.email !== email);
+      await _supabase.from('authorized_emails').delete().eq('email', email);
     },
 
     startEditClass(id, name) {

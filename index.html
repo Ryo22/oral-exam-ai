@@ -399,6 +399,9 @@
     <template x-if="adminTab === 'system'">
       <div class="space-y-5">
 
+    <!-- restricted to true admin -->
+    <template x-if="userRole === 'admin'">
+    <div class="contents space-y-5">
     <!-- API Key -->
     <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm">
       <div class="flex items-center justify-between mb-2">
@@ -472,6 +475,8 @@
         <p class="text-xs text-gray-400">「利用可能なモデルを取得」を押すと、APIキーで使用可能な音声モデルを自動検出します。</p>
       </div>
     </div>
+    </div>
+    </template>
 
       </div><!-- end space-y-5 system tab part 1 -->
     </template><!-- end adminTab === 'system' part 1 -->
@@ -717,6 +722,8 @@
     </div>
 
     <!-- Password change -->
+    <template x-if="userRole === 'admin'">
+    <div class="space-y-5">
     <div x-data="{showPwChange: false}" class="bg-white rounded-xl p-4 border border-gc-border shadow-sm">
       <button @click="showPwChange = !showPwChange" class="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1.5 transition-colors">
         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -731,7 +738,31 @@
         <button @click="changeAdminPassword()"
           class="bg-gc-blue hover:bg-gc-blue-dark text-white text-sm px-3 py-2 rounded-lg transition-colors shrink-0">変更</button>
       </div>
+      </div>
     </div>
+
+    <!-- Teacher Management -->
+    <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-3">
+      <p class="text-xs text-gray-600 font-medium">教員権限の管理</p>
+      <div class="flex gap-2">
+        <input type="email" x-model="newTeacherEmail" placeholder="教員のメールアドレスを追加..."
+          @keydown.enter="addTeacher()"
+          class="flex-1 bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue"/>
+        <button @click="addTeacher()"
+          class="bg-gc-blue hover:bg-gc-blue-dark text-white text-sm px-3 py-2 rounded-lg transition-colors shrink-0">追加</button>
+      </div>
+      <ul class="space-y-2 mt-3">
+        <template x-for="emailObj in authorizedEmails" :key="emailObj.email">
+          <li class="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-lg border border-gray-100">
+            <span class="text-sm text-gray-700" x-text="emailObj.email"></span>
+            <button @click="removeTeacher(emailObj.email)" class="text-xs text-red-500 hover:text-red-700">削除</button>
+          </li>
+        </template>
+      </ul>
+      <p class="text-xs text-gray-400">登録されたアドレスでログインすると、テスト・クラス・結果の管理ができます（システム設定の一部を除く）。</p>
+    </div>
+    </div>
+    </template>
 
       </div><!-- end space-y-5 system tab part 2 -->
     </template><!-- end adminTab === 'system' part 2 -->
