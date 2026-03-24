@@ -130,20 +130,16 @@ function app() {
       this.studentEmail = this.studentUser.email;
       this.studentNameConfirmed = true;
 
-      if (user.email === 'ryo.ishigami.1129@gmail.com') {
-        this.userRole = 'admin';
-      } else {
-        // Fetch role safely (table may not exist)
-        try {
-          const { data: roleData, error } = await _supabase.from('user_roles').select('role').eq('user_id', user.id).single();
-          if (!error && roleData) {
-            this.userRole = roleData.role;
-          } else {
-            this.userRole = 'student';
-          }
-        } catch(e) {
+      // Fetch role safely from user_roles table
+      try {
+        const { data: roleData, error } = await _supabase.from('user_roles').select('role').eq('user_id', user.id).single();
+        if (!error && roleData) {
+          this.userRole = roleData.role;
+        } else {
           this.userRole = 'student';
         }
+      } catch(e) {
+        this.userRole = 'student';
       }
       
       this.page = (this.userRole === 'admin' || this.userRole === 'teacher') ? 'admin' : 'student';
