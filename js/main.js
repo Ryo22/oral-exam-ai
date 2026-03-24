@@ -252,6 +252,10 @@ function app() {
         const testId = this._pendingTestIdFromUrl;
         const classId = this._pendingClassIdFromUrl;
 
+        if (testId || classId) {
+          this.page = 'student';
+        }
+
         if (classId && this.classes.find(c => c.id === classId)) {
           this.studentClassId = classId;
         }
