@@ -1355,7 +1355,7 @@
                     x-text="'AI: ' + (examResults.find(r => r.id === editingResultId)?.aiScore?.criteria?.[i]?.score ?? '—')"></span>
                   <span class="text-gray-400">→</span>
                   <input type="number" x-model.number="editingData.criteria[i].score"
-                    :min="0" :max="c.maxScore"
+                    :min="0" :max="c.maxScore" @input="recalculateEditTotal()"
                     class="w-16 bg-white border border-amber-400 rounded-lg px-2 py-1 text-sm text-gray-900 text-center focus:outline-none focus:ring-1 focus:ring-amber-400"/>
                   <span class="text-gray-400 text-xs" x-text="'/' + c.maxScore"></span>
                 </div>
@@ -1379,7 +1379,7 @@
                     x-text="'AI: ' + (examResults.find(r => r.id === editingResultId)?.aiScore?.questionScores?.[i]?.score ?? '—')"></span>
                   <span class="text-gray-400">→</span>
                   <input type="number" x-model.number="editingData.questionScores[i].score"
-                    :min="0" :max="q.maxScore"
+                    :min="0" :max="q.maxScore" @input="recalculateEditTotal()"
                     class="w-14 bg-white border border-amber-400 rounded-lg px-2 py-1 text-sm text-gray-900 text-center focus:outline-none focus:ring-1 focus:ring-amber-400"/>
                   <span class="text-gray-400 text-xs" x-text="'/' + q.maxScore"></span>
                 </div>

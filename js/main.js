@@ -616,6 +616,20 @@ function app() {
       return r.adminScore ? r.adminScore.totalScore : r.totalScore;
     },
 
+    recalculateEditTotal() {
+      if (!this.editingData) return;
+      let total = 0;
+      if (this.editingData.criteria && this.editingData.criteria.length > 0) {
+        // Sum criteria scores (ensure numeric)
+        total = this.editingData.criteria.reduce((sum, c) => sum + (Number(c.score) || 0), 0);
+      } else if (this.editingData.questionScores && this.editingData.questionScores.length > 0) {
+        // Fallback to question scores
+        total = this.editingData.questionScores.reduce((sum, q) => sum + (Number(q.score) || 0), 0);
+      }
+      // Round to nearest integer if needed
+      this.editingData.totalScore = Math.round(total);
+    },
+
     // Student: check past results
     findPastResults() {
       const name = (this.checkResultsName || this.studentName || '').trim();
