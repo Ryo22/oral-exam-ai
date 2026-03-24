@@ -398,11 +398,17 @@
 
     <!-- API Key -->
     <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm">
-      <label class="block text-xs text-gray-600 font-medium mb-2">Gemini API Key</label>
+      <div class="flex items-center justify-between mb-2">
+        <label class="block text-xs text-gray-600 font-medium">Gemini API Key</label>
+        <span x-show="apiKey" class="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          設定済み
+        </span>
+      </div>
       <input type="password" x-model="apiKey" @input="saveApiKey()"
         placeholder="AIza..."
         class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue"/>
-      <p class="text-xs text-gray-400 mt-1">Google AI Studio で無料取得。ローカルに保存されます。</p>
+      <p class="text-xs text-gray-400 mt-1">Google AI Studio で無料取得。サーバー（Supabase）に保存されます。</p>
     </div>
 
     <!-- Model selector -->
@@ -539,7 +545,7 @@
           <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
             <div class="flex items-center gap-1.5 text-xs text-gray-600">
               <svg class="w-3.5 h-3.5 text-gc-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-              <span x-text="'問い ' + ((t.settings && t.settings.questions) ? t.settings.questions.filter(q => q.question && q.question.trim()).length : 0) + ' 問設定済み'"></span>
+              <span x-text="'問い ' + getTestQuestionCount(t) + ' 問設定済み'"></span>
               <template x-if="t.settings && t.settings.theme">
                 <span class="text-gray-400 truncate max-w-28" x-text="'・' + t.settings.theme"></span>
               </template>
@@ -567,8 +573,25 @@
             </div>
           </div>
 
-          <!-- URL copy buttons -->
-          <div>
+          <!-- Publish toggle -->
+          <div class="flex items-center justify-between border-t border-gray-100 pt-2">
+            <div>
+              <p class="text-xs font-medium" :class="t.published ? 'text-emerald-700' : 'text-gray-500'">
+                <span x-text="t.published ? '✅ 公開中（生徒に配信中）' : '⏸ 非公開（下書き）'"></span>
+              </p>
+              <p x-show="!t.published" class="text-xs text-gray-400 mt-0.5">問いを設定してから「公開する」を押してください</p>
+            </div>
+            <button @click="toggleTestPublished(t.id)"
+              :class="t.published
+                ? 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-600'
+                : 'bg-emerald-500 hover:bg-emerald-600 text-white'"
+              class="text-xs px-3 py-1.5 rounded-lg transition-colors font-medium shrink-0">
+              <span x-text="t.published ? '非公開にする' : 'テストを公開する'"></span>
+            </button>
+          </div>
+
+          <!-- URL copy buttons (only when published) -->
+          <div x-show="t.published">
             <p class="text-xs text-gray-400 mb-1.5">URLをコピーして生徒と共有</p>
             <div class="flex flex-wrap gap-1.5">
               <button @click="copyTestUrl(t.id)"
@@ -1207,19 +1230,7 @@
       </template>
     </section>
 
-    <!-- Info -->
-    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
-      <div class="flex gap-2">
-        <svg class="w-5 h-5 shrink-0 mt-0.5 text-gc-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
-        <div>
-          <p class="font-medium mb-1">AIモデルについて</p>
-          <p class="text-blue-600">ホーム画面で「利用可能なモデルを取得」を押すと最新モデル一覧が表示されます。</p>
-          <p class="text-blue-600">無料枠推奨: gemini-3.1-flash-lite（RPD:500）/ gemini-2.5-flash-lite / gemini-3-flash / gemini-2.5-flash</p>
-        </div>
-      </div>
-    </div>
+
 
     <!-- Save -->
     <button @click="saveSettings()"

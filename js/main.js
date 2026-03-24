@@ -271,7 +271,10 @@ function app() {
     },
 
     get availableTestsForStudent() {
-      return this.tests.filter(t => !t.classIds || t.classIds.length === 0 || (this.studentClassId && t.classIds.includes(this.studentClassId)));
+      return this.tests.filter(t => 
+        t.published && 
+        (!t.classIds || t.classIds.length === 0 || (this.studentClassId && t.classIds.includes(this.studentClassId)))
+      );
     },
 
     selectTestForStudent(id) {
@@ -400,6 +403,7 @@ function app() {
         name: t.name,
         class_id: t.classId || null,
         class_ids: t.classIds || [],
+        published: !!t.published,
         settings: t.settings || {}
       }));
       await _supabase.from('tests').upsert(rows);
@@ -445,7 +449,7 @@ function app() {
         difficultyDistribution: [0,0,0,0,0],
         learningMode: false
       };
-      this.tests.push({ id, name, classIds: [], settings: defaultSettings });
+      this.tests.push({ id, name, classIds: [], published: false, settings: defaultSettings });
       this.switchTest(id);
       this.$nextTick(() => { this.editingTestId = id; this.editingTestName = name; });
     },
@@ -492,6 +496,18 @@ function app() {
     cancelEditTest() {
       this.editingTestId = null;
       this.editingTestName = '';
+    },
+
+    toggleTestPublished(id) {
+      const t = this.tests.find(x => x.id === id);
+      if (!t) return;
+      t.published = !t.published;
+      this.saveTestsToStorage();
+    },
+
+    getTestQuestionCount(t) {
+      if (!t || !t.settings || !t.settings.questions) return 0;
+      return t.settings.questions.filter(q => q && q.question && String(q.question).trim() !== '').length;
     },
 
     // Result publishing & editing
@@ -610,6 +626,7 @@ function app() {
             name: t.name,
             classId: t.class_id,
             classIds: Array.isArray(t.class_ids) ? t.class_ids : (t.class_ids ? JSON.parse(t.class_ids) : []),
+            published: t.published || false,
             settings: t.settings || {}
           }));
         } else if (!error) {
@@ -619,10 +636,10 @@ function app() {
             try { this.tests = JSON.parse(storedTests); } catch(e) {}
           }
           if (this.tests.length === 0) {
-            this.tests = [{ id: 'test_default', name: 'テスト1', classIds: [], settings: JSON.parse(JSON.stringify(this.settings)) }];
+            this.tests = [{ id: 'test_default', name: 'テスト1', classIds: [], published: false, settings: JSON.parse(JSON.stringify(this.settings)) }];
           }
           const rows = this.tests.map(t => ({
-            id: t.id, name: t.name, class_id: t.classId || null, class_ids: t.classIds || [], settings: t.settings || {}
+            id: t.id, name: t.name, class_id: t.classId || null, class_ids: t.classIds || [], published: !!t.published, settings: t.settings || {}
           }));
           await _supabase.from('tests').upsert(rows);
           localStorage.removeItem('exam_tests_v1');
@@ -1618,6 +1635,7 @@ ${this.settings.documentText.slice(0, 15000)}
           name: t.name,
           class_id: t.classId || null,
           class_ids: t.classIds || [],
+          published: !!t.published,
           settings: t.settings
         });
       }
