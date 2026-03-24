@@ -130,7 +130,7 @@ function app() {
       this.studentEmail = this.studentUser.email;
       this.studentNameConfirmed = true;
 
-      if (user.email === 'ryo.ishigami.1129@gmail.com' || user.email === 'ryo.ishigami.1129+test@gmail.com') {
+      if (user.email === 'ryo.ishigami.1129@gmail.com') {
         this.userRole = 'admin';
       } else {
         // Fetch role safely (table may not exist)
