@@ -73,6 +73,8 @@ function app() {
     showScoreToStudent: true,
     showCommentToStudent: true,
     allowStudentHistory: false,
+    examResults: [],
+    realtimeChannel: null,
     classes: [],
     studentClassId: '',
     adminFilterClassId: 'all',
@@ -156,6 +158,13 @@ function app() {
       }
       
       this.page = (this.userRole === 'admin' || this.userRole === 'teacher') ? 'admin' : 'student';
+      
+      // Load all settings/data from Supabase again after successful login to ensure everything is fetched
+      if (this.userRole === 'admin' || this.userRole === 'teacher') {
+        await this.loadFromSupabase();
+        this.subscribeToResults();
+      }
+      
       this.authLoading = false;
     },
 
@@ -190,6 +199,10 @@ function app() {
       this.currentUser = null;
       this.userRole = 'student';
       this.page = 'student';
+      if (this.realtimeChannel) {
+        _supabase.removeChannel(this.realtimeChannel);
+        this.realtimeChannel = null;
+      }
     },
 
     async loginWithGoogle() {
@@ -224,6 +237,10 @@ function app() {
             this.userRole = 'student';
             this.isGoogleAdmin = false;
             this.studentNameConfirmed = false;
+            if (this.realtimeChannel) {
+              _supabase.removeChannel(this.realtimeChannel);
+              this.realtimeChannel = null;
+            }
           }
         });
       }
@@ -316,6 +333,7 @@ function app() {
         this.adminLoginError = false;
         this.adminLoginInput = '';
         this.page = 'admin';
+        this.loadFromSupabase();
       } else {
         this.adminLoginError = true;
       }
@@ -636,6 +654,35 @@ function app() {
       }
     },
 
+    async loadExamResults() {
+      try {
+        const { data: resultsData, error } = await _supabase.from('exam_results').select('*').order('date', { ascending: false });
+        if (!error && resultsData) {
+          this.examResults = resultsData.map(r => ({
+            id: r.id,
+            testId: r.test_id,
+            classId: r.class_id,
+            studentName: r.student_name,
+            studentEmail: r.student_email,
+            theme: r.theme,
+            date: r.date,
+            published: r.published,
+            totalScore: r.total_score,
+            criteria: r.criteria,
+            questionScores: r.question_scores,
+            overallComment: r.overall_comment,
+            improvements: r.improvements,
+            aiScore: r.ai_score,
+            adminScore: r.admin_score,
+            focusViolationCount: r.focus_violation_count || 0,
+            focusViolationFlagged: r.focus_violation_flagged || false,
+            focusViolations: r.focus_violations || [],
+            conversationLog: r.conversation_log || []
+          }));
+        }
+      } catch(e) { console.error('Results load failed:', e); }
+    },
+
     async loadFromSupabase() {
       // Load app settings
       try {
@@ -677,73 +724,13 @@ function app() {
             settings: t.settings || {}
           }));
         } else if (!error) {
-          const storedTests = localStorage.getItem('exam_tests_v1');
-          if (storedTests) {
-            try { this.tests = JSON.parse(storedTests); } catch(e) {}
-          }
-          if (this.tests.length === 0) {
-            this.tests = [{ id: 'test_default', name: 'テスト1', classIds: [], status: 'draft', settings: JSON.parse(JSON.stringify(this.settings)) }];
-          }
-          const rows = this.tests.map(t => ({
-            id: t.id, name: t.name, class_id: t.classId || null, class_ids: t.classIds || [], status: t.status || 'draft', settings: t.settings || {}
-          }));
+          this.tests = [{ id: 'test_default', name: 'テスト1', classIds: [], status: 'draft', settings: JSON.parse(JSON.stringify(this.settings)) }];
+          const rows = this.tests.map(t => ({ id: t.id, name: t.name, status: t.status, settings: t.settings }));
           await _supabase.from('tests').upsert(rows);
-          localStorage.removeItem('exam_tests_v1');
         }
       } catch(e) { console.warn('tests load failed:', e); }
 
-      this.activeTestId = this.tests.length > 0 ? this.tests[0].id : '';
-      // Only set this.settings from DB if no URL params are pending
-      if (!this._pendingTestIdFromUrl && this.tests.length > 0) {
-        this.settings = JSON.parse(JSON.stringify(this.tests[0].settings || this.settings));
-        // Backward compat
-        if (!this.settings.questions) this.settings.questions = [];
-        if (!this.settings.autoQuestionCount) this.settings.autoQuestionCount = 5;
-        if (!this.settings.difficultyDistribution) this.settings.difficultyDistribution = [0, 0, 0, 0, 0];
-        if (!this.settings.criteria) this.settings.criteria = [];
-        if (!this.settings.documentText) this.settings.documentText = '';
-        if (!this.settings.documentName) this.settings.documentName = '';
-        if (this.settings.criteria.length > 0 && typeof this.settings.criteria[0] === 'string') {
-          this.settings.criteria = this.settings.criteria.map(c => ({ name: c, description: '' }));
-        }
-      }
-
-      // Load exam results
-      try {
-        const { data: resultsData, error } = await _supabase.from('exam_results').select('*').order('date', { ascending: false });
-        if (!error && resultsData) {
-          this.examResults = resultsData.map(r => ({
-            id: r.id,
-            date: r.date,
-            theme: r.theme,
-            studentName: r.student_name,
-            studentEmail: r.student_email,
-            classId: r.class_id,
-            testId: r.test_id,
-            published: r.published,
-            totalScore: r.total_score,
-            criteria: r.criteria,
-            questionScores: r.question_scores,
-            overallComment: r.overall_comment,
-            improvements: r.improvements,
-            aiScore: r.ai_score,
-            adminScore: r.admin_score,
-            focusViolationCount: r.focus_violation_count,
-            focusViolationFlagged: r.focus_violation_flagged,
-            focusViolations: r.focus_violations,
-            conversationLog: r.conversation_log,
-          }));
-        } else if (!error) {
-          const storedResults = localStorage.getItem('exam_results');
-          if (storedResults) {
-            try {
-              this.examResults = JSON.parse(storedResults);
-              await this.saveResults();
-              localStorage.removeItem('exam_results');
-            } catch(e) {}
-          }
-        }
-      } catch(e) { console.warn('exam_results load failed:', e); }
+      await this.loadExamResults();
     },
 
     async saveAppSetting(key, value) {
@@ -888,10 +875,10 @@ ${logText}
         focusViolations: JSON.parse(JSON.stringify(this.focusViolations)),
         conversationLog: JSON.parse(JSON.stringify(this.messages)),
       };
-      this.examResults.push(entry);
+      this.examResults.unshift(entry);
       this.saveResults().then(() => {
-        // Also fetch to ensure any remote changes are synced
-        if (this.fetchExamResults) this.fetchExamResults();
+        // Fetch to ensure sync
+        this.loadExamResults();
       });
     },
 
