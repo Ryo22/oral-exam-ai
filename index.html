@@ -1532,6 +1532,14 @@
         </svg>
         <span x-text="voiceMode ? 'テキスト' : '音声'"></span>
       </button>
+      <!-- Save progress button -->
+      <button x-show="examStarted && messages.length > 0 && !isScoring"
+        @click="saveExamProgress()"
+        :class="examProgressSaved ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        class="text-xs px-2 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+        <span x-text="examProgressSaved ? '保存しました' : '中断して保存'"></span>
+      </button>
       <button @click="endExam()"
         :disabled="!examStarted || (messages.length < 2 && !voiceMode) || isScoring"
         class="text-sm bg-red-100 hover:bg-red-200 text-red-600 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"

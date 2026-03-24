@@ -119,6 +119,9 @@ function app() {
     _pendingClassIdFromUrl: '',
     _pendingUserText: '',
     _focusHandlers: null,
+    _examProgressId: null,
+    examProgressSaved: false,
+    examRestoredAt: null,
 
     async handleSessionStart(user) {
       this.currentUser = user;
@@ -1859,43 +1862,149 @@ ${conversationLog}
   "improvements": ["<改善点1>", "<改善点2>", "<改善点3>"]
 }`;
 
-      try {
-        const endpoint = `${GEMINI_BASE}${this.selectedModel}:generateContent?key=${this.apiKey}`;
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.3 }
-          })
-        });
+      // Try scoring model first; fallback to selectedModel (conversation model) on quota error
+      const scoringModels = [...new Set([
+        this.selectedModel, // primary (conversation model)
+      ])];
 
-        if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error?.message || 'API Error ' + res.status);
-        }
+      let lastError = null;
+      let scored = false;
 
-        const data = await res.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          this.result = JSON.parse(jsonMatch[0]);
-          this.saveResult();
-          this.page = 'result';
-        } else {
-          alert('採点結果の解析に失敗しました。');
+      for (const model of scoringModels) {
+        try {
+          const endpoint = `${GEMINI_BASE}${model}:generateContent?key=${this.apiKey}`;
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ role: 'user', parts: [{ text: prompt }] }],
+              generationConfig: { temperature: 0.3 }
+            })
+          });
+
+          if (!res.ok) {
+            const errData = await res.json();
+            const errMsg = errData.error?.message || '';
+            if (res.status === 429 || errMsg.includes('quota') || errMsg.includes('limit: 0')) {
+              lastError = new Error(errMsg || 'quota exceeded');
+              continue; // try next model
+            }
+            throw new Error(errMsg || 'API Error ' + res.status);
+          }
+
+          const data = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            this.result = JSON.parse(jsonMatch[0]);
+            if (model !== this.selectedModel) {
+              console.info(`[採点] クォータ超過のためフォールバックモデル使用: ${model}`);
+            }
+            this.saveResult();
+            this.clearExamProgress();
+            this.page = 'result';
+            scored = true;
+            break;
+          } else {
+            throw new Error('採点結果の解析に失敗しました');
+          }
+        } catch(modelErr) {
+          const m = modelErr.message || '';
+          if (m.includes('quota') || m.includes('429') || m.includes('limit: 0')) {
+            lastError = modelErr;
+            continue;
+          }
+          alert('採点に失敗しました: ' + m);
+          this.isScoring = false;
+          return;
         }
-      } catch (err) {
-        console.error(err);
-        const msg = err.message || '';
-        if (msg.includes('quota') || msg.includes('429') || msg.includes('limit: 0')) {
-          alert('⚠️ APIクォータ超過\n\nホーム画面でモデルを「gemini-1.5-flash」または「gemini-1.5-flash-8b」に変更してお試しください。\n\nエラー: ' + msg);
-        } else {
-          alert('採点に失敗しました: ' + msg);
-        }
-      } finally {
-        this.isScoring = false;
       }
+
+      if (!scored) {
+        alert(`⚠️ すべてのモデルでAPIクォータが超過しました。\n時間をおいてから再試行してください。\n（会話ログは「中断して保存」で保存できます）\nエラー: ${lastError?.message || '不明'}`);
+      }
+      this.isScoring = false;
+    },
+
+    saveExamProgress() {
+      if (!this.examStarted || this.messages.length === 0) return;
+      const name = this.studentUser ? this.studentUser.name : this.studentName;
+      const email = this.studentUser ? this.studentUser.email : this.studentEmail;
+      const classId = this.studentClassId || '';
+      const progressId = this._examProgressId || ('prog_' + Date.now());
+      this._examProgressId = progressId;
+      const row = {
+        id: progressId,
+        date: new Date().toISOString(),
+        theme: this.settings.theme || '',
+        student_name: name || '（未入力）',
+        student_email: email || '',
+        class_id: classId || null,
+        test_id: this.activeTestId || null,
+        status: 'in_progress',
+        published: false,
+        total_score: null,
+        criteria: null,
+        question_scores: null,
+        overall_comment: null,
+        improvements: null,
+        ai_score: null,
+        admin_score: null,
+        focus_violation_count: this.focusViolationCount,
+        focus_violation_flagged: this.focusViolationFlagged,
+        focus_violations: this.focusViolations,
+        conversation_log: JSON.parse(JSON.stringify(this.messages)),
+      };
+      // Store settings in conversation_log as metadata for restore
+      row._settings_snapshot = JSON.parse(JSON.stringify(this.settings));
+      if (typeof _supabase !== 'undefined' && _supabase) {
+        _supabase.from('exam_results').upsert(row).then(() => {
+          this.examProgressSaved = true;
+          setTimeout(() => { this.examProgressSaved = false; }, 2000);
+        });
+      }
+    },
+
+    async restoreExamProgress(progressId) {
+      if (!progressId || !_supabase) return false;
+      try {
+        const { data } = await _supabase.from('exam_results')
+          .select('*').eq('id', progressId).eq('status', 'in_progress').single();
+        if (!data) return false;
+        this.messages = data.conversation_log || [];
+        this._examProgressId = progressId;
+        this.activeTestId = data.test_id || this.activeTestId;
+        this.studentClassId = data.class_id || this.studentClassId;
+        if (data._settings_snapshot) this.settings = data._settings_snapshot;
+        this.examStarted = true;
+        this.examRestoredAt = data.date;
+        this.page = 'exam';
+        await this.$nextTick();
+        this.initQuill();
+        return true;
+      } catch(e) { return false; }
+    },
+
+    async clearExamProgress() {
+      if (this._examProgressId && _supabase) {
+        await _supabase.from('exam_results').delete().eq('id', this._examProgressId);
+        this._examProgressId = null;
+      }
+      this.examRestoredAt = null;
+    },
+
+    async hasSavedProgress() {
+      if (!_supabase) return null;
+      const name = this.studentUser ? this.studentUser.name : this.studentName;
+      const email = this.studentUser ? this.studentUser.email : this.studentEmail;
+      const { data } = await _supabase.from('exam_results')
+        .select('id, date, theme')
+        .eq('status', 'in_progress')
+        .eq('student_email', email || '')
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data || null;
     },
 
     retryExam() {
