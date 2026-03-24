@@ -1903,8 +1903,8 @@
 
   <main x-show="result" class="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
 
-    <!-- Student view -->
-    <div x-show="!isAdmin" class="flex flex-col items-center text-center space-y-6">
+    <!-- Simplified Student View (shown when scores are hidden from students) -->
+    <div x-show="userRole !== 'admin' && !showScoreToStudent" class="flex flex-col items-center text-center space-y-6">
       <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center">
         <svg class="w-12 h-12 text-gc-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -1936,8 +1936,8 @@
       </div>
     </div>
 
-    <!-- Admin view: full detail -->
-    <div x-show="isAdmin" class="space-y-6">
+    <!-- Detailed Result View (shown to Admin, OR to Student if showScoreToStudent is true) -->
+    <div x-show="userRole === 'admin' || showScoreToStudent" class="space-y-6">
       <div class="bg-white rounded-2xl p-6 text-center border border-gc-border shadow-sm">
         <p class="text-sm text-gray-500 mb-1" x-text="settings.theme"></p>
         <div x-show="result && result.studentName" class="text-xs text-gray-400 mb-4" x-text="'受験者: ' + (result && result.studentName || '')"></div>
@@ -2039,12 +2039,18 @@
         </div>
       </div>
 
-      <div class="flex gap-3 pb-6">
-        <button @click="retryExam()" class="flex-1 bg-gc-blue hover:bg-gc-blue-dark text-white font-medium py-3 rounded-xl transition-colors">
+      <div class="flex flex-col gap-3 pb-6">
+        <button @click="retryExam()" class="w-full bg-gc-blue hover:bg-gc-blue-dark text-white font-medium py-3.5 rounded-xl transition-colors shadow-sm">
           もう一度試験する
         </button>
-        <button x-show="isAdmin" @click="page='admin'" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-xl transition-colors">
-          管理画面へ
+        <button x-show="userRole !== 'admin' && allowStudentHistory" @click="page='mypage'" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3.5 rounded-xl transition-colors shadow-sm">
+          マイページ（過去の履歴）へ移動する
+        </button>
+        <button x-show="userRole === 'admin'" @click="page='admin'" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3.5 rounded-xl transition-colors border border-gray-300">
+          管理画面へ戻る
+        </button>
+        <button x-show="userRole !== 'admin'" @click="page='student'; studentUser=null; studentName=''; studentEmail=''; studentNameConfirmed=false;" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3.5 rounded-xl transition-colors">
+          トップへ戻る
         </button>
       </div>
     </div>

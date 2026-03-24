@@ -421,7 +421,7 @@ function app() {
       // Delete tests that no longer exist
       if (this.tests.length > 0) {
         const ids = this.tests.map(t => t.id);
-        await _supabase.from('tests').delete().not('id', 'in', `(${ids.map(id => `"${id}"`).join(',')})`);
+        await _supabase.from('tests').delete().not('id', 'in', ids);
       }
     },
 
@@ -843,7 +843,7 @@ ${logText}
         studentEmail: email || '',
         classId: classId,
         testId: this.activeTestId,
-        published: false,
+        published: this.showScoreToStudent || false,
         totalScore: this.result.totalScore,
         criteria: this.result.criteria,
         questionScores: this.result.questionScores || [],
