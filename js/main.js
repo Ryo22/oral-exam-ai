@@ -409,7 +409,11 @@ function app() {
         status: t.status || 'draft',
         settings: t.settings || {}
       }));
-      await _supabase.from('tests').upsert(rows);
+      const { error } = await _supabase.from('tests').upsert(rows);
+      if (error) {
+        console.error('Failed to save tests:', error);
+        alert('テストの保存に失敗しました（権限がない可能性があります）\n' + error.message);
+      }
       // Delete tests that no longer exist
       if (this.tests.length > 0) {
         const ids = this.tests.map(t => t.id);
