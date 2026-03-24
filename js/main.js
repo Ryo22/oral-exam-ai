@@ -105,6 +105,8 @@ function app() {
     rosterSelectedResult: null,
     rosterImportPreview: [],
     rosterImportShowing: false,
+    rosterEditingId: null,
+    rosterEditingData: {},
     checkResultsName: '',
     studentPastResults: [],
     showPastResults: false,
@@ -758,6 +760,32 @@ function app() {
       this.roster = this.roster.filter(s => s.id !== id);
     },
 
+    startEditRosterStudent(student) {
+      this.rosterEditingId = student.id;
+      this.rosterEditingData = { classId: student.classId || '', studentNumber: student.studentNumber || '', name: student.name };
+    },
+
+    cancelEditRosterStudent() {
+      this.rosterEditingId = null;
+      this.rosterEditingData = {};
+    },
+
+    async saveRosterStudent(id) {
+      const d = this.rosterEditingData;
+      if (!d.name.trim()) return;
+      const { error } = await _supabase.from('roster').update({
+        class_id: d.classId || null,
+        student_number: d.studentNumber || null,
+        name: d.name.trim()
+      }).eq('id', id);
+      if (!error) {
+        const idx = this.roster.findIndex(s => s.id === id);
+        if (idx !== -1) this.roster.splice(idx, 1, { ...this.roster[idx], classId: d.classId || null, studentNumber: d.studentNumber || '', name: d.name.trim() });
+        this.rosterEditingId = null;
+        this.rosterEditingData = {};
+      }
+    },
+
     importRosterFromFile(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -813,6 +841,35 @@ function app() {
         reader.readAsBinaryString(file);
       }
       event.target.value = '';
+    },
+
+    handleRosterPaste(event) {
+      event.preventDefault();
+      const text = (event.clipboardData || window.clipboardData).getData('text');
+      if (!text.trim()) return;
+      const lines = text.trim().split(/\r?\n/).filter(l => l.trim());
+      if (!lines.length) return;
+
+      // Skip header row if it looks like one
+      let startRow = 0;
+      if (/氏名|名前|name|クラス|学籍/i.test(lines[0])) startRow = 1;
+
+      const preview = [];
+      for (let i = startRow; i < lines.length; i++) {
+        const cols = lines[i].split('\t').map(c => c.trim());
+        if (!cols.some(c => c)) continue;
+        if (cols.length === 1) {
+          preview.push({ className: '', studentNumber: '', name: cols[0] });
+        } else if (cols.length === 2) {
+          preview.push({ className: '', studentNumber: cols[0], name: cols[1] });
+        } else {
+          preview.push({ className: cols[0], studentNumber: cols[1], name: cols[2] });
+        }
+      }
+      this.rosterImportPreview = preview
+        .filter(r => r.name)
+        .map(r => ({ ...r, classId: this.classes.find(c => c.name === r.className)?.id || '' }));
+      if (this.rosterImportPreview.length > 0) this.rosterImportShowing = true;
     },
 
     async confirmRosterImport() {
