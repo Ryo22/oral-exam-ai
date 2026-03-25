@@ -445,7 +445,8 @@
       <select x-model="selectedModel" @change="localStorage.setItem('gemini_model', selectedModel)" class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue">
         <template x-if="availableModels.length === 0">
           <optgroup label="無料枠で使えるモデル（取得前）">
-            <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite（推奨・RPD:1500）</option>
+            <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview（推奨・RPD:500）</option>
+            <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite（RPD:1500）</option>
             <option value="gemini-2.0-flash">gemini-2.0-flash（RPD:1500）</option>
             <option value="gemini-2.5-flash">gemini-2.5-flash（RPD:500）</option>
           </optgroup>

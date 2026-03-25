@@ -66,7 +66,7 @@ function app() {
     },
     examResults: [],
     apiKey: '',
-    selectedModel: 'gemini-2.0-flash-lite',
+    selectedModel: 'gemini-3.1-flash-lite-preview',
     availableModels: [],
     fetchingModels: false,
     settings: {
@@ -333,11 +333,12 @@ function app() {
       const deprecatedModels = [
         'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro',
         'gemini-2.5-flash-preview-04-17', 'gemini-3-flash', 'gemini-2.5-flash-lite',
+        'gemini-2.0-flash-lite',  // 旧デフォルト → gemini-3.1-flash-lite-previewへ移行
       ];
       if (storedModel && !deprecatedModels.includes(storedModel)) {
         this.selectedModel = storedModel;
       } else {
-        this.selectedModel = 'gemini-2.0-flash-lite';
+        this.selectedModel = 'gemini-3.1-flash-lite-preview';
         localStorage.removeItem('gemini_model');
       }
 
