@@ -135,11 +135,12 @@ window.appAdmin = function() {
       // Delete tests that no longer exist
       if (this.tests.length > 0) {
         const ids = this.tests.map(t => t.id);
-        await _supabase.from('tests').delete().not('id', 'in', ids);
+        const { error: delError } = await _supabase.from('tests').delete().not('id', 'in', ids);
+        if (delError) console.error('Failed to prune old tests:', delError);
       }
     },
 
-    switchTest(id) {
+    switchTest(id, skipSave = false) {
       if (id === this.activeTestId) return;
       // Save current settings into the current test
       const cur = this.tests.find(t => t.id === this.activeTestId);
@@ -156,7 +157,7 @@ window.appAdmin = function() {
           this.settings.criteria = this.settings.criteria.map(c => ({ name: c, description: '' }));
         }
       }
-      this.saveTestsToStorage();
+      if (!skipSave) this.saveTestsToStorage();
     },
 
     addTest() {
@@ -185,9 +186,9 @@ window.appAdmin = function() {
       if (!hasResults && !confirm('このテストを削除しますか？')) return;
       this.tests = this.tests.filter(t => t.id !== id);
       if (this.activeTestId === id) {
-        if (this.tests.length > 0) this.switchTest(this.tests[0].id);
-        else { 
-          this.activeTestId = null; 
+        if (this.tests.length > 0) this.switchTest(this.tests[0].id, true); // skipSave=true: saveはこの後一度だけ
+        else {
+          this.activeTestId = null;
           this.settings = {
             theme: '',
             criteria: [
@@ -199,9 +200,13 @@ window.appAdmin = function() {
             autoQuestionCount: 5,
             difficultyDistribution: [0,0,0,0,0],
             learningMode: false
-          }; 
+          };
         }
       }
+      // IDで直接削除（RLSポリシーに依存する "not in" 削除より確実）
+      _supabase.from('tests').delete().eq('id', id).then(({ error }) => {
+        if (error) console.error('Failed to delete test:', error);
+      });
       this.saveTestsToStorage();
     },
 
