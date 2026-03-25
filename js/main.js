@@ -1029,24 +1029,12 @@ ${resultText}
 ---
 教員が学生の指導に役立てるよう、具体的で実用的な情報を提供してください。`;
 
-      try {
-        const res = await fetch(`${GEMINI_BASE}${this.selectedModel}:generateContent?key=${this.apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            system_instruction: { parts: [{ text: this._rosterAiSystemContext }] },
-            contents: [{ role: 'user', parts: [{ text: 'この学生の試験結果を踏まえ、現在の学力状況と今後の指導ポイントを教えてください。' }] }]
-          })
-        });
-        const data = await res.json();
-        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'エラーが発生しました。';
-        this.rosterAiMessages = [
-          { role: 'user', content: 'この学生の試験結果を踏まえ、現在の学力状況と今後の指導ポイントを教えてください。' },
-          { role: 'assistant', content: reply }
-        ];
-      } catch(e) {
-        this.rosterAiMessages = [{ role: 'assistant', content: 'エラーが発生しました。APIキーを確認してください。' }];
-      }
+      const initialMsg = 'この学生の試験結果を踏まえ、現在の学力状況と今後の指導ポイントを教えてください。';
+      const reply = await this.callGemini(this._rosterAiSystemContext, [{ role: 'user', content: initialMsg }]);
+      this.rosterAiMessages = [
+        { role: 'user', content: initialMsg },
+        { role: 'assistant', content: reply || 'エラーが発生しました。APIキーまたはモデルを確認してください。' }
+      ];
       this.rosterAiLoading = false;
       this.$nextTick(() => {
         const el = this.$refs.rosterAiChatScroll;
@@ -1064,25 +1052,8 @@ ${resultText}
         const el = this.$refs.rosterAiChatScroll;
         if (el) el.scrollTop = el.scrollHeight;
       });
-      try {
-        const contents = this.rosterAiMessages.map(m => ({
-          role: m.role === 'user' ? 'user' : 'model',
-          parts: [{ text: m.content }]
-        }));
-        const res = await fetch(`${GEMINI_BASE}${this.selectedModel}:generateContent?key=${this.apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            system_instruction: { parts: [{ text: this._rosterAiSystemContext }] },
-            contents
-          })
-        });
-        const data = await res.json();
-        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'エラーが発生しました。';
-        this.rosterAiMessages.push({ role: 'assistant', content: reply });
-      } catch(e) {
-        this.rosterAiMessages.push({ role: 'assistant', content: 'エラーが発生しました。' });
-      }
+      const reply = await this.callGemini(this._rosterAiSystemContext, this.rosterAiMessages);
+      this.rosterAiMessages.push({ role: 'assistant', content: reply || 'エラーが発生しました。' });
       this.rosterAiLoading = false;
       this.$nextTick(() => {
         const el = this.$refs.rosterAiChatScroll;
