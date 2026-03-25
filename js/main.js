@@ -946,6 +946,40 @@ function app() {
       this.rosterImportPreview = [];
     },
 
+    getCombinedRoster() {
+      // examResults に存在するが roster に登録されていない受験者を末尾に追加
+      const seen = new Set();
+      const unregistered = [];
+      for (const r of this.examResults) {
+        const key = r.studentEmail || r.studentName;
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        const inRoster = this.roster.some(s =>
+          s.email ? s.email === r.studentEmail : s.name === r.studentName
+        );
+        if (!inRoster) {
+          unregistered.push({
+            id: 'unreg__' + key,
+            classId: null,
+            studentNumber: '',
+            name: r.studentName || r.studentEmail || '',
+            email: r.studentEmail || '',
+            _unregistered: true,
+          });
+        }
+      }
+      return [...this.roster, ...unregistered];
+    },
+
+    addUnregisteredToRoster(student) {
+      this.newRosterEntry = {
+        classId: '',
+        studentNumber: '',
+        name: student.name,
+        email: student.email,
+      };
+    },
+
     getRosterStudentResults(student) {
       return this.examResults
         .filter(r => student.email ? r.studentEmail === student.email : r.studentName === student.name)

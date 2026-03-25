@@ -931,23 +931,31 @@
               </tr>
             </thead>
             <tbody>
-              <template x-if="roster.filter(s => rosterFilterClassId === 'all' || s.classId === rosterFilterClassId).length === 0">
+              <template x-if="getCombinedRoster().filter(s => rosterFilterClassId === 'all' || s.classId === rosterFilterClassId).length === 0">
                 <tr>
                   <td :colspan="tests.length + 5" class="text-center text-gray-400 py-10">学生が登録されていません</td>
                 </tr>
               </template>
-              <template x-for="(student, idx) in roster.filter(s => rosterFilterClassId === 'all' || s.classId === rosterFilterClassId)" :key="student.id">
+              <template x-for="(student, idx) in getCombinedRoster().filter(s => rosterFilterClassId === 'all' || s.classId === rosterFilterClassId)" :key="student.id">
                 <tr class="border-b border-gc-border last:border-0 hover:bg-gray-50 transition-colors group"
-                  :class="(rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50 hover:bg-blue-50' : ''">
+                  :class="student._unregistered ? 'bg-amber-50/60 hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50 hover:bg-blue-50' : ''">
                   <!-- アクションボタン（左端固定） -->
                   <td class="sticky left-0 z-10 px-2 py-2 border-r border-gc-border text-center whitespace-nowrap transition-colors"
-                    :class="(rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
-                    <!-- 一括編集モードではなく、個別編集モード -->
-                    <template x-if="!rosterBulkEdit && rosterEditingId !== student.id">
+                    :class="student._unregistered ? 'bg-amber-50/60 group-hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
+                    <!-- 未登録受験者 -->
+                    <template x-if="student._unregistered">
+                      <button @click="addUnregisteredToRoster(student)"
+                        title="入力欄に情報をコピー。クラス・学籍番号を追記して追加ボタンで登録できます"
+                        class="text-[11px] text-amber-600 hover:text-amber-800 border border-amber-300 hover:border-amber-500 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 whitespace-nowrap">
+                        ＋登録
+                      </button>
+                    </template>
+                    <!-- 通常の個別編集 -->
+                    <template x-if="!student._unregistered && !rosterBulkEdit && rosterEditingId !== student.id">
                       <button @click="startEditRosterStudent(student)"
                         class="text-xs text-gray-400 hover:text-gc-blue border border-gray-200 hover:border-gc-blue px-2 py-0.5 rounded transition-colors opacity-0 group-hover:opacity-100">編集</button>
                     </template>
-                    <template x-if="!rosterBulkEdit && rosterEditingId === student.id">
+                    <template x-if="!student._unregistered && !rosterBulkEdit && rosterEditingId === student.id">
                       <div class="flex flex-col items-center gap-1">
                         <button @click="saveRosterStudent(student.id)" :disabled="!rosterEditingData.name?.trim()"
                           class="text-xs bg-gc-blue hover:bg-gc-blue-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-2 py-0.5 rounded transition-colors w-full">保存</button>
@@ -960,18 +968,20 @@
                   </td>
                   <!-- クラス -->
                   <td class="sticky left-[5rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
-                    :class="(rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
-                    <template x-if="!rosterBulkEdit && rosterEditingId !== student.id">
-                      <span class="px-1 text-xs" x-text="classes.find(c => c.id === student.classId)?.name || '—'"></span>
+                    :class="student._unregistered ? 'bg-amber-50/60 group-hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
+                    <template x-if="student._unregistered || (!rosterBulkEdit && rosterEditingId !== student.id)">
+                      <span class="px-1 text-xs"
+                        :class="student._unregistered ? 'text-amber-500 italic' : ''"
+                        x-text="student._unregistered ? '未登録' : (classes.find(c => c.id === student.classId)?.name || '—')"></span>
                     </template>
-                    <template x-if="!rosterBulkEdit && rosterEditingId === student.id">
+                    <template x-if="!student._unregistered && !rosterBulkEdit && rosterEditingId === student.id">
                       <select x-model="rosterEditingData.classId"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue">
                         <option value="">—</option>
                         <template x-for="c in classes" :key="c.id"><option :value="c.id" x-text="c.name"></option></template>
                       </select>
                     </template>
-                    <template x-if="rosterBulkEdit && rosterBulkEditData[student.id]">
+                    <template x-if="!student._unregistered && rosterBulkEdit && rosterBulkEditData[student.id]">
                       <select x-model="rosterBulkEditData[student.id].classId"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue">
                         <option value="">—</option>
@@ -981,51 +991,51 @@
                   </td>
                   <!-- 学籍番号 -->
                   <td class="sticky left-[10rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
-                    :class="(rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
-                    <template x-if="!rosterBulkEdit && rosterEditingId !== student.id">
+                    :class="student._unregistered ? 'bg-amber-50/60 group-hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
+                    <template x-if="student._unregistered || (!rosterBulkEdit && rosterEditingId !== student.id)">
                       <span class="px-1 text-xs text-gray-500" x-text="student.studentNumber || '—'"></span>
                     </template>
-                    <template x-if="!rosterBulkEdit && rosterEditingId === student.id">
+                    <template x-if="!student._unregistered && !rosterBulkEdit && rosterEditingId === student.id">
                       <input x-model="rosterEditingData.studentNumber" placeholder="学籍番号"
                         @keydown.enter="if (!$event.isComposing) saveRosterStudent(student.id)"
                         @keydown.escape="cancelEditRosterStudent()"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                     </template>
-                    <template x-if="rosterBulkEdit && rosterBulkEditData[student.id]">
+                    <template x-if="!student._unregistered && rosterBulkEdit && rosterBulkEditData[student.id]">
                       <input x-model="rosterBulkEditData[student.id].studentNumber" placeholder="学籍番号"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                     </template>
                   </td>
                   <!-- 氏名 -->
                   <td class="sticky left-[15rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
-                    :class="(rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
-                    <template x-if="!rosterBulkEdit && rosterEditingId !== student.id">
-                      <span class="px-1 text-xs font-medium text-gray-900" x-text="student.name"></span>
+                    :class="student._unregistered ? 'bg-amber-50/60 group-hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
+                    <template x-if="student._unregistered || (!rosterBulkEdit && rosterEditingId !== student.id)">
+                      <span class="px-1 text-xs font-medium" :class="student._unregistered ? 'text-amber-700' : 'text-gray-900'" x-text="student.name"></span>
                     </template>
-                    <template x-if="!rosterBulkEdit && rosterEditingId === student.id">
+                    <template x-if="!student._unregistered && !rosterBulkEdit && rosterEditingId === student.id">
                       <input x-model="rosterEditingData.name" placeholder="氏名（必須）"
                         @keydown.enter="if (!$event.isComposing) saveRosterStudent(student.id)"
                         @keydown.escape="cancelEditRosterStudent()"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                     </template>
-                    <template x-if="rosterBulkEdit && rosterBulkEditData[student.id]">
+                    <template x-if="!student._unregistered && rosterBulkEdit && rosterBulkEditData[student.id]">
                       <input x-model="rosterBulkEditData[student.id].name" placeholder="氏名（必須）"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                     </template>
                   </td>
                   <!-- メールアドレス -->
                   <td class="sticky left-[22rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
-                    :class="(rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
-                    <template x-if="!rosterBulkEdit && rosterEditingId !== student.id">
+                    :class="student._unregistered ? 'bg-amber-50/60 group-hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
+                    <template x-if="student._unregistered || (!rosterBulkEdit && rosterEditingId !== student.id)">
                       <span class="px-1 text-xs text-gray-500" x-text="student.email || '—'"></span>
                     </template>
-                    <template x-if="!rosterBulkEdit && rosterEditingId === student.id">
+                    <template x-if="!student._unregistered && !rosterBulkEdit && rosterEditingId === student.id">
                       <input x-model="rosterEditingData.email" placeholder="メールアドレス" type="email"
                         @keydown.enter="if (!$event.isComposing) saveRosterStudent(student.id)"
                         @keydown.escape="cancelEditRosterStudent()"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                     </template>
-                    <template x-if="rosterBulkEdit && rosterBulkEditData[student.id]">
+                    <template x-if="!student._unregistered && rosterBulkEdit && rosterBulkEditData[student.id]">
                       <input x-model="rosterBulkEditData[student.id].email" placeholder="メールアドレス" type="email"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                     </template>
