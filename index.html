@@ -668,67 +668,67 @@
     </div>
 
 
+      <!-- Result display settings -->
+      <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-3">
+        <p class="text-xs text-gray-600 font-medium">試験終了後に受験者へ表示する情報</p>
+        <label class="flex items-start gap-3 cursor-pointer">
+          <div class="flex-1 min-w-0 overflow-hidden">
+            <span class="text-sm text-gray-700 block">過去の採点結果をマイページに表示</span>
+            <p class="text-xs text-gray-400 mt-0.5">ONにすると、受験者が自分の名前でログイン後に公開済み結果の一覧が表示されます</p>
+          </div>
+          <button @click="allowStudentHistory = !allowStudentHistory; saveAppSetting('allow_student_history', allowStudentHistory)"
+            :class="allowStudentHistory ? 'bg-gc-green' : 'bg-gray-300'"
+            class="w-12 h-6 rounded-full flex items-center transition-colors flex-none mt-0.5 px-0.5">
+            <span :class="allowStudentHistory ? 'ml-6' : 'ml-0'"
+              class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
+          </button>
+        </label>
+        <div class="border-t border-gc-border pt-3">
+          <p class="text-xs text-gray-500 mb-2">結果ページに表示する内容</p>
+        </div>
+        <label class="flex items-center gap-3 cursor-pointer">
+          <span class="text-sm text-gray-700 flex-1 min-w-0 truncate">スコア・グレード</span>
+          <button @click="showScoreToStudent = !showScoreToStudent; saveAppSetting('show_score_to_student', showScoreToStudent)"
+            :class="showScoreToStudent ? 'bg-gc-green' : 'bg-gray-300'"
+            class="w-12 h-6 rounded-full flex items-center transition-colors flex-none px-0.5">
+            <span :class="showScoreToStudent ? 'ml-6' : 'ml-0'"
+              class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
+          </button>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer">
+          <span class="text-sm text-gray-700 flex-1 min-w-0 truncate">総合コメント</span>
+          <button @click="showCommentToStudent = !showCommentToStudent; saveAppSetting('show_comment_to_student', showCommentToStudent)"
+            :class="showCommentToStudent ? 'bg-gc-green' : 'bg-gray-300'"
+            class="w-12 h-6 rounded-full flex items-center transition-colors flex-none px-0.5">
+            <span :class="showCommentToStudent ? 'ml-6' : 'ml-0'"
+              class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
+          </button>
+        </label>
+      </div>
+
+      <!-- Anti-cheat monitoring settings -->
+      <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-3">
+        <p class="text-xs text-gray-600 font-medium">不正行為対策</p>
+        <label class="flex items-start gap-3 cursor-pointer">
+          <div class="flex-1 min-w-0 overflow-hidden">
+            <span class="text-sm text-gray-700 block">フォーカス監視（画面離脱検知）</span>
+            <p class="text-xs text-gray-400 mt-0.5">試験中に他の画面へ移動した回数を記録。問題数×3回または12回超過で要注意フラグを立てます</p>
+          </div>
+          <button @click="focusMonitoringEnabled = !focusMonitoringEnabled; saveAppSetting('focus_monitoring_enabled', focusMonitoringEnabled)"
+            :class="focusMonitoringEnabled ? 'bg-gc-green' : 'bg-gray-300'"
+            class="w-12 h-6 rounded-full flex items-center transition-colors flex-none mt-0.5 px-0.5">
+            <span :class="focusMonitoringEnabled ? 'ml-6' : 'ml-0'"
+              class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
+          </button>
+        </label>
+      </div>
+
       </div>
     </template>
 
     <!-- システム設定 part 2: 表示・監視・パスワード -->
     <template x-if="adminTab === 'system'">
       <div class="space-y-5">
-
-    <!-- Result display settings -->
-    <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-3">
-      <p class="text-xs text-gray-600 font-medium">試験終了後に受験者へ表示する情報</p>
-      <label class="flex items-start gap-3 cursor-pointer">
-        <div class="flex-1 min-w-0 overflow-hidden">
-          <span class="text-sm text-gray-700 block">過去の採点結果をマイページに表示</span>
-          <p class="text-xs text-gray-400 mt-0.5">ONにすると、受験者が自分の名前でログイン後に公開済み結果の一覧が表示されます</p>
-        </div>
-        <button @click="allowStudentHistory = !allowStudentHistory; saveAppSetting('allow_student_history', allowStudentHistory)"
-          :class="allowStudentHistory ? 'bg-gc-green' : 'bg-gray-300'"
-          class="w-12 h-6 rounded-full flex items-center transition-colors flex-none mt-0.5 px-0.5">
-          <span :class="allowStudentHistory ? 'ml-6' : 'ml-0'"
-            class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
-        </button>
-      </label>
-      <div class="border-t border-gc-border pt-3">
-        <p class="text-xs text-gray-500 mb-2">結果ページに表示する内容</p>
-      </div>
-      <label class="flex items-center gap-3 cursor-pointer">
-        <span class="text-sm text-gray-700 flex-1 min-w-0 truncate">スコア・グレード</span>
-        <button @click="showScoreToStudent = !showScoreToStudent; saveAppSetting('show_score_to_student', showScoreToStudent)"
-          :class="showScoreToStudent ? 'bg-gc-green' : 'bg-gray-300'"
-          class="w-12 h-6 rounded-full flex items-center transition-colors flex-none px-0.5">
-          <span :class="showScoreToStudent ? 'ml-6' : 'ml-0'"
-            class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
-        </button>
-      </label>
-      <label class="flex items-center gap-3 cursor-pointer">
-        <span class="text-sm text-gray-700 flex-1 min-w-0 truncate">総合コメント</span>
-        <button @click="showCommentToStudent = !showCommentToStudent; saveAppSetting('show_comment_to_student', showCommentToStudent)"
-          :class="showCommentToStudent ? 'bg-gc-green' : 'bg-gray-300'"
-          class="w-12 h-6 rounded-full flex items-center transition-colors flex-none px-0.5">
-          <span :class="showCommentToStudent ? 'ml-6' : 'ml-0'"
-            class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
-        </button>
-      </label>
-    </div>
-
-    <!-- Anti-cheat monitoring settings -->
-    <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-3">
-      <p class="text-xs text-gray-600 font-medium">不正行為対策</p>
-      <label class="flex items-start gap-3 cursor-pointer">
-        <div class="flex-1 min-w-0 overflow-hidden">
-          <span class="text-sm text-gray-700 block">フォーカス監視（画面離脱検知）</span>
-          <p class="text-xs text-gray-400 mt-0.5">試験中に他の画面へ移動した回数を記録。問題数×3回または12回超過で要注意フラグを立てます</p>
-        </div>
-        <button @click="focusMonitoringEnabled = !focusMonitoringEnabled; saveAppSetting('focus_monitoring_enabled', focusMonitoringEnabled)"
-          :class="focusMonitoringEnabled ? 'bg-gc-green' : 'bg-gray-300'"
-          class="w-12 h-6 rounded-full flex items-center transition-colors flex-none mt-0.5 px-0.5">
-          <span :class="focusMonitoringEnabled ? 'ml-6' : 'ml-0'"
-            class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
-        </button>
-      </label>
-    </div>
 
     <!-- Google Picker Settings -->
     <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-4" x-data="{ _saved: false }">
