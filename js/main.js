@@ -19,6 +19,35 @@ function app() {
     adminNewPassword: '',
     adminTab: 'tests',  // 'tests' | 'system'
     adminPassword: 'admin',
+    get archivedTests() {
+      const activeIds = new Set(this.tests.map(t => t.id));
+      const map = new Map();
+      this.examResults.forEach(r => {
+        if (r.testId && !activeIds.has(r.testId)) {
+          if (!map.has(r.testId)) {
+            map.set(r.testId, { id: r.testId, name: r.testName || r.testId, results: [] });
+          }
+          map.get(r.testId).results.push(r);
+        }
+      });
+      return [...map.values()].sort((a, b) => {
+        const latestA = Math.max(...a.results.map(r => new Date(r.date)));
+        const latestB = Math.max(...b.results.map(r => new Date(r.date)));
+        return latestB - latestA;
+      });
+    },
+
+    async restoreTest(archivedTest) {
+      if (!confirm(`「${archivedTest.name}」を復元しますか？\nクラス・テスト管理に追加されます（テーマ等の設定は初期状態になります）。`)) return;
+      const defaultSettings = {
+        theme: '', criteria: [{ name: '理解度', description: '', maxScore: 100 }],
+        questions: [], autoQuestionCount: 5, difficultyDistribution: [0,0,0,0,0], learningMode: false
+      };
+      this.tests.push({ id: archivedTest.id, name: archivedTest.name, classIds: [], status: 'ended', settings: defaultSettings });
+      await this.saveTestsToStorage();
+      alert(`「${archivedTest.name}」を復元しました。クラス・テスト管理タブで確認できます。`);
+    },
+
     get filteredResults() {
       const classId = this.adminFilterClassId || 'all';
       const testName = this.adminFilterTest; // Use test_name now
@@ -117,6 +146,7 @@ function app() {
     rosterAiLoading: false,
     rosterAiVisible: false,
     _rosterAiSystemContext: '',
+    archivedTestsVisible: false,
     checkResultsName: '',
     studentPastResults: [],
     showPastResults: false,

@@ -847,6 +847,13 @@
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                 更新
               </button>
+              <template x-if="archivedTests.length > 0">
+                <button @click="archivedTestsVisible = true"
+                  class="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 px-2 py-1 rounded transition-colors flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+                  過去のテスト（<span x-text="archivedTests.length"></span>件）
+                </button>
+              </template>
               <a @click="downloadResultsCsv()" class="text-xs text-gc-green hover:text-gc-green-dark cursor-pointer flex items-center gap-1">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
                 CSV
@@ -1103,6 +1110,66 @@
   </main>
 </div>
 
+<!-- ========== ARCHIVED TESTS MODAL ========== -->
+<div x-show="archivedTestsVisible" class="fixed inset-0 bg-black/50 z-50 overflow-y-auto" style="display:none;"
+  @keydown.escape.window="archivedTestsVisible = false">
+  <div class="min-h-screen flex items-start justify-center p-4 py-8">
+    <div class="w-full max-w-2xl bg-white rounded-2xl border border-gc-border shadow-2xl">
+      <!-- Header -->
+      <div class="flex items-center justify-between p-5 border-b border-gc-border">
+        <div>
+          <h3 class="text-sm font-semibold text-gray-900">過去のテスト（削除済み）</h3>
+          <p class="text-xs text-gray-400 mt-0.5">削除されたテストの成績を確認・復元できます</p>
+        </div>
+        <button @click="archivedTestsVisible = false"
+          class="text-gray-400 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <!-- Body -->
+      <div class="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+        <template x-if="archivedTests.length === 0">
+          <p class="text-center text-sm text-gray-400 py-8">削除済みのテストはありません</p>
+        </template>
+        <template x-for="at in archivedTests" :key="at.id">
+          <div class="border border-gc-border rounded-xl overflow-hidden">
+            <!-- Test header -->
+            <div class="flex items-center justify-between bg-amber-50 border-b border-amber-100 px-4 py-3">
+              <div>
+                <p class="text-sm font-semibold text-gray-800" x-text="at.name"></p>
+                <p class="text-xs text-gray-400 mt-0.5">
+                  <span x-text="at.results.length + '件の成績記録'"></span>
+                  <span class="mx-1">·</span>
+                  <span x-text="'最終受験: ' + new Date(Math.max(...at.results.map(r => new Date(r.date)))).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })"></span>
+                </p>
+              </div>
+              <button @click="restoreTest(at)"
+                class="text-xs bg-gc-blue hover:bg-gc-blue-dark text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 font-medium shrink-0">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                復元する
+              </button>
+            </div>
+            <!-- Results list -->
+            <div class="divide-y divide-gc-border">
+              <template x-for="r in at.results.slice().sort((a,b) => new Date(b.date)-new Date(a.date))" :key="r.id">
+                <div class="flex items-center justify-between px-4 py-2.5 text-xs hover:bg-gray-50">
+                  <div class="flex items-center gap-3 min-w-0">
+                    <span class="font-medium text-gray-800 truncate" x-text="r.studentName || '（氏名なし）'"></span>
+                    <span class="text-gray-400 shrink-0" x-text="new Date(r.date).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit' })"></span>
+                  </div>
+                  <span class="font-bold shrink-0 ml-3"
+                    :class="r.totalScore >= 80 ? 'text-emerald-600' : r.totalScore >= 60 ? 'text-yellow-600' : 'text-red-500'"
+                    x-text="r.totalScore + '点'"></span>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ========== SETTINGS PAGE ========== -->
 <div x-show="page === 'settings'" class="min-h-screen flex flex-col bg-gc-surface">
   <header class="border-b border-gc-border px-6 py-4 flex items-center justify-between bg-white shadow-sm">
@@ -1117,7 +1184,9 @@
       <p class="text-xs text-gc-blue truncate max-w-[180px]"
         x-text="tests.find(t => t.id === activeTestId)?.name || ''"></p>
     </div>
-    <div class="w-16"></div>
+    <button @click="saveSettings()"
+      class="text-sm bg-gc-blue hover:bg-gc-blue-dark text-white font-medium px-4 py-2 rounded-xl transition-colors"
+      x-text="saved ? '保存済み ✓' : '設定を保存'"></button>
   </header>
 
   <main class="flex-1 max-w-2xl mx-auto w-full px-6 py-8 space-y-8">
