@@ -343,6 +343,12 @@ function app() {
         localStorage.removeItem('gemini_model');
       }
 
+      // パスワードログイン管理者のセッション復元（同タブ・別タブ両対応）
+      if (!this.isAdmin && sessionStorage.getItem('admin_session') === '1') {
+        this.isAdmin = true;
+        if (!this._pendingTestIdFromUrl) this.page = 'admin';
+      }
+
       // Load shared data from Supabase (does NOT overwrite this.settings when URL params are present)
       await this.loadFromSupabase();
 
@@ -406,6 +412,7 @@ function app() {
         this.adminLoginError = false;
         this.adminLoginInput = '';
         this.page = 'admin';
+        sessionStorage.setItem('admin_session', '1');
         this.loadFromSupabase();
       } else {
         this.adminLoginError = true;
@@ -415,6 +422,7 @@ function app() {
     adminLogout() {
       this.isAdmin = false;
       this.page = 'student';
+      sessionStorage.removeItem('admin_session');
     },
 
     changeAdminPassword() {
@@ -2154,15 +2162,25 @@ ${this.settings.documentText.slice(0, 15000)}
         const parsed = JSON.parse(jsonMatch[0]);
 
         if (parsed.theme) this.settings.theme = parsed.theme;
-        if (parsed.questions) this.settings.questions = parsed.questions;
+        if (parsed.questions) {
+          // id を付与（Alpine x-for の :key に必要）
+          this.settings.questions = parsed.questions.map((q, i) => ({
+            id: 'q_' + Date.now() + '_' + i,
+            question: q.question || '',
+            expectedAnswer: q.expectedAnswer || '',
+            notes: q.notes || '',
+            difficulty: q.difficulty || 2
+          }));
+        }
         if (parsed.criteria) this.settings.criteria = parsed.criteria;
 
+        this.isGeneratingFromDoc = false; // UI を先に更新してからアラート
         await this.saveSettings();
         alert('✅ 問題・評価基準を自動生成しました！内容を確認して保存してください。');
       } catch(e) {
+        this.isGeneratingFromDoc = false;
         alert('生成に失敗しました: ' + (e.message || e));
       }
-      this.isGeneratingFromDoc = false;
     },
     async openGooglePicker() {
       if (!this.googlePickerApiKey || !this.googlePickerClientId) {
@@ -2171,6 +2189,14 @@ ${this.settings.documentText.slice(0, 15000)}
       }
 
       // 1. Authenticate with Google Identity Services (GIS)
+      // セッション内でトークンを再利用（期限切れなら再取得）
+      if (!this._gisToken) {
+        const cached = sessionStorage.getItem('gis_token');
+        const cachedExp = parseInt(sessionStorage.getItem('gis_token_exp') || '0', 10);
+        if (cached && Date.now() < cachedExp) {
+          this._gisToken = cached;
+        }
+      }
       if (!this._gisToken) {
         try {
           const client = google.accounts.oauth2.initTokenClient({
@@ -2182,6 +2208,10 @@ ${this.settings.documentText.slice(0, 15000)}
                 return;
               }
               this._gisToken = response.access_token;
+              // 55分後に期限切れとして扱う（実際は1時間だが余裕を持たせる）
+              const exp = Date.now() + 55 * 60 * 1000;
+              sessionStorage.setItem('gis_token', this._gisToken);
+              sessionStorage.setItem('gis_token_exp', String(exp));
               this.createPicker();
             },
           });
@@ -2279,7 +2309,7 @@ ${this.settings.documentText.slice(0, 15000)}
           });
           if (!res.ok) {
             if (res.status === 401 || res.status === 403) {
-              this._gisToken = null; // トークンをリセットして次回再認証
+              this._gisToken = null; sessionStorage.removeItem('gis_token'); sessionStorage.removeItem('gis_token_exp'); // トークンをリセットして次回再認証
               const errBody = await res.json().catch(() => ({}));
               const detail = errBody.error?.message || errBody.error?.status || res.status;
               if (res.status === 403 && String(detail).includes('disabled')) {
