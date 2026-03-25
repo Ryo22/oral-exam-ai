@@ -135,7 +135,7 @@ window.appAdmin = function() {
       // Delete tests that no longer exist
       if (this.tests.length > 0) {
         const ids = this.tests.map(t => t.id);
-        const { error: delError } = await _supabase.from('tests').delete().not('id', 'in', ids);
+        const { error: delError } = await _supabase.from('tests').delete().not('id', 'in', `(${ids.join(',')})`);
         if (delError) console.error('Failed to prune old tests:', delError);
       } else {
         // テストが0件になった場合はDB上の全テストを削除

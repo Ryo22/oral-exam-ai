@@ -189,6 +189,8 @@ function app() {
     _examProgressId: null,
     examProgressSaved: false,
     examRestoredAt: null,
+    result: null,
+    showLog: false,
 
     async handleSessionStart(user) {
       this.currentUser = user;
@@ -233,7 +235,6 @@ function app() {
       // Load all settings/data from Supabase again after successful login to ensure everything is fetched
       if (this.userRole === 'admin' || this.userRole === 'teacher') {
         await this.loadFromSupabase();
-        this.subscribeToResults();
       }
       
       this.authLoading = false;
@@ -537,7 +538,7 @@ function app() {
       // Delete tests that no longer exist
       if (this.tests.length > 0) {
         const ids = this.tests.map(t => t.id);
-        await _supabase.from('tests').delete().not('id', 'in', ids);
+        await _supabase.from('tests').delete().not('id', 'in', `(${ids.join(',')})`);
       } else {
         await _supabase.from('tests').delete().neq('id', '');
       }
@@ -2276,12 +2277,14 @@ ${this.settings.documentText.slice(0, 15000)}
           const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${exportMimeType}`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
+          if (!res.ok) throw new Error(`Driveファイルの取得に失敗しました (${res.status})。ファイルの共有設定またはOAuthスコープを確認してください。`);
           text = await res.text();
         } else {
           // Direct download (Text/CSV)
           const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
+          if (!res.ok) throw new Error(`Driveファイルの取得に失敗しました (${res.status})。ファイルの共有設定またはOAuthスコープを確認してください。`);
           text = await res.text();
         }
 
