@@ -2133,10 +2133,17 @@ ${this.settings.documentText.slice(0, 15000)}
             generationConfig: { temperature: 0.4 }
           })
         });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error?.message || `APIエラー (${res.status})`);
+        }
         const data = await res.json();
         let raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        raw = raw.replace(/```json|```/g, '').trim();
-        const parsed = JSON.parse(raw);
+        raw = raw.replace(/```json[\s\S]*?```|```[\s\S]*?```/g, m => m.replace(/```json|```/g, '')).trim();
+        // JSONブロックだけ抽出（前後の余分なテキストを除去）
+        const jsonMatch = raw.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('AIからのJSON応答が見つかりませんでした。モデルを変更して再試行してください。');
+        const parsed = JSON.parse(jsonMatch[0]);
 
         if (parsed.theme) this.settings.theme = parsed.theme;
         if (parsed.questions) this.settings.questions = parsed.questions;
@@ -2215,6 +2222,7 @@ ${this.settings.documentText.slice(0, 15000)}
         const mimeType = file.mimeType;
         
         this.settings.documentName = `[Drive] ${name}`;
+        this.settings.documentUrl = file.url || `https://drive.google.com/file/d/${fileId}/view`;
         await this.loadGoogleDriveFileContent(fileId, mimeType);
       }
     },
