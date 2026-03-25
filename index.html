@@ -904,8 +904,9 @@
                 <th class="sticky left-[15rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap min-w-[7rem]">氏名</th>
                 <th class="sticky left-[22rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap min-w-[12rem]">メールアドレス</th>
                 <template x-for="t in tests" :key="t.id">
-                  <th class="text-center px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border last:border-r-0 min-w-[10rem]">
-                    <div x-text="t.name" class="text-gc-blue"></div>
+                  <th @click="switchTest(t.id); page='settings'"
+                    class="text-center px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border last:border-r-0 min-w-[10rem] cursor-pointer hover:bg-blue-50 transition-colors group">
+                    <div x-text="t.name" class="text-gc-blue group-hover:underline"></div>
                     <div class="text-[10px] font-normal text-gray-400">点数 / 受験日時 / 状態</div>
                   </th>
                 </template>

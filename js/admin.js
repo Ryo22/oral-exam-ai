@@ -137,6 +137,9 @@ window.appAdmin = function() {
         const ids = this.tests.map(t => t.id);
         const { error: delError } = await _supabase.from('tests').delete().not('id', 'in', ids);
         if (delError) console.error('Failed to prune old tests:', delError);
+      } else {
+        // テストが0件になった場合はDB上の全テストを削除
+        await _supabase.from('tests').delete().neq('id', '');
       }
     },
 
@@ -180,13 +183,13 @@ window.appAdmin = function() {
       this.$nextTick(() => { this.editingTestId = id; this.editingTestName = name; });
     },
 
-    deleteTest(id) {
+    async deleteTest(id) {
       const hasResults = this.examResults.some(r => r.testId === id);
       if (hasResults && !confirm('このテストには採点結果があります。本当に削除しますか？')) return;
       if (!hasResults && !confirm('このテストを削除しますか？')) return;
       this.tests = this.tests.filter(t => t.id !== id);
       if (this.activeTestId === id) {
-        if (this.tests.length > 0) this.switchTest(this.tests[0].id, true); // skipSave=true: saveはこの後一度だけ
+        if (this.tests.length > 0) this.switchTest(this.tests[0].id, true);
         else {
           this.activeTestId = null;
           this.settings = {
@@ -203,11 +206,15 @@ window.appAdmin = function() {
           };
         }
       }
-      // IDで直接削除（RLSポリシーに依存する "not in" 削除より確実）
-      _supabase.from('tests').delete().eq('id', id).then(({ error }) => {
-        if (error) console.error('Failed to delete test:', error);
-      });
-      this.saveTestsToStorage();
+      // IDで直接削除（await して確実に完了させる）
+      const { error } = await _supabase.from('tests').delete().eq('id', id);
+      if (error) {
+        console.error('Failed to delete test:', error);
+        alert('テストの削除に失敗しました。\n' + error.message + '\n\nSupabaseのRLSポリシーを確認してください。');
+        return;
+      }
+      // 残りのテストを保存（"not in" での追加クリーンアップ）
+      await this.saveTestsToStorage();
     },
 
     startEditTest(id, name) {
