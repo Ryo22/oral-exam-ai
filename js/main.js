@@ -2277,14 +2277,33 @@ ${this.settings.documentText.slice(0, 15000)}
           const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=${exportMimeType}`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
-          if (!res.ok) throw new Error(`Driveファイルの取得に失敗しました (${res.status})。ファイルの共有設定またはOAuthスコープを確認してください。`);
+          if (!res.ok) {
+            if (res.status === 401 || res.status === 403) {
+              this._gisToken = null; // トークンをリセットして次回再認証
+              const errBody = await res.json().catch(() => ({}));
+              const detail = errBody.error?.message || errBody.error?.status || res.status;
+              if (res.status === 403 && String(detail).includes('disabled')) {
+                throw new Error(`Google Drive API が有効化されていません。Google Cloud Console でプロジェクトの「Drive API」を有効にしてください。\n(${detail})`);
+              }
+              throw new Error(`Drive認証エラー (${res.status})。もう一度「Google Driveから選択」を押して再認証してください。\n(${detail})`);
+            }
+            throw new Error(`Driveファイルの取得に失敗しました (${res.status})`);
+          }
           text = await res.text();
         } else {
           // Direct download (Text/CSV)
           const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
-          if (!res.ok) throw new Error(`Driveファイルの取得に失敗しました (${res.status})。ファイルの共有設定またはOAuthスコープを確認してください。`);
+          if (!res.ok) {
+            if (res.status === 401 || res.status === 403) {
+              this._gisToken = null;
+              const errBody = await res.json().catch(() => ({}));
+              const detail = errBody.error?.message || res.status;
+              throw new Error(`Drive認証エラー (${res.status})。もう一度「Google Driveから選択」を押して再認証してください。\n(${detail})`);
+            }
+            throw new Error(`Driveファイルの取得に失敗しました (${res.status})`);
+          }
           text = await res.text();
         }
 
