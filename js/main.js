@@ -107,6 +107,8 @@ function app() {
     rosterImportShowing: false,
     rosterEditingId: null,
     rosterEditingData: {},
+    rosterBulkEdit: false,
+    rosterBulkEditData: {},
     checkResultsName: '',
     studentPastResults: [],
     showPastResults: false,
@@ -769,6 +771,53 @@ function app() {
     cancelEditRosterStudent() {
       this.rosterEditingId = null;
       this.rosterEditingData = {};
+    },
+
+    startBulkEdit() {
+      this.rosterBulkEditData = {};
+      this.roster.forEach(s => {
+        this.rosterBulkEditData[s.id] = {
+          classId: s.classId || '',
+          studentNumber: s.studentNumber || '',
+          name: s.name,
+          email: s.email || '',
+        };
+      });
+      this.rosterBulkEdit = true;
+      this.rosterEditingId = null;
+    },
+
+    cancelBulkEdit() {
+      this.rosterBulkEdit = false;
+      this.rosterBulkEditData = {};
+    },
+
+    async saveBulkEdit() {
+      const updates = this.roster.map(async s => {
+        const d = this.rosterBulkEditData[s.id];
+        if (!d || !d.name.trim()) return;
+        const { error } = await _supabase.from('roster').update({
+          class_id: d.classId || null,
+          student_number: d.studentNumber || null,
+          name: d.name.trim(),
+          email: d.email?.trim() || null,
+        }).eq('id', s.id);
+        if (!error) {
+          const idx = this.roster.findIndex(r => r.id === s.id);
+          if (idx !== -1) {
+            this.roster.splice(idx, 1, {
+              ...this.roster[idx],
+              classId: d.classId || null,
+              studentNumber: d.studentNumber || '',
+              name: d.name.trim(),
+              email: d.email?.trim() || '',
+            });
+          }
+        }
+      });
+      await Promise.all(updates);
+      this.rosterBulkEdit = false;
+      this.rosterBulkEditData = {};
     },
 
     async saveRosterStudent(id) {

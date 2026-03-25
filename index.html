@@ -371,7 +371,7 @@
 
   <!-- Tab bar -->
   <div class="bg-white border-b border-gc-border sticky top-[57px] z-10">
-    <div class="max-w-2xl mx-auto flex">
+    <div :class="adminTab === 'results' ? 'max-w-7xl' : 'max-w-2xl'" class="mx-auto flex">
       <button @click="adminTab = 'tests'"
         :class="adminTab === 'tests' ? 'border-gc-blue text-gc-blue' : 'border-transparent text-gray-500 hover:text-gray-700'"
         class="flex-1 py-3 text-sm font-medium border-b-2 transition-colors">
@@ -390,7 +390,7 @@
     </div>
   </div>
 
-  <main class="flex-1 max-w-2xl mx-auto w-full px-5 py-6 space-y-5">
+  <main :class="adminTab === 'results' ? 'max-w-7xl' : 'max-w-2xl'" class="flex-1 mx-auto w-full px-5 py-6 space-y-5">
 
     <!-- ========== TAB: システム設定 ========== -->
     <template x-if="adminTab === 'system'">
@@ -789,35 +789,51 @@
       <div class="space-y-4">
 
         <!-- クラスフィルター + 操作ボタン -->
-        <div class="flex items-center gap-2 flex-wrap justify-between">
-          <div class="flex gap-2 flex-wrap">
-            <button @click="rosterFilterClassId = 'all'"
-              :class="rosterFilterClassId === 'all' ? 'bg-gc-blue text-white' : 'bg-white text-gray-500 hover:text-gray-800 border border-gc-border'"
-              class="text-xs px-3 py-1 rounded-full transition-colors">全て</button>
-            <template x-for="c in classes" :key="c.id">
-              <button @click="rosterFilterClassId = c.id"
-                :class="rosterFilterClassId === c.id ? 'bg-gc-blue text-white' : 'bg-white text-gray-500 hover:text-gray-800 border border-gc-border'"
-                class="text-xs px-3 py-1 rounded-full transition-colors" x-text="c.name"></button>
-            </template>
+        <template x-if="!rosterBulkEdit">
+          <div class="flex items-center gap-2 flex-wrap justify-between">
+            <div class="flex gap-2 flex-wrap">
+              <button @click="rosterFilterClassId = 'all'"
+                :class="rosterFilterClassId === 'all' ? 'bg-gc-blue text-white' : 'bg-white text-gray-500 hover:text-gray-800 border border-gc-border'"
+                class="text-xs px-3 py-1 rounded-full transition-colors">全て</button>
+              <template x-for="c in classes" :key="c.id">
+                <button @click="rosterFilterClassId = c.id"
+                  :class="rosterFilterClassId === c.id ? 'bg-gc-blue text-white' : 'bg-white text-gray-500 hover:text-gray-800 border border-gc-border'"
+                  class="text-xs px-3 py-1 rounded-full transition-colors" x-text="c.name"></button>
+              </template>
+            </div>
+            <div class="flex items-center gap-2">
+              <!-- 名簿インポートボタン -->
+              <label class="text-xs bg-white hover:bg-gray-50 border border-gc-border text-gray-600 px-2 py-1 rounded transition-colors flex items-center gap-1 cursor-pointer">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12"/></svg>
+                名簿インポート
+                <input type="file" accept=".csv,.xlsx,.xls" class="hidden" @change="importRosterFromFile($event)"/>
+              </label>
+              <button @click="loadExamResults()"
+                class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded transition-colors flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                更新
+              </button>
+              <a @click="downloadResultsCsv()" class="text-xs text-gc-green hover:text-gc-green-dark cursor-pointer flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                CSV
+              </a>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <!-- 名簿インポートボタン -->
-            <label class="text-xs bg-white hover:bg-gray-50 border border-gc-border text-gray-600 px-2 py-1 rounded transition-colors flex items-center gap-1 cursor-pointer">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12"/></svg>
-              名簿インポート
-              <input type="file" accept=".csv,.xlsx,.xls" class="hidden" @change="importRosterFromFile($event)"/>
-            </label>
-            <button @click="loadExamResults()"
-              class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded transition-colors flex items-center gap-1">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-              更新
+        </template>
+
+        <!-- 一括編集モードツールバー -->
+        <template x-if="rosterBulkEdit">
+          <div class="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+            <svg class="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            <span class="text-xs font-medium text-amber-700 flex-1">一括編集モード — 変更後、保存ボタンを押してください</span>
+            <button @click="cancelBulkEdit()"
+              class="text-xs text-gray-500 hover:text-gray-700 px-3 py-1 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200">キャンセル</button>
+            <button @click="saveBulkEdit()"
+              class="text-xs bg-gc-blue hover:bg-gc-blue-dark text-white px-4 py-1 rounded-lg transition-colors font-medium">
+              一括保存（<span x-text="roster.length"></span>件）
             </button>
-            <a @click="downloadResultsCsv()" class="text-xs text-gc-green hover:text-gc-green-dark cursor-pointer flex items-center gap-1">
-              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-              CSV
-            </a>
           </div>
-        </div>
+        </template>
 
         <!-- ペーストエリア -->
         <div @paste="handleRosterPaste($event)" tabindex="0" @click="$el.focus()"
@@ -830,49 +846,60 @@
           <table class="border-collapse text-xs" style="min-width: 100%">
             <thead>
               <tr class="bg-gray-50 border-b border-gc-border">
-                <th class="sticky left-0 z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border min-w-[5rem]">クラス</th>
-                <th class="sticky left-[5rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border min-w-[5rem]">学籍番号</th>
-                <th class="sticky left-[10rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border min-w-[7rem]">氏名</th>
-                <th class="sticky left-[17rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border min-w-[12rem]">メールアドレス</th>
+                <!-- アクション列ヘッダー（一括編集ボタン） -->
+                <th class="sticky left-0 z-10 bg-gray-50 px-2 py-2.5 border-r border-gc-border min-w-[5rem] text-center">
+                  <template x-if="!rosterBulkEdit">
+                    <button @click="startBulkEdit()"
+                      class="text-[11px] text-gray-500 hover:text-gc-blue border border-gray-200 hover:border-gc-blue px-1.5 py-0.5 rounded transition-colors whitespace-nowrap">
+                      ✏ 一括編集
+                    </button>
+                  </template>
+                  <template x-if="rosterBulkEdit">
+                    <span class="text-[11px] font-medium text-amber-600">編集中</span>
+                  </template>
+                </th>
+                <th class="sticky left-[5rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border min-w-[5rem]">クラス</th>
+                <th class="sticky left-[10rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border min-w-[5rem]">学籍番号</th>
+                <th class="sticky left-[15rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border min-w-[7rem]">氏名</th>
+                <th class="sticky left-[22rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border min-w-[12rem]">メールアドレス</th>
                 <template x-for="t in tests" :key="t.id">
                   <th class="text-center px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border last:border-r-0 min-w-[10rem]">
                     <div x-text="t.name" class="text-gc-blue"></div>
                     <div class="text-[10px] font-normal text-gray-400">点数 / 受験日時 / 状態</div>
                   </th>
                 </template>
-                <th class="text-center px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap min-w-[3rem]"></th>
               </tr>
               <!-- 追加行 -->
               <tr class="border-b border-gc-border bg-blue-50">
-                <td class="sticky left-0 z-10 bg-blue-50 px-2 py-2 border-r border-gc-border">
+                <td class="sticky left-0 z-10 bg-blue-50 px-2 py-2 border-r border-gc-border text-center">
+                  <button @click="addRosterStudent()" :disabled="!newRosterEntry.name.trim()"
+                    class="text-xs bg-gc-blue hover:bg-gc-blue-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-2 py-1 rounded transition-colors whitespace-nowrap">
+                    ＋ 追加
+                  </button>
+                </td>
+                <td class="sticky left-[5rem] z-10 bg-blue-50 px-2 py-2 border-r border-gc-border">
                   <select x-model="newRosterEntry.classId"
                     class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs text-gray-900 focus:outline-none focus:ring-1 focus:ring-gc-blue">
                     <option value="">クラス</option>
                     <template x-for="c in classes" :key="c.id"><option :value="c.id" x-text="c.name"></option></template>
                   </select>
                 </td>
-                <td class="sticky left-[5rem] z-10 bg-blue-50 px-2 py-2 border-r border-gc-border">
-                  <input x-model="newRosterEntry.studentNumber" placeholder="学籍番号"
-                    @keydown.enter="addRosterStudent()"
-                    class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
-                </td>
                 <td class="sticky left-[10rem] z-10 bg-blue-50 px-2 py-2 border-r border-gc-border">
+                  <input x-model="newRosterEntry.studentNumber" placeholder="学籍番号"
+                    @keydown.enter="if (!$event.isComposing) addRosterStudent()"
+                    class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
+                </td>
+                <td class="sticky left-[15rem] z-10 bg-blue-50 px-2 py-2 border-r border-gc-border">
                   <input x-model="newRosterEntry.name" placeholder="氏名（必須）"
-                    @keydown.enter="addRosterStudent()"
+                    @keydown.enter="if (!$event.isComposing) addRosterStudent()"
                     class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                 </td>
-                <td class="sticky left-[17rem] z-10 bg-blue-50 px-2 py-2 border-r border-gc-border">
+                <td class="sticky left-[22rem] z-10 bg-blue-50 px-2 py-2 border-r border-gc-border">
                   <input x-model="newRosterEntry.email" placeholder="メールアドレス" type="email"
-                    @keydown.enter="addRosterStudent()"
+                    @keydown.enter="if (!$event.isComposing) addRosterStudent()"
                     class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                 </td>
-                <td :colspan="tests.length" class="px-3 py-2">
-                  <button @click="addRosterStudent()" :disabled="!newRosterEntry.name.trim()"
-                    class="text-xs bg-gc-blue hover:bg-gc-blue-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-1 rounded transition-colors">
-                    ＋ 追加
-                  </button>
-                </td>
-                <td></td>
+                <td :colspan="tests.length" class="px-3 py-2 text-xs text-gray-400">← 氏名を入力して追加</td>
               </tr>
             </thead>
             <tbody>
@@ -883,15 +910,41 @@
               </template>
               <template x-for="(student, idx) in roster.filter(s => rosterFilterClassId === 'all' || s.classId === rosterFilterClassId)" :key="student.id">
                 <tr class="border-b border-gc-border last:border-0 hover:bg-gray-50 transition-colors group"
-                  :class="rosterEditingId === student.id ? 'bg-blue-50 hover:bg-blue-50' : ''">
+                  :class="(rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50 hover:bg-blue-50' : ''">
+                  <!-- アクションボタン（左端固定） -->
+                  <td class="sticky left-0 z-10 px-2 py-2 border-r border-gc-border text-center whitespace-nowrap transition-colors"
+                    :class="(rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
+                    <!-- 一括編集モードではなく、個別編集モード -->
+                    <template x-if="!rosterBulkEdit && rosterEditingId !== student.id">
+                      <button @click="startEditRosterStudent(student)"
+                        class="text-xs text-gray-400 hover:text-gc-blue border border-gray-200 hover:border-gc-blue px-2 py-0.5 rounded transition-colors opacity-0 group-hover:opacity-100">編集</button>
+                    </template>
+                    <template x-if="!rosterBulkEdit && rosterEditingId === student.id">
+                      <div class="flex flex-col items-center gap-1">
+                        <button @click="saveRosterStudent(student.id)" :disabled="!rosterEditingData.name?.trim()"
+                          class="text-xs bg-gc-blue hover:bg-gc-blue-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-2 py-0.5 rounded transition-colors w-full">保存</button>
+                        <button @click="cancelEditRosterStudent()"
+                          class="text-xs text-gray-500 hover:text-gray-700 px-1.5 py-0.5 rounded hover:bg-gray-100 transition-colors">✕</button>
+                        <button @click="deleteRosterStudent(student.id)"
+                          class="text-xs text-red-400 hover:text-red-600 px-1.5 py-0.5 rounded hover:bg-red-50 transition-colors">削除</button>
+                      </div>
+                    </template>
+                  </td>
                   <!-- クラス -->
-                  <td class="sticky left-0 z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
-                    :class="rosterEditingId === student.id ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
-                    <template x-if="rosterEditingId !== student.id">
+                  <td class="sticky left-[5rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
+                    :class="(rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
+                    <template x-if="!rosterBulkEdit && rosterEditingId !== student.id">
                       <span class="px-1 text-xs" x-text="classes.find(c => c.id === student.classId)?.name || '—'"></span>
                     </template>
-                    <template x-if="rosterEditingId === student.id">
+                    <template x-if="!rosterBulkEdit && rosterEditingId === student.id">
                       <select x-model="rosterEditingData.classId"
+                        class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue">
+                        <option value="">—</option>
+                        <template x-for="c in classes" :key="c.id"><option :value="c.id" x-text="c.name"></option></template>
+                      </select>
+                    </template>
+                    <template x-if="rosterBulkEdit && rosterBulkEditData[student.id]">
+                      <select x-model="rosterBulkEditData[student.id].classId"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue">
                         <option value="">—</option>
                         <template x-for="c in classes" :key="c.id"><option :value="c.id" x-text="c.name"></option></template>
@@ -899,39 +952,53 @@
                     </template>
                   </td>
                   <!-- 学籍番号 -->
-                  <td class="sticky left-[5rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
-                    :class="rosterEditingId === student.id ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
-                    <template x-if="rosterEditingId !== student.id">
+                  <td class="sticky left-[10rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
+                    :class="(rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
+                    <template x-if="!rosterBulkEdit && rosterEditingId !== student.id">
                       <span class="px-1 text-xs text-gray-500" x-text="student.studentNumber || '—'"></span>
                     </template>
-                    <template x-if="rosterEditingId === student.id">
+                    <template x-if="!rosterBulkEdit && rosterEditingId === student.id">
                       <input x-model="rosterEditingData.studentNumber" placeholder="学籍番号"
+                        @keydown.enter="if (!$event.isComposing) saveRosterStudent(student.id)"
+                        @keydown.escape="cancelEditRosterStudent()"
+                        class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
+                    </template>
+                    <template x-if="rosterBulkEdit && rosterBulkEditData[student.id]">
+                      <input x-model="rosterBulkEditData[student.id].studentNumber" placeholder="学籍番号"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                     </template>
                   </td>
                   <!-- 氏名 -->
-                  <td class="sticky left-[10rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
-                    :class="rosterEditingId === student.id ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
-                    <template x-if="rosterEditingId !== student.id">
+                  <td class="sticky left-[15rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
+                    :class="(rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
+                    <template x-if="!rosterBulkEdit && rosterEditingId !== student.id">
                       <span class="px-1 text-xs font-medium text-gray-900" x-text="student.name"></span>
                     </template>
-                    <template x-if="rosterEditingId === student.id">
+                    <template x-if="!rosterBulkEdit && rosterEditingId === student.id">
                       <input x-model="rosterEditingData.name" placeholder="氏名（必須）"
-                        @keydown.enter="saveRosterStudent(student.id)"
+                        @keydown.enter="if (!$event.isComposing) saveRosterStudent(student.id)"
                         @keydown.escape="cancelEditRosterStudent()"
+                        class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
+                    </template>
+                    <template x-if="rosterBulkEdit && rosterBulkEditData[student.id]">
+                      <input x-model="rosterBulkEditData[student.id].name" placeholder="氏名（必須）"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                     </template>
                   </td>
                   <!-- メールアドレス -->
-                  <td class="sticky left-[17rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
-                    :class="rosterEditingId === student.id ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
-                    <template x-if="rosterEditingId !== student.id">
+                  <td class="sticky left-[22rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
+                    :class="(rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
+                    <template x-if="!rosterBulkEdit && rosterEditingId !== student.id">
                       <span class="px-1 text-xs text-gray-500" x-text="student.email || '—'"></span>
                     </template>
-                    <template x-if="rosterEditingId === student.id">
+                    <template x-if="!rosterBulkEdit && rosterEditingId === student.id">
                       <input x-model="rosterEditingData.email" placeholder="メールアドレス" type="email"
-                        @keydown.enter="saveRosterStudent(student.id)"
+                        @keydown.enter="if (!$event.isComposing) saveRosterStudent(student.id)"
                         @keydown.escape="cancelEditRosterStudent()"
+                        class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
+                    </template>
+                    <template x-if="rosterBulkEdit && rosterBulkEditData[student.id]">
+                      <input x-model="rosterBulkEditData[student.id].email" placeholder="メールアドレス" type="email"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                     </template>
                   </td>
@@ -942,7 +1009,7 @@
                       x-effect="r = getStudentTestResult(student, t)">
                       <template x-if="r">
                         <button @click="rosterSelectedResult = r"
-                          class="w-full text-left space-y-1 hover:bg-blue-50 rounded-lg p-1.5 transition-colors cursor-pointer group">
+                          class="w-full text-left space-y-1 hover:bg-blue-50 rounded-lg p-1.5 transition-colors cursor-pointer group/cell">
                           <div :class="getDisplayScore(r) >= 80 ? 'text-emerald-600' : getDisplayScore(r) >= 60 ? 'text-yellow-600' : getDisplayScore(r) >= 40 ? 'text-orange-500' : 'text-red-500'"
                             class="font-bold tabular-nums text-sm text-center" x-text="getDisplayScore(r) + '点'"></div>
                           <div class="text-[10px] text-gray-400 text-center" x-text="new Date(r.date).toLocaleString('ja-JP', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})"></div>
@@ -952,7 +1019,7 @@
                             <span x-show="r.adminScore" class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">修正済</span>
                             <span x-show="r.focusViolationFlagged" class="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">⚠ 不正</span>
                           </div>
-                          <div class="text-[10px] text-gc-blue opacity-0 group-hover:opacity-100 text-center transition-opacity">クリックして詳細</div>
+                          <div class="text-[10px] text-gc-blue opacity-0 group-hover/cell:opacity-100 text-center transition-opacity">クリックして詳細</div>
                         </button>
                       </template>
                       <template x-if="!r">
@@ -960,23 +1027,6 @@
                       </template>
                     </td>
                   </template>
-                  <!-- アクションボタン -->
-                  <td class="px-2 py-2 text-center whitespace-nowrap">
-                    <template x-if="rosterEditingId !== student.id">
-                      <button @click="startEditRosterStudent(student)"
-                        class="text-xs text-gray-400 hover:text-gc-blue border border-gray-200 hover:border-gc-blue px-2 py-0.5 rounded transition-colors opacity-0 group-hover:opacity-100">編集</button>
-                    </template>
-                    <template x-if="rosterEditingId === student.id">
-                      <div class="flex items-center gap-1">
-                        <button @click="saveRosterStudent(student.id)" :disabled="!rosterEditingData.name?.trim()"
-                          class="text-xs bg-gc-blue hover:bg-gc-blue-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-2 py-0.5 rounded transition-colors">登録</button>
-                        <button @click="cancelEditRosterStudent()"
-                          class="text-xs text-gray-500 hover:text-gray-700 px-1.5 py-0.5 rounded hover:bg-gray-100 transition-colors">✕</button>
-                        <button @click="deleteRosterStudent(student.id)"
-                          class="text-xs text-red-400 hover:text-red-600 px-1.5 py-0.5 rounded hover:bg-red-50 transition-colors">削除</button>
-                      </div>
-                    </template>
-                  </td>
                 </tr>
               </template>
             </tbody>
