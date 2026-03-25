@@ -332,8 +332,7 @@ function app() {
       const storedModel = localStorage.getItem('gemini_model');
       const deprecatedModels = [
         'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro',
-        'gemini-2.5-flash-preview-04-17',
-        'gemini-3.1-flash-lite', 'gemini-3-flash', 'gemini-2.5-flash-lite',
+        'gemini-2.5-flash-preview-04-17', 'gemini-3-flash', 'gemini-2.5-flash-lite',
       ];
       if (storedModel && !deprecatedModels.includes(storedModel)) {
         this.selectedModel = storedModel;
@@ -1526,6 +1525,7 @@ ${logText}
       this.fetchingModels = true;
       // Free-tier text generation models (RPM > 0 in Google AI Studio free plan)
       const FREE_MODELS = [
+        'gemini-3.1-flash-lite',
         'gemini-2.0-flash-lite',
         'gemini-2.0-flash',
         'gemini-2.5-flash',
@@ -1553,7 +1553,7 @@ ${logText}
           )
           .map(m => {
             const id = m.name.replace('models/', '');
-            const rpd = { 'gemini-2.0-flash-lite': 1500, 'gemini-2.0-flash': 1500, 'gemini-2.5-flash': 500, 'gemini-2.5-pro-preview': 25 };
+            const rpd = { 'gemini-3.1-flash-lite': 500, 'gemini-2.0-flash-lite': 1500, 'gemini-2.0-flash': 1500, 'gemini-2.5-flash': 500, 'gemini-2.5-pro-preview': 25 };
             const baseId = FREE_MODELS.find(fid => id.startsWith(fid)) || id;
             const rpdLabel = rpd[baseId] ? `（RPD:${rpd[baseId]}）` : '';
             return { id, name: m.name, label: `${id}${rpdLabel}` };
@@ -1564,6 +1564,8 @@ ${logText}
         this.availableModels = filtered.length > 0 ? filtered : [];
         const found = filtered.find(m => m.id === this.selectedModel);
         if (!found && filtered.length > 0) this.selectedModel = filtered[0].id;
+        // フェッチ後の確定モデルを保存（次回起動時にデフォルトとして使用）
+        localStorage.setItem('gemini_model', this.selectedModel);
 
         // ── 2. Detect Live API (bidiGenerateContent) models ─────────────
         const allLiveModels = [];
