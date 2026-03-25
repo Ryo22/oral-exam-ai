@@ -90,7 +90,7 @@ function app() {
     adminResultsSubTab: 'roster',
     roster: [],
     rosterFilterClassId: 'all',
-    newRosterEntry: { classId: '', studentNumber: '', name: '' },
+    newRosterEntry: { classId: '', studentNumber: '', name: '', email: '' },
     classes: [],
     studentClassId: '',
     adminFilterClassId: 'all',
@@ -747,12 +747,13 @@ function app() {
         class_id: this.newRosterEntry.classId || (this.classes[0]?.id || null) || null,
         student_number: this.newRosterEntry.studentNumber.trim() || null,
         name: this.newRosterEntry.name.trim(),
+        email: this.newRosterEntry.email.trim() || null,
       };
       const { data, error } = await _supabase.from('roster').insert(row).select().single();
       if (!error && data) {
-        this.roster.push({ id: data.id, classId: data.class_id, studentNumber: data.student_number, name: data.name });
+        this.roster.push({ id: data.id, classId: data.class_id, studentNumber: data.student_number || '', name: data.name, email: data.email || '' });
       }
-      this.newRosterEntry = { classId: this.newRosterEntry.classId, studentNumber: '', name: '' };
+      this.newRosterEntry = { classId: this.newRosterEntry.classId, studentNumber: '', name: '', email: '' };
     },
 
     async deleteRosterStudent(id) {
@@ -762,7 +763,7 @@ function app() {
 
     startEditRosterStudent(student) {
       this.rosterEditingId = student.id;
-      this.rosterEditingData = { classId: student.classId || '', studentNumber: student.studentNumber || '', name: student.name };
+      this.rosterEditingData = { classId: student.classId || '', studentNumber: student.studentNumber || '', name: student.name, email: student.email || '' };
     },
 
     cancelEditRosterStudent() {
@@ -776,11 +777,12 @@ function app() {
       const { error } = await _supabase.from('roster').update({
         class_id: d.classId || null,
         student_number: d.studentNumber || null,
-        name: d.name.trim()
+        name: d.name.trim(),
+        email: d.email?.trim() || null,
       }).eq('id', id);
       if (!error) {
         const idx = this.roster.findIndex(s => s.id === id);
-        if (idx !== -1) this.roster.splice(idx, 1, { ...this.roster[idx], classId: d.classId || null, studentNumber: d.studentNumber || '', name: d.name.trim() });
+        if (idx !== -1) this.roster.splice(idx, 1, { ...this.roster[idx], classId: d.classId || null, studentNumber: d.studentNumber || '', name: d.name.trim(), email: d.email?.trim() || '' });
         this.rosterEditingId = null;
         this.rosterEditingData = {};
       }
@@ -808,6 +810,7 @@ function app() {
                 className: colClass >= 0 ? cols[colClass] : '',
                 studentNumber: colNum >= 0 ? cols[colNum] : '',
                 name: cols[colName] || '',
+                email: header.findIndex(h => /メール|email|mail/i.test(h)) >= 0 ? cols[header.findIndex(h => /メール|email|mail/i.test(h))] : '',
               });
             }
           } else {
@@ -822,6 +825,7 @@ function app() {
                 className: String(row['クラス'] || row['クラス名'] || row['class'] || ''),
                 studentNumber: String(row['学籍番号'] || row['ID'] || row['id'] || ''),
                 name: String(name),
+                email: String(row['メール'] || row['メールアドレス'] || row['email'] || row['mail'] || ''),
               });
             });
           }
@@ -859,11 +863,13 @@ function app() {
         const cols = lines[i].split('\t').map(c => c.trim());
         if (!cols.some(c => c)) continue;
         if (cols.length === 1) {
-          preview.push({ className: '', studentNumber: '', name: cols[0] });
+          preview.push({ className: '', studentNumber: '', name: cols[0], email: '' });
         } else if (cols.length === 2) {
-          preview.push({ className: '', studentNumber: cols[0], name: cols[1] });
+          preview.push({ className: '', studentNumber: cols[0], name: cols[1], email: '' });
+        } else if (cols.length === 3) {
+          preview.push({ className: cols[0], studentNumber: cols[1], name: cols[2], email: '' });
         } else {
-          preview.push({ className: cols[0], studentNumber: cols[1], name: cols[2] });
+          preview.push({ className: cols[0], studentNumber: cols[1], name: cols[2], email: cols[3] });
         }
       }
       this.rosterImportPreview = preview
@@ -879,11 +885,12 @@ function app() {
         class_id: r.classId || null,
         student_number: r.studentNumber || null,
         name: r.name.trim(),
+        email: r.email?.trim() || null,
       }));
       const { data, error } = await _supabase.from('roster').insert(inserts).select();
       if (!error && data) {
         data.forEach(s => this.roster.push({
-          id: s.id, classId: s.class_id, studentNumber: s.student_number || '', name: s.name,
+          id: s.id, classId: s.class_id, studentNumber: s.student_number || '', name: s.name, email: s.email || '',
         }));
       }
       this.rosterImportShowing = false;
@@ -892,13 +899,16 @@ function app() {
 
     getRosterStudentResults(student) {
       return this.examResults
-        .filter(r => r.studentName === student.name)
+        .filter(r => student.email ? r.studentEmail === student.email : r.studentName === student.name)
         .sort((a, b) => new Date(b.date) - new Date(a.date));
     },
 
     getStudentTestResult(student, test) {
       const results = this.examResults
-        .filter(r => r.studentName === student.name && r.testId === test.id)
+        .filter(r => {
+          const match = student.email ? r.studentEmail === student.email : r.studentName === student.name;
+          return match && r.testId === test.id;
+        })
         .sort((a, b) => new Date(b.date) - new Date(a.date));
       return results[0] || null;
     },
@@ -965,6 +975,7 @@ function app() {
             classId: s.class_id,
             studentNumber: s.student_number || '',
             name: s.name,
+            email: s.email || '',
           }));
         }
       } catch(e) { console.warn('roster load failed:', e); }

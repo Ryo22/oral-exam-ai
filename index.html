@@ -833,6 +833,7 @@
                 <th class="sticky left-0 z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border min-w-[5rem]">クラス</th>
                 <th class="sticky left-[5rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border min-w-[5rem]">学籍番号</th>
                 <th class="sticky left-[10rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border min-w-[7rem]">氏名</th>
+                <th class="sticky left-[17rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border min-w-[12rem]">メールアドレス</th>
                 <template x-for="t in tests" :key="t.id">
                   <th class="text-center px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border last:border-r-0 min-w-[10rem]">
                     <div x-text="t.name" class="text-gc-blue"></div>
@@ -860,6 +861,11 @@
                     @keydown.enter="addRosterStudent()"
                     class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                 </td>
+                <td class="sticky left-[17rem] z-10 bg-blue-50 px-2 py-2 border-r border-gc-border">
+                  <input x-model="newRosterEntry.email" placeholder="メールアドレス" type="email"
+                    @keydown.enter="addRosterStudent()"
+                    class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
+                </td>
                 <td :colspan="tests.length" class="px-3 py-2">
                   <button @click="addRosterStudent()" :disabled="!newRosterEntry.name.trim()"
                     class="text-xs bg-gc-blue hover:bg-gc-blue-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-3 py-1 rounded transition-colors">
@@ -872,7 +878,7 @@
             <tbody>
               <template x-if="roster.filter(s => rosterFilterClassId === 'all' || s.classId === rosterFilterClassId).length === 0">
                 <tr>
-                  <td :colspan="tests.length + 4" class="text-center text-gray-400 py-10">学生が登録されていません</td>
+                  <td :colspan="tests.length + 5" class="text-center text-gray-400 py-10">学生が登録されていません</td>
                 </tr>
               </template>
               <template x-for="(student, idx) in roster.filter(s => rosterFilterClassId === 'all' || s.classId === rosterFilterClassId)" :key="student.id">
@@ -911,6 +917,19 @@
                     </template>
                     <template x-if="rosterEditingId === student.id">
                       <input x-model="rosterEditingData.name" placeholder="氏名（必須）"
+                        @keydown.enter="saveRosterStudent(student.id)"
+                        @keydown.escape="cancelEditRosterStudent()"
+                        class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
+                    </template>
+                  </td>
+                  <!-- メールアドレス -->
+                  <td class="sticky left-[17rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
+                    :class="rosterEditingId === student.id ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
+                    <template x-if="rosterEditingId !== student.id">
+                      <span class="px-1 text-xs text-gray-500" x-text="student.email || '—'"></span>
+                    </template>
+                    <template x-if="rosterEditingId === student.id">
+                      <input x-model="rosterEditingData.email" placeholder="メールアドレス" type="email"
                         @keydown.enter="saveRosterStudent(student.id)"
                         @keydown.escape="cancelEditRosterStudent()"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
@@ -1438,6 +1457,7 @@
               <th class="text-left px-4 py-2 font-medium text-gray-500 border-b border-gc-border">クラス</th>
               <th class="text-left px-4 py-2 font-medium text-gray-500 border-b border-gc-border">学籍番号</th>
               <th class="text-left px-4 py-2 font-medium text-gray-500 border-b border-gc-border">氏名</th>
+              <th class="text-left px-4 py-2 font-medium text-gray-500 border-b border-gc-border">メール</th>
               <th class="text-left px-4 py-2 font-medium text-gray-500 border-b border-gc-border">クラス一致</th>
             </tr>
           </thead>
@@ -1447,6 +1467,7 @@
                 <td class="px-4 py-2 text-gray-600" x-text="row.className || '—'"></td>
                 <td class="px-4 py-2 text-gray-600" x-text="row.studentNumber || '—'"></td>
                 <td class="px-4 py-2 font-medium text-gray-900" x-text="row.name"></td>
+                <td class="px-4 py-2 text-gray-500 text-[11px]" x-text="row.email || '—'"></td>
                 <td class="px-4 py-2">
                   <span x-show="row.classId" class="text-emerald-600">✓ <span x-text="classes.find(c=>c.id===row.classId)?.name"></span></span>
                   <span x-show="!row.classId" class="text-gray-400">未割当</span>
