@@ -537,6 +537,8 @@ function app() {
       if (this.tests.length > 0) {
         const ids = this.tests.map(t => t.id);
         await _supabase.from('tests').delete().not('id', 'in', ids);
+      } else {
+        await _supabase.from('tests').delete().neq('id', '');
       }
     },
 
@@ -580,15 +582,21 @@ function app() {
       this.$nextTick(() => { this.editingTestId = id; this.editingTestName = name; });
     },
 
-    deleteTest(id) {
+    async deleteTestAndBack(id) {
+      const existed = this.tests.some(t => t.id === id);
+      await this.deleteTest(id);
+      if (existed && !this.tests.some(t => t.id === id)) this.page = 'admin';
+    },
+
+    async deleteTest(id) {
       const hasResults = this.examResults.some(r => r.testId === id);
       if (hasResults && !confirm('このテストには採点結果があります。本当に削除しますか？')) return;
       if (!hasResults && !confirm('このテストを削除しますか？')) return;
       this.tests = this.tests.filter(t => t.id !== id);
       if (this.activeTestId === id) {
         if (this.tests.length > 0) this.switchTest(this.tests[0].id);
-        else { 
-          this.activeTestId = null; 
+        else {
+          this.activeTestId = null;
           this.settings = {
             theme: '',
             criteria: [
@@ -600,10 +608,16 @@ function app() {
             autoQuestionCount: 5,
             difficultyDistribution: [0,0,0,0,0],
             learningMode: false
-          }; 
+          };
         }
       }
-      this.saveTestsToStorage();
+      const { error } = await _supabase.from('tests').delete().eq('id', id);
+      if (error) {
+        console.error('Failed to delete test:', error);
+        alert('テストの削除に失敗しました。\n' + error.message + '\n\nSupabaseのRLSポリシーを確認してください。');
+        return;
+      }
+      await this.saveTestsToStorage();
     },
 
     startEditTest(id, name) {
