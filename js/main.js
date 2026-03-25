@@ -1007,7 +1007,7 @@ function app() {
         const score = r.adminScore || r;
         const criteria = (score.criteria || []).map(c => `  ・${c.name}: ${c.score}/${c.maxScore}点 — ${c.comment || ''}`).join('\n');
         return `【受験${i + 1}: ${r.testName || r.testId}】
-日時: ${new Date(r.date).toLocaleString('ja-JP')}
+日時: ${new Date(r.date).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}
 合計: ${score.totalScore || r.totalScore}点/100点
 ${criteria}
 総評: ${score.overallComment || r.overallComment || 'なし'}
@@ -1362,7 +1362,7 @@ ${logText}
     downloadSingleResult(r) {
       if (!r) return;
       const q = v => `"${String(v).replace(/"/g, '""')}"`;
-      const dateStr = new Date(r.date).toLocaleString('ja-JP');
+      const dateStr = new Date(r.date).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
       const score = r.adminScore || r;
       const csvRows = [];
 
@@ -1405,7 +1405,7 @@ ${logText}
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       const name = (r.studentName || '受験者').replace(/\s/g, '_');
-      const date = new Date(r.date).toISOString().slice(0, 10);
+      const date = new Date(r.date).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '-');
       a.download = `採点結果_${name}_${date}.csv`;
       a.click();
     },
@@ -1416,7 +1416,7 @@ ${logText}
       const csvRows = [];
 
       this.examResults.forEach((r, idx) => {
-        const dateStr = new Date(r.date).toLocaleString('ja-JP');
+        const dateStr = new Date(r.date).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
         const score = r.adminScore || r;
 
         // --- 会話ログセクション ---
@@ -1477,7 +1477,7 @@ ${logText}
       results.forEach(r => {
         (r.conversationLog || []).forEach((msg, i) => {
           rows.push([
-            new Date(r.date).toLocaleString('ja-JP'),
+            new Date(r.date).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }),
             r.studentName || '',
             r.studentEmail || '',
             r.theme || '',
