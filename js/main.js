@@ -2137,11 +2137,14 @@ ${this.settings.documentText.slice(0, 15000)}
             generationConfig: { temperature: 0.4 }
           })
         });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error?.message || `APIエラー (${res.status})`);
+        const data = await res.json().catch(() => { throw new Error(`APIエラー (${res.status}): レスポンスが不正です`); });
+        if (!res.ok || data.error) {
+          const msg = data.error?.message || `APIエラー (${res.status})`;
+          if (msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED')) {
+            throw new Error('クォータ超過です。設定画面で別のモデルに切り替えてください。\n\n' + msg);
+          }
+          throw new Error(msg);
         }
-        const data = await res.json();
         let raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
         raw = raw.replace(/```json[\s\S]*?```|```[\s\S]*?```/g, m => m.replace(/```json|```/g, '')).trim();
         // JSONブロックだけ抽出（前後の余分なテキストを除去）
