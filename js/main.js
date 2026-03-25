@@ -109,6 +109,14 @@ function app() {
     rosterEditingData: {},
     rosterBulkEdit: false,
     rosterBulkEditData: {},
+    rosterTestHistoryResults: [],
+    rosterTestHistoryVisible: false,
+    rosterAiStudent: null,
+    rosterAiMessages: [],
+    rosterAiInput: '',
+    rosterAiLoading: false,
+    rosterAiVisible: false,
+    _rosterAiSystemContext: '',
     checkResultsName: '',
     studentPastResults: [],
     showPastResults: false,
@@ -944,6 +952,141 @@ function app() {
       }
       this.rosterImportShowing = false;
       this.rosterImportPreview = [];
+    },
+
+    // 未登録受験者の行でインライン入力 → INSERT して正式登録
+    async saveRosterStudentOrCreate(student) {
+      const d = this.rosterEditingData;
+      if (!d.name.trim()) return;
+      if (student._unregistered) {
+        const row = {
+          class_id: d.classId || null,
+          student_number: d.studentNumber || null,
+          name: d.name.trim(),
+          email: d.email?.trim() || null,
+        };
+        const { data, error } = await _supabase.from('roster').insert(row).select().single();
+        if (!error && data) {
+          this.roster.push({
+            id: data.id,
+            classId: data.class_id,
+            studentNumber: data.student_number || '',
+            name: data.name,
+            email: data.email || '',
+          });
+        }
+        this.rosterEditingId = null;
+        this.rosterEditingData = {};
+      } else {
+        await this.saveRosterStudent(student.id);
+      }
+    },
+
+    // 複数回受験：同テストの全結果を新しい順で返す
+    getStudentTestResultAll(student, test) {
+      return this.examResults
+        .filter(r => {
+          const match = student.email ? r.studentEmail === student.email : r.studentName === student.name;
+          return match && r.testId === test.id;
+        })
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+    },
+
+    // 教員向けAIチャット起動（学生の全試験結果を参照）
+    async openRosterAiChat(student) {
+      if (!this.apiKey) { alert('Gemini API Keyを設定してください。'); return; }
+      this.rosterAiStudent = student;
+      this.rosterAiMessages = [];
+      this.rosterAiInput = '';
+      this.rosterAiLoading = true;
+      this.rosterAiVisible = true;
+
+      const results = this.getRosterStudentResults(student);
+      const className = this.classes.find(c => c.id === student.classId)?.name || '未割当';
+      const resultText = results.length === 0 ? '受験記録なし' : results.map((r, i) => {
+        const score = r.adminScore || r;
+        const criteria = (score.criteria || []).map(c => `  ・${c.name}: ${c.score}/${c.maxScore}点 — ${c.comment || ''}`).join('\n');
+        return `【受験${i + 1}: ${r.testName || r.testId}】
+日時: ${new Date(r.date).toLocaleString('ja-JP')}
+合計: ${score.totalScore || r.totalScore}点/100点
+${criteria}
+総評: ${score.overallComment || r.overallComment || 'なし'}
+改善点: ${(r.improvements || []).join(' / ') || 'なし'}`;
+      }).join('\n\n');
+
+      this._rosterAiSystemContext = `あなたは教育者のアシスタントAIです。以下の学生の試験履歴を参照して、教員からの質問に答えてください。学生の弱点分析、学習進捗の評価、次のステップへのアドバイスなどを行うことができます。
+
+【学生情報】
+氏名: ${student.name}
+クラス: ${className}
+学籍番号: ${student.studentNumber || 'なし'}
+メール: ${student.email || 'なし'}
+
+【試験履歴（計${results.length}件）】
+${resultText}
+
+---
+教員が学生の指導に役立てるよう、具体的で実用的な情報を提供してください。`;
+
+      try {
+        const res = await fetch(`${GEMINI_BASE}${this.selectedModel}:generateContent?key=${this.apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: this._rosterAiSystemContext }] },
+            contents: [{ role: 'user', parts: [{ text: 'この学生の試験結果を踏まえ、現在の学力状況と今後の指導ポイントを教えてください。' }] }]
+          })
+        });
+        const data = await res.json();
+        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'エラーが発生しました。';
+        this.rosterAiMessages = [
+          { role: 'user', content: 'この学生の試験結果を踏まえ、現在の学力状況と今後の指導ポイントを教えてください。' },
+          { role: 'assistant', content: reply }
+        ];
+      } catch(e) {
+        this.rosterAiMessages = [{ role: 'assistant', content: 'エラーが発生しました。APIキーを確認してください。' }];
+      }
+      this.rosterAiLoading = false;
+      this.$nextTick(() => {
+        const el = this.$refs.rosterAiChatScroll;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    },
+
+    async sendRosterAiMessage() {
+      const text = this.rosterAiInput.trim();
+      if (!text || this.rosterAiLoading) return;
+      this.rosterAiInput = '';
+      this.rosterAiMessages.push({ role: 'user', content: text });
+      this.rosterAiLoading = true;
+      this.$nextTick(() => {
+        const el = this.$refs.rosterAiChatScroll;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+      try {
+        const contents = this.rosterAiMessages.map(m => ({
+          role: m.role === 'user' ? 'user' : 'model',
+          parts: [{ text: m.content }]
+        }));
+        const res = await fetch(`${GEMINI_BASE}${this.selectedModel}:generateContent?key=${this.apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: this._rosterAiSystemContext }] },
+            contents
+          })
+        });
+        const data = await res.json();
+        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'エラーが発生しました。';
+        this.rosterAiMessages.push({ role: 'assistant', content: reply });
+      } catch(e) {
+        this.rosterAiMessages.push({ role: 'assistant', content: 'エラーが発生しました。' });
+      }
+      this.rosterAiLoading = false;
+      this.$nextTick(() => {
+        const el = this.$refs.rosterAiChatScroll;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
     },
 
     getCombinedRoster() {

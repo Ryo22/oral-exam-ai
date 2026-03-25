@@ -942,19 +942,32 @@
                   <!-- アクションボタン（左端固定） -->
                   <td class="sticky left-0 z-10 px-2 py-2 border-r border-gc-border text-center whitespace-nowrap transition-colors"
                     :class="student._unregistered ? 'bg-amber-50/60 group-hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
-                    <!-- 未登録受験者 -->
-                    <template x-if="student._unregistered">
-                      <button @click="addUnregisteredToRoster(student)"
-                        title="入力欄に情報をコピー。クラス・学籍番号を追記して追加ボタンで登録できます"
+                    <!-- 未登録受験者：非編集中 -->
+                    <template x-if="student._unregistered && rosterEditingId !== student.id">
+                      <button @click="startEditRosterStudent(student)"
                         class="text-[11px] text-amber-600 hover:text-amber-800 border border-amber-300 hover:border-amber-500 bg-amber-50 hover:bg-amber-100 px-1.5 py-0.5 rounded transition-colors opacity-0 group-hover:opacity-100 whitespace-nowrap">
                         ＋登録
                       </button>
                     </template>
-                    <!-- 通常の個別編集 -->
-                    <template x-if="!student._unregistered && !rosterBulkEdit && rosterEditingId !== student.id">
-                      <button @click="startEditRosterStudent(student)"
-                        class="text-xs text-gray-400 hover:text-gc-blue border border-gray-200 hover:border-gc-blue px-2 py-0.5 rounded transition-colors opacity-0 group-hover:opacity-100">編集</button>
+                    <!-- 未登録受験者：インライン入力中 -->
+                    <template x-if="student._unregistered && rosterEditingId === student.id">
+                      <div class="flex flex-col items-center gap-1">
+                        <button @click="saveRosterStudentOrCreate(student)" :disabled="!rosterEditingData.name?.trim()"
+                          class="text-xs bg-amber-500 hover:bg-amber-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-2 py-0.5 rounded transition-colors w-full">登録</button>
+                        <button @click="cancelEditRosterStudent()"
+                          class="text-xs text-gray-500 hover:text-gray-700 px-1.5 py-0.5 rounded hover:bg-gray-100 transition-colors">✕</button>
+                      </div>
                     </template>
+                    <!-- 通常の個別編集：非編集中 -->
+                    <template x-if="!student._unregistered && !rosterBulkEdit && rosterEditingId !== student.id">
+                      <div class="flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button @click="startEditRosterStudent(student)"
+                          class="text-[11px] text-gray-400 hover:text-gc-blue border border-gray-200 hover:border-gc-blue px-2 py-0.5 rounded transition-colors w-full">編集</button>
+                        <button @click="openRosterAiChat(student)"
+                          class="text-[11px] text-gc-blue hover:text-white border border-gc-blue hover:bg-gc-blue px-2 py-0.5 rounded transition-colors w-full">AI質問</button>
+                      </div>
+                    </template>
+                    <!-- 通常の個別編集：編集中 -->
                     <template x-if="!student._unregistered && !rosterBulkEdit && rosterEditingId === student.id">
                       <div class="flex flex-col items-center gap-1">
                         <button @click="saveRosterStudent(student.id)" :disabled="!rosterEditingData.name?.trim()"
@@ -969,12 +982,12 @@
                   <!-- クラス -->
                   <td class="sticky left-[5rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
                     :class="student._unregistered ? 'bg-amber-50/60 group-hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
-                    <template x-if="student._unregistered || (!rosterBulkEdit && rosterEditingId !== student.id)">
+                    <template x-if="(student._unregistered && rosterEditingId !== student.id) || (!student._unregistered && !rosterBulkEdit && rosterEditingId !== student.id)">
                       <span class="px-1 text-xs"
                         :class="student._unregistered ? 'text-amber-500 italic' : ''"
                         x-text="student._unregistered ? '未登録' : (classes.find(c => c.id === student.classId)?.name || '—')"></span>
                     </template>
-                    <template x-if="!student._unregistered && !rosterBulkEdit && rosterEditingId === student.id">
+                    <template x-if="rosterEditingId === student.id && !rosterBulkEdit">
                       <select x-model="rosterEditingData.classId"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue">
                         <option value="">—</option>
@@ -992,12 +1005,12 @@
                   <!-- 学籍番号 -->
                   <td class="sticky left-[10rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
                     :class="student._unregistered ? 'bg-amber-50/60 group-hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
-                    <template x-if="student._unregistered || (!rosterBulkEdit && rosterEditingId !== student.id)">
+                    <template x-if="(student._unregistered && rosterEditingId !== student.id) || (!student._unregistered && !rosterBulkEdit && rosterEditingId !== student.id)">
                       <span class="px-1 text-xs text-gray-500" x-text="student.studentNumber || '—'"></span>
                     </template>
-                    <template x-if="!student._unregistered && !rosterBulkEdit && rosterEditingId === student.id">
+                    <template x-if="rosterEditingId === student.id && !rosterBulkEdit">
                       <input x-model="rosterEditingData.studentNumber" placeholder="学籍番号"
-                        @keydown.enter="if (!$event.isComposing) saveRosterStudent(student.id)"
+                        @keydown.enter="if (!$event.isComposing) saveRosterStudentOrCreate(student)"
                         @keydown.escape="cancelEditRosterStudent()"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                     </template>
@@ -1009,12 +1022,12 @@
                   <!-- 氏名 -->
                   <td class="sticky left-[15rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
                     :class="student._unregistered ? 'bg-amber-50/60 group-hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
-                    <template x-if="student._unregistered || (!rosterBulkEdit && rosterEditingId !== student.id)">
+                    <template x-if="(student._unregistered && rosterEditingId !== student.id) || (!student._unregistered && !rosterBulkEdit && rosterEditingId !== student.id)">
                       <span class="px-1 text-xs font-medium" :class="student._unregistered ? 'text-amber-700' : 'text-gray-900'" x-text="student.name"></span>
                     </template>
-                    <template x-if="!student._unregistered && !rosterBulkEdit && rosterEditingId === student.id">
+                    <template x-if="rosterEditingId === student.id && !rosterBulkEdit">
                       <input x-model="rosterEditingData.name" placeholder="氏名（必須）"
-                        @keydown.enter="if (!$event.isComposing) saveRosterStudent(student.id)"
+                        @keydown.enter="if (!$event.isComposing) saveRosterStudentOrCreate(student)"
                         @keydown.escape="cancelEditRosterStudent()"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                     </template>
@@ -1026,12 +1039,12 @@
                   <!-- メールアドレス -->
                   <td class="sticky left-[22rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
                     :class="student._unregistered ? 'bg-amber-50/60 group-hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
-                    <template x-if="student._unregistered || (!rosterBulkEdit && rosterEditingId !== student.id)">
+                    <template x-if="(student._unregistered && rosterEditingId !== student.id) || (!student._unregistered && !rosterBulkEdit && rosterEditingId !== student.id)">
                       <span class="px-1 text-xs text-gray-500" x-text="student.email || '—'"></span>
                     </template>
-                    <template x-if="!student._unregistered && !rosterBulkEdit && rosterEditingId === student.id">
+                    <template x-if="rosterEditingId === student.id && !rosterBulkEdit">
                       <input x-model="rosterEditingData.email" placeholder="メールアドレス" type="email"
-                        @keydown.enter="if (!$event.isComposing) saveRosterStudent(student.id)"
+                        @keydown.enter="if (!$event.isComposing) saveRosterStudentOrCreate(student)"
                         @keydown.escape="cancelEditRosterStudent()"
                         class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                     </template>
@@ -1043,11 +1056,17 @@
                   <!-- テストごとの結果セル -->
                   <template x-for="t in tests" :key="t.id">
                     <td class="px-3 py-2.5 border-r border-gc-border last:border-r-0 text-center align-top min-w-[10rem]"
-                      x-data="{ r: null }"
-                      x-effect="r = getStudentTestResult(student, t)">
+                      x-data="{ r: null, allR: [] }"
+                      x-effect="allR = getStudentTestResultAll(student, t); r = allR[0] || null">
                       <template x-if="r">
-                        <button @click="rosterSelectedResult = r"
+                        <button @click="allR.length > 1 ? (rosterTestHistoryResults = allR, rosterTestHistoryVisible = true) : (rosterSelectedResult = r)"
                           class="w-full text-left space-y-1 hover:bg-blue-50 rounded-lg p-1.5 transition-colors cursor-pointer group/cell">
+                          <!-- 複数回受験バッジ -->
+                          <template x-if="allR.length > 1">
+                            <div class="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-full text-center mb-1">
+                              <span x-text="allR.length + '回受験'"></span>（最新）
+                            </div>
+                          </template>
                           <div :class="getDisplayScore(r) >= 80 ? 'text-emerald-600' : getDisplayScore(r) >= 60 ? 'text-yellow-600' : getDisplayScore(r) >= 40 ? 'text-orange-500' : 'text-red-500'"
                             class="font-bold tabular-nums text-sm text-center" x-text="getDisplayScore(r) + '点'"></div>
                           <div class="text-[10px] text-gray-400 text-center" x-text="new Date(r.date).toLocaleString('ja-JP', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})"></div>
@@ -1057,7 +1076,8 @@
                             <span x-show="r.adminScore" class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">修正済</span>
                             <span x-show="r.focusViolationFlagged" class="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">⚠ 不正</span>
                           </div>
-                          <div class="text-[10px] text-gc-blue opacity-0 group-hover/cell:opacity-100 text-center transition-opacity">クリックして詳細</div>
+                          <div class="text-[10px] text-gc-blue opacity-0 group-hover/cell:opacity-100 text-center transition-opacity"
+                            x-text="allR.length > 1 ? '受験履歴を表示' : 'クリックして詳細'"></div>
                         </button>
                       </template>
                       <template x-if="!r">
@@ -1433,6 +1453,119 @@
       class="w-full bg-gc-blue hover:bg-gc-blue-dark text-white font-medium py-3 rounded-xl transition-colors"
       x-text="saved ? '保存しました！' : '設定を保存'"></button>
   </main>
+</div>
+
+<!-- ========== ROSTER TEST HISTORY MODAL ========== -->
+<div x-show="rosterTestHistoryVisible" class="fixed inset-0 bg-black/50 z-50 overflow-y-auto" style="display:none;"
+  @keydown.escape.window="rosterTestHistoryVisible = false">
+  <div class="min-h-screen flex items-start justify-center p-4 py-8">
+    <div class="w-full max-w-lg bg-white rounded-2xl border border-gc-border shadow-2xl">
+      <div class="flex items-center justify-between p-5 border-b border-gc-border">
+        <div>
+          <h3 class="text-base font-semibold text-gray-900">受験履歴</h3>
+          <p class="text-xs text-gray-400 mt-0.5" x-text="rosterTestHistoryResults.length + '回の受験記録'"></p>
+        </div>
+        <button @click="rosterTestHistoryVisible = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="divide-y divide-gc-border max-h-[60vh] overflow-y-auto">
+        <template x-for="(hr, hi) in rosterTestHistoryResults" :key="hr.id">
+          <div class="p-4 hover:bg-gray-50 transition-colors">
+            <div class="flex items-start justify-between gap-3">
+              <div class="space-y-1 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium"
+                    x-text="rosterTestHistoryResults.length - hi + '回目'"></span>
+                  <span class="text-[10px] text-gray-400" x-text="new Date(hr.date).toLocaleString('ja-JP', {year:'numeric',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})"></span>
+                  <span x-show="hi === 0" class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full">最新</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span :class="getDisplayScore(hr) >= 80 ? 'text-emerald-600' : getDisplayScore(hr) >= 60 ? 'text-yellow-600' : getDisplayScore(hr) >= 40 ? 'text-orange-500' : 'text-red-500'"
+                    class="text-xl font-bold tabular-nums" x-text="getDisplayScore(hr) + '点'"></span>
+                  <span :class="hr.published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
+                    class="text-[10px] px-1.5 py-0.5 rounded-full" x-text="hr.published ? '公開' : '未公開'"></span>
+                  <span x-show="hr.adminScore" class="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">修正済</span>
+                </div>
+                <p x-show="(hr.adminScore || hr).overallComment" class="text-xs text-gray-500 line-clamp-2"
+                  x-text="(hr.adminScore || hr).overallComment"></p>
+              </div>
+              <button @click="rosterSelectedResult = hr; rosterTestHistoryVisible = false"
+                class="shrink-0 text-xs text-gc-blue hover:text-white border border-gc-blue hover:bg-gc-blue px-2 py-1 rounded-lg transition-colors">
+                詳細
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== ROSTER AI CHAT MODAL ========== -->
+<div x-show="rosterAiVisible" class="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4" style="display:none;"
+  @keydown.escape.window="rosterAiVisible = false">
+  <div class="w-full sm:max-w-2xl bg-white sm:rounded-2xl border border-gc-border shadow-2xl flex flex-col" style="max-height: 90vh; height: 600px">
+    <!-- ヘッダー -->
+    <div class="flex items-center justify-between px-5 py-4 border-b border-gc-border shrink-0">
+      <div>
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-full bg-gc-blue flex items-center justify-center text-white text-xs font-bold">AI</div>
+          <div>
+            <p class="text-sm font-semibold text-gray-900" x-text="rosterAiStudent?.name + ' さんについて質問'"></p>
+            <p class="text-[10px] text-gray-400">試験履歴を参照してAIが回答します</p>
+          </div>
+        </div>
+      </div>
+      <button @click="rosterAiVisible = false" class="text-gray-400 hover:text-gray-600 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <!-- チャット本文 -->
+    <div x-ref="rosterAiChatScroll" class="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-gc-surface">
+      <!-- ローディング -->
+      <template x-if="rosterAiLoading && rosterAiMessages.length === 0">
+        <div class="flex items-start gap-2">
+          <div class="w-7 h-7 rounded-full bg-gc-blue shrink-0 flex items-center justify-center text-white text-xs font-bold">AI</div>
+          <div class="bg-white border border-gc-border rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm flex items-center gap-2">
+            <span class="inline-block w-3 h-3 border-2 border-gc-blue border-t-transparent rounded-full animate-spin"></span>
+            <span class="text-xs text-gray-400">分析中...</span>
+          </div>
+        </div>
+      </template>
+      <template x-for="(msg, mi) in rosterAiMessages" :key="mi">
+        <div :class="msg.role === 'user' ? 'flex flex-row-reverse items-start gap-2' : 'flex items-start gap-2'">
+          <template x-if="msg.role !== 'user'">
+            <div class="w-7 h-7 rounded-full bg-gc-blue shrink-0 flex items-center justify-center text-white text-xs font-bold">AI</div>
+          </template>
+          <div :class="msg.role === 'user' ? 'bg-gc-blue text-white rounded-2xl rounded-br-sm max-w-[80%] px-4 py-3 text-sm leading-relaxed' : 'bg-white border border-gc-border text-gray-800 rounded-2xl rounded-bl-sm max-w-[85%] px-4 py-3 text-sm leading-relaxed shadow-sm md-body'"
+            x-text="msg.content"></div>
+        </div>
+      </template>
+      <template x-if="rosterAiLoading && rosterAiMessages.length > 0">
+        <div class="flex items-start gap-2">
+          <div class="w-7 h-7 rounded-full bg-gc-blue shrink-0 flex items-center justify-center text-white text-xs font-bold">AI</div>
+          <div class="bg-white border border-gc-border rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm flex items-center gap-2">
+            <span class="inline-block w-3 h-3 border-2 border-gc-blue border-t-transparent rounded-full animate-spin"></span>
+            <span class="text-xs text-gray-400">考え中...</span>
+          </div>
+        </div>
+      </template>
+    </div>
+    <!-- 入力欄 -->
+    <div class="px-4 py-3 border-t border-gc-border bg-white shrink-0">
+      <div class="flex gap-2">
+        <input x-model="rosterAiInput" type="text" placeholder="質問を入力（例：苦手な分野は？ 次の指導方針は？）"
+          @keydown.enter="if (!$event.isComposing) sendRosterAiMessage()"
+          :disabled="rosterAiLoading"
+          class="flex-1 bg-gray-50 border border-gc-border rounded-xl px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:bg-white disabled:opacity-60"/>
+        <button @click="sendRosterAiMessage()" :disabled="!rosterAiInput.trim() || rosterAiLoading"
+          class="shrink-0 bg-gc-blue hover:bg-gc-blue-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl px-4 py-2.5 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ========== ROSTER RESULT DETAIL MODAL ========== -->
