@@ -66,7 +66,7 @@ function app() {
     },
     examResults: [],
     apiKey: '',
-    selectedModel: 'gemini-3.1-flash-lite',
+    selectedModel: 'gemini-2.0-flash-lite',
     availableModels: [],
     fetchingModels: false,
     settings: {
@@ -332,12 +332,13 @@ function app() {
       const storedModel = localStorage.getItem('gemini_model');
       const deprecatedModels = [
         'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-1.5-pro',
-        'gemini-2.5-flash-preview-04-17', 'gemini-2.0-flash', 'gemini-2.0-flash-lite',
+        'gemini-2.5-flash-preview-04-17',
+        'gemini-3.1-flash-lite', 'gemini-3-flash', 'gemini-2.5-flash-lite',
       ];
       if (storedModel && !deprecatedModels.includes(storedModel)) {
         this.selectedModel = storedModel;
       } else {
-        this.selectedModel = 'gemini-3.1-flash-lite';
+        this.selectedModel = 'gemini-2.0-flash-lite';
         localStorage.removeItem('gemini_model');
       }
 
@@ -1525,10 +1526,10 @@ ${logText}
       this.fetchingModels = true;
       // Free-tier text generation models (RPM > 0 in Google AI Studio free plan)
       const FREE_MODELS = [
-        'gemini-3.1-flash-lite',
-        'gemini-2.5-flash-lite',
-        'gemini-3-flash',
+        'gemini-2.0-flash-lite',
+        'gemini-2.0-flash',
         'gemini-2.5-flash',
+        'gemini-2.5-pro-preview',
       ];
 
       // Helper: fetch model list for a given API version
@@ -1552,7 +1553,7 @@ ${logText}
           )
           .map(m => {
             const id = m.name.replace('models/', '');
-            const rpd = { 'gemini-3.1-flash-lite': 500, 'gemini-2.5-flash-lite': 20, 'gemini-3-flash': 20, 'gemini-2.5-flash': 20 };
+            const rpd = { 'gemini-2.0-flash-lite': 1500, 'gemini-2.0-flash': 1500, 'gemini-2.5-flash': 500, 'gemini-2.5-pro-preview': 25 };
             const baseId = FREE_MODELS.find(fid => id.startsWith(fid)) || id;
             const rpdLabel = rpd[baseId] ? `（RPD:${rpd[baseId]}）` : '';
             return { id, name: m.name, label: `${id}${rpdLabel}` };
