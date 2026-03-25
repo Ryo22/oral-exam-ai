@@ -1865,8 +1865,7 @@ ${logText}
     async handleDocumentUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
-      const MAX_SIZE = 5 * 1024 * 1024;
-      if (file.size > MAX_SIZE) { alert('ファイルサイズは5MB以下にしてください。'); return; }
+      // ファイルサイズ制限なし
 
       this.settings.documentName = file.name;
 
