@@ -183,6 +183,13 @@ window.appAdmin = function() {
       this.$nextTick(() => { this.editingTestId = id; this.editingTestName = name; });
     },
 
+    async deleteTestAndBack(id) {
+      const existed = this.tests.some(t => t.id === id);
+      await this.deleteTest(id);
+      // 削除成功した場合（テストが消えていれば）管理画面に戻る
+      if (existed && !this.tests.some(t => t.id === id)) this.page = 'admin';
+    },
+
     async deleteTest(id) {
       const hasResults = this.examResults.some(r => r.testId === id);
       if (hasResults && !confirm('このテストには採点結果があります。本当に削除しますか？')) return;
