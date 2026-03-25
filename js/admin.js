@@ -127,13 +127,15 @@ window.appAdmin = function() {
         name: t.name,
         class_id: t.classId || null,
         class_ids: t.classIds || [],
+        status: t.status || 'draft',
         settings: t.settings || {}
       }));
-      await _supabase.from('tests').upsert(rows);
+      const { error } = await _supabase.from('tests').upsert(rows);
+      if (error) { console.error('Failed to save tests:', error); alert('テストの保存に失敗しました\n' + error.message); return; }
       // Delete tests that no longer exist
       if (this.tests.length > 0) {
         const ids = this.tests.map(t => t.id);
-        await _supabase.from('tests').delete().not('id', 'in', `(${ids.map(id => `"${id}"`).join(',')})`);
+        await _supabase.from('tests').delete().not('id', 'in', ids);
       }
     },
 
@@ -172,7 +174,7 @@ window.appAdmin = function() {
         difficultyDistribution: [0,0,0,0,0],
         learningMode: false
       };
-      this.tests.push({ id, name, classIds: [], settings: defaultSettings });
+      this.tests.push({ id, name, classIds: [], status: 'draft', settings: defaultSettings });
       this.switchTest(id);
       this.$nextTick(() => { this.editingTestId = id; this.editingTestName = name; });
     },
@@ -330,6 +332,7 @@ window.appAdmin = function() {
           name: t.name,
           classId: t.class_id,
           classIds: Array.isArray(t.class_ids) ? t.class_ids : (t.class_ids ? JSON.parse(t.class_ids) : []),
+          status: t.status || (t.published ? 'published' : 'draft'),
           settings: t.settings || {}
         }));
       } else {

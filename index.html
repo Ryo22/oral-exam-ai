@@ -127,6 +127,12 @@
   .msg-html code { background:rgba(0,0,0,0.08); padding:0.1em 0.3em; border-radius:3px; font-size:0.85em; }
   .msg-html strong { font-weight:700; }
   .msg-html em { font-style:italic; }
+  /* Fix: sticky column right borders disappear with border-collapse on scroll.
+     Use box-shadow instead so the border always renders as part of the sticky cell. */
+  .roster-table td.sticky,
+  .roster-table th.sticky {
+    box-shadow: inset -1px 0 0 0 #dadce0;
+  }
 </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -517,7 +523,7 @@
           </div>
           <div x-show="editingClassId === c.id" class="flex items-center gap-2">
             <input type="text" x-model="editingClassName"
-              @keydown.enter="saveClassName(c.id)" @keydown.escape="cancelEditClass()" @blur="saveClassName(c.id)"
+              @keydown.enter="if (!$event.isComposing) saveClassName(c.id)" @keydown.escape="cancelEditClass()" @blur="saveClassName(c.id)"
               class="flex-1 border border-gc-blue rounded-lg px-2.5 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue"
               x-effect="if(editingClassId === c.id) $el.focus()" placeholder="クラス名"/>
             <button @click.prevent="saveClassName(c.id)" class="text-xs bg-gc-blue text-white px-2.5 py-1.5 rounded-lg hover:bg-gc-blue-dark transition-colors shrink-0">保存</button>
@@ -551,7 +557,7 @@
           </div>
           <div x-show="editingTestId === t.id" class="flex items-center gap-2">
             <input type="text" x-model="editingTestName"
-              @keydown.enter="saveTestName(t.id)" @keydown.escape="cancelEditTest()" @blur="saveTestName(t.id)"
+              @keydown.enter="if (!$event.isComposing) saveTestName(t.id)" @keydown.escape="cancelEditTest()" @blur="saveTestName(t.id)"
               class="flex-1 border border-gc-blue rounded-lg px-2.5 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gc-blue"
               x-effect="if(editingTestId === t.id) $el.focus()" placeholder="テスト名"/>
             <button @click.prevent="saveTestName(t.id)" class="text-xs bg-gc-blue text-white px-2.5 py-1.5 rounded-lg hover:bg-gc-blue-dark transition-colors shrink-0">保存</button>
@@ -871,11 +877,11 @@
 
         <!-- スプレッドシートテーブル -->
         <div class="overflow-x-auto rounded-xl border border-gc-border shadow-sm bg-white">
-          <table class="border-collapse text-xs" style="min-width: 100%">
+          <table class="roster-table border-collapse text-xs" style="min-width: 100%">
             <thead>
               <tr class="bg-gray-50 border-b border-gc-border">
                 <!-- アクション列ヘッダー（一括編集ボタン） -->
-                <th class="sticky left-0 z-10 bg-gray-50 px-2 py-2.5 border-r border-gc-border min-w-[5rem] text-center">
+                <th class="sticky left-0 z-10 bg-gray-50 px-2 py-2.5 min-w-[5rem] text-center">
                   <template x-if="!rosterBulkEdit">
                     <button @click="startBulkEdit()"
                       class="text-[11px] text-gray-500 hover:text-gc-blue border border-gray-200 hover:border-gc-blue px-1.5 py-0.5 rounded transition-colors whitespace-nowrap">
@@ -886,10 +892,10 @@
                     <span class="text-[11px] font-medium text-amber-600">編集中</span>
                   </template>
                 </th>
-                <th class="sticky left-[5rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border min-w-[5rem]">クラス</th>
-                <th class="sticky left-[10rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border min-w-[5rem]">学籍番号</th>
-                <th class="sticky left-[15rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border min-w-[7rem]">氏名</th>
-                <th class="sticky left-[22rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border min-w-[12rem]">メールアドレス</th>
+                <th class="sticky left-[5rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap min-w-[5rem]">クラス</th>
+                <th class="sticky left-[10rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap min-w-[5rem]">学籍番号</th>
+                <th class="sticky left-[15rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap min-w-[7rem]">氏名</th>
+                <th class="sticky left-[22rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap min-w-[12rem]">メールアドレス</th>
                 <template x-for="t in tests" :key="t.id">
                   <th class="text-center px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border last:border-r-0 min-w-[10rem]">
                     <div x-text="t.name" class="text-gc-blue"></div>
@@ -899,30 +905,30 @@
               </tr>
               <!-- 追加行 -->
               <tr class="border-b border-gc-border bg-blue-50">
-                <td class="sticky left-0 z-10 bg-blue-50 px-2 py-2 border-r border-gc-border text-center">
+                <td class="sticky left-0 z-10 bg-blue-50 px-2 py-2 text-center">
                   <button @click="addRosterStudent()" :disabled="!newRosterEntry.name.trim()"
                     class="text-xs bg-gc-blue hover:bg-gc-blue-dark disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-2 py-1 rounded transition-colors whitespace-nowrap">
                     ＋ 追加
                   </button>
                 </td>
-                <td class="sticky left-[5rem] z-10 bg-blue-50 px-2 py-2 border-r border-gc-border">
+                <td class="sticky left-[5rem] z-10 bg-blue-50 px-2 py-2">
                   <select x-model="newRosterEntry.classId"
                     class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs text-gray-900 focus:outline-none focus:ring-1 focus:ring-gc-blue">
                     <option value="">クラス</option>
                     <template x-for="c in classes" :key="c.id"><option :value="c.id" x-text="c.name"></option></template>
                   </select>
                 </td>
-                <td class="sticky left-[10rem] z-10 bg-blue-50 px-2 py-2 border-r border-gc-border">
+                <td class="sticky left-[10rem] z-10 bg-blue-50 px-2 py-2">
                   <input x-model="newRosterEntry.studentNumber" placeholder="学籍番号"
                     @keydown.enter="if (!$event.isComposing) addRosterStudent()"
                     class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                 </td>
-                <td class="sticky left-[15rem] z-10 bg-blue-50 px-2 py-2 border-r border-gc-border">
+                <td class="sticky left-[15rem] z-10 bg-blue-50 px-2 py-2">
                   <input x-model="newRosterEntry.name" placeholder="氏名（必須）"
                     @keydown.enter="if (!$event.isComposing) addRosterStudent()"
                     class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
                 </td>
-                <td class="sticky left-[22rem] z-10 bg-blue-50 px-2 py-2 border-r border-gc-border">
+                <td class="sticky left-[22rem] z-10 bg-blue-50 px-2 py-2">
                   <input x-model="newRosterEntry.email" placeholder="メールアドレス" type="email"
                     @keydown.enter="if (!$event.isComposing) addRosterStudent()"
                     class="w-full bg-white border border-gc-border rounded px-1.5 py-1 text-xs placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gc-blue"/>
@@ -940,7 +946,7 @@
                 <tr class="border-b border-gc-border last:border-0 hover:bg-gray-50 transition-colors group"
                   :class="student._unregistered ? 'bg-amber-50/60 hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50 hover:bg-blue-50' : ''">
                   <!-- アクションボタン（左端固定） -->
-                  <td class="sticky left-0 z-10 px-2 py-2 border-r border-gc-border text-center whitespace-nowrap transition-colors"
+                  <td class="sticky left-0 z-10 px-2 py-2 text-center whitespace-nowrap transition-colors"
                     :class="student._unregistered ? 'bg-amber-50/60 group-hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
                     <!-- 未登録受験者：非編集中 -->
                     <template x-if="student._unregistered && rosterEditingId !== student.id">
@@ -980,7 +986,7 @@
                     </template>
                   </td>
                   <!-- クラス -->
-                  <td class="sticky left-[5rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
+                  <td class="sticky left-[5rem] z-10 px-2 py-2 whitespace-nowrap transition-colors"
                     :class="student._unregistered ? 'bg-amber-50/60 group-hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
                     <template x-if="(student._unregistered && rosterEditingId !== student.id) || (!student._unregistered && !rosterBulkEdit && rosterEditingId !== student.id)">
                       <span class="px-1 text-xs"
@@ -1003,7 +1009,7 @@
                     </template>
                   </td>
                   <!-- 学籍番号 -->
-                  <td class="sticky left-[10rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
+                  <td class="sticky left-[10rem] z-10 px-2 py-2 whitespace-nowrap transition-colors"
                     :class="student._unregistered ? 'bg-amber-50/60 group-hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
                     <template x-if="(student._unregistered && rosterEditingId !== student.id) || (!student._unregistered && !rosterBulkEdit && rosterEditingId !== student.id)">
                       <span class="px-1 text-xs text-gray-500" x-text="student.studentNumber || '—'"></span>
@@ -1020,7 +1026,7 @@
                     </template>
                   </td>
                   <!-- 氏名 -->
-                  <td class="sticky left-[15rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
+                  <td class="sticky left-[15rem] z-10 px-2 py-2 whitespace-nowrap transition-colors"
                     :class="student._unregistered ? 'bg-amber-50/60 group-hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
                     <template x-if="(student._unregistered && rosterEditingId !== student.id) || (!student._unregistered && !rosterBulkEdit && rosterEditingId !== student.id)">
                       <span class="px-1 text-xs font-medium" :class="student._unregistered ? 'text-amber-700' : 'text-gray-900'" x-text="student.name"></span>
@@ -1037,7 +1043,7 @@
                     </template>
                   </td>
                   <!-- メールアドレス -->
-                  <td class="sticky left-[22rem] z-10 px-2 py-2 border-r border-gc-border whitespace-nowrap transition-colors"
+                  <td class="sticky left-[22rem] z-10 px-2 py-2 whitespace-nowrap transition-colors"
                     :class="student._unregistered ? 'bg-amber-50/60 group-hover:bg-amber-50' : (rosterEditingId === student.id || rosterBulkEdit) ? 'bg-blue-50' : 'bg-white group-hover:bg-gray-50'">
                     <template x-if="(student._unregistered && rosterEditingId !== student.id) || (!student._unregistered && !rosterBulkEdit && rosterEditingId !== student.id)">
                       <span class="px-1 text-xs text-gray-500" x-text="student.email || '—'"></span>

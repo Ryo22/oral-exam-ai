@@ -707,7 +707,8 @@ function app() {
         conversation_log: r.conversationLog || []
       }));
       if (rows.length > 0) {
-        await _supabase.from('exam_results').upsert(rows);
+        const { error } = await _supabase.from('exam_results').upsert(rows);
+        if (error) console.error('Failed to save exam results:', error);
       }
     },
 
