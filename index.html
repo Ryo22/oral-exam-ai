@@ -262,7 +262,7 @@
         ※ 管理者によるAPIキーの設定が必要です
       </p>
       <!-- My Page button (shown when history is allowed) -->
-      <button x-show="allowStudentHistory"
+      <button x-show="settings.allowStudentHistory"
         @click="mypageSelectedResult = null; page = 'mypage'"
         class="w-full bg-white hover:bg-gray-50 text-gc-blue border border-gc-border font-medium py-3 rounded-2xl transition-colors text-sm flex items-center justify-center gap-2 shadow-sm">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -273,9 +273,9 @@
     </div>
 
     <!-- My past results (auto-shown when student identified + admin allows) -->
-    <div x-show="(studentNameConfirmed || studentUser) && allowStudentHistory"
+    <div x-show="(studentNameConfirmed || studentUser) && settings.allowStudentHistory"
       class="border-t border-gc-border pt-6 space-y-3"
-      x-effect="studentPastResults = allowStudentHistory ? examResults.filter(r => r.published && (r.studentName === (studentUser ? studentUser.name : studentName) || ((studentUser ? studentUser.email : studentEmail) && r.studentEmail === (studentUser ? studentUser.email : studentEmail)))).sort((a, b) => new Date(b.date) - new Date(a.date)) : []">
+      x-effect="studentPastResults = settings.allowStudentHistory ? examResults.filter(r => r.published && (r.studentName === (studentUser ? studentUser.name : studentName) || ((studentUser ? studentUser.email : studentEmail) && r.studentEmail === (studentUser ? studentUser.email : studentEmail)))).sort((a, b) => new Date(b.date) - new Date(a.date)) : []">
       <p class="text-xs text-gray-600 font-medium flex items-center gap-2">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
@@ -289,13 +289,13 @@
         <div class="bg-white rounded-xl border border-gc-border p-4 space-y-2 shadow-sm">
           <div class="flex items-center justify-between">
             <p class="text-xs text-gray-500" x-text="new Date(r.date).toLocaleDateString('ja-JP')"></p>
-            <div x-show="showScoreToStudent"
+            <div x-show="settings.showScoreToStudent"
               :class="(r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 80 ? 'text-emerald-600' : (r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 60 ? 'text-yellow-600' : (r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 40 ? 'text-orange-500' : 'text-red-500'"
               class="text-xl font-bold tabular-nums"
               x-text="(r.adminScore ? r.adminScore.totalScore : r.totalScore) + '点'"></div>
           </div>
           <p class="text-sm text-gray-900 font-medium" x-text="r.theme"></p>
-          <p x-show="showCommentToStudent" class="text-xs text-gray-500 leading-relaxed"
+          <p x-show="settings.showCommentToStudent" class="text-xs text-gray-500 leading-relaxed"
             x-text="r.adminScore ? r.adminScore.overallComment : r.overallComment"></p>
         </div>
       </template>
@@ -543,7 +543,7 @@
           テストを追加
         </button>
       </div>
-      <template x-for="t in tests" :key="t.id">
+      <template x-for="t in activeTests" :key="t.id">
         <div class="border border-gc-border rounded-xl p-3 space-y-3">
           <!-- Test name row -->
           <div x-show="editingTestId !== t.id" class="flex items-center gap-2">
@@ -682,10 +682,10 @@
             <span class="text-sm text-gray-700 block">過去の採点結果をマイページに表示</span>
             <p class="text-xs text-gray-400 mt-0.5">ONにすると、受験者が自分の名前でログイン後に公開済み結果の一覧が表示されます</p>
           </div>
-          <button @click="allowStudentHistory = !allowStudentHistory; saveAppSetting('allow_student_history', allowStudentHistory)"
-            :class="allowStudentHistory ? 'bg-gc-green' : 'bg-gray-300'"
+          <button @click="settings.allowStudentHistory = !settings.allowStudentHistory; saveSettings()"
+            :class="settings.allowStudentHistory ? 'bg-gc-green' : 'bg-gray-300'"
             class="w-12 h-6 rounded-full flex items-center transition-colors flex-none mt-0.5 px-0.5">
-            <span :class="allowStudentHistory ? 'ml-6' : 'ml-0'"
+            <span :class="settings.allowStudentHistory ? 'ml-6' : 'ml-0'"
               class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
           </button>
         </label>
@@ -694,19 +694,19 @@
         </div>
         <label class="flex items-center gap-3 cursor-pointer">
           <span class="text-sm text-gray-700 flex-1 min-w-0 truncate">スコア・グレード</span>
-          <button @click="showScoreToStudent = !showScoreToStudent; saveAppSetting('show_score_to_student', showScoreToStudent)"
-            :class="showScoreToStudent ? 'bg-gc-green' : 'bg-gray-300'"
+          <button @click="settings.showScoreToStudent = !settings.showScoreToStudent; saveSettings()"
+            :class="settings.showScoreToStudent ? 'bg-gc-green' : 'bg-gray-300'"
             class="w-12 h-6 rounded-full flex items-center transition-colors flex-none px-0.5">
-            <span :class="showScoreToStudent ? 'ml-6' : 'ml-0'"
+            <span :class="settings.showScoreToStudent ? 'ml-6' : 'ml-0'"
               class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
           </button>
         </label>
         <label class="flex items-center gap-3 cursor-pointer">
           <span class="text-sm text-gray-700 flex-1 min-w-0 truncate">総合コメント</span>
-          <button @click="showCommentToStudent = !showCommentToStudent; saveAppSetting('show_comment_to_student', showCommentToStudent)"
-            :class="showCommentToStudent ? 'bg-gc-green' : 'bg-gray-300'"
+          <button @click="settings.showCommentToStudent = !settings.showCommentToStudent; saveSettings()"
+            :class="settings.showCommentToStudent ? 'bg-gc-green' : 'bg-gray-300'"
             class="w-12 h-6 rounded-full flex items-center transition-colors flex-none px-0.5">
-            <span :class="showCommentToStudent ? 'ml-6' : 'ml-0'"
+            <span :class="settings.showCommentToStudent ? 'ml-6' : 'ml-0'"
               class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
           </button>
         </label>
@@ -728,6 +728,88 @@
           </button>
         </label>
       </div>
+
+    <!-- ゴミ箱（クラス・テスト管理タブ） -->
+    <template x-if="archivedTests.length > 0 || deletedClasses.length > 0">
+      <div class="bg-white rounded-xl border border-gc-border shadow-sm overflow-hidden"
+        x-data="{ trashOpen: false }">
+        <!-- ゴミ箱ヘッダー（折りたたみ） -->
+        <button @click="trashOpen = !trashOpen"
+          class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-gray-50 transition-colors">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+            <span class="text-sm font-medium text-gray-600">ゴミ箱</span>
+            <span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full"
+              x-text="(archivedTests.length + deletedClasses.length) + '件'"></span>
+          </div>
+          <svg class="w-4 h-4 text-gray-400 transition-transform" :class="trashOpen ? 'rotate-180' : ''"
+            fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </button>
+
+        <!-- ゴミ箱コンテンツ -->
+        <div x-show="trashOpen" class="border-t border-gc-border divide-y divide-gc-border">
+
+          <!-- 削除済みテスト -->
+          <template x-for="at in archivedTests" :key="at.id">
+            <div class="flex items-center justify-between px-4 py-3 hover:bg-gray-50">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                  </svg>
+                  <span class="text-sm text-gray-700 truncate" x-text="at.name"></span>
+                  <span x-show="at.results.length > 0"
+                    class="text-[10px] text-gray-400 shrink-0"
+                    x-text="'成績 ' + at.results.length + '件'"></span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0 ml-3">
+                <button @click="restoreDeletedTest(at.id)"
+                  class="text-xs bg-gc-blue hover:bg-gc-blue-dark text-white px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  復元
+                </button>
+                <button @click="permanentlyDeleteTest(at.id)"
+                  class="text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition-colors">
+                  完全削除
+                </button>
+              </div>
+            </div>
+          </template>
+
+          <!-- 削除済みクラス -->
+          <template x-for="c in deletedClasses" :key="c.id">
+            <div class="flex items-center justify-between px-4 py-3 hover:bg-gray-50">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  </svg>
+                  <span class="text-sm text-gray-700 truncate" x-text="c.name"></span>
+                  <span class="text-[10px] text-gray-400 shrink-0 bg-gray-100 px-1.5 py-0.5 rounded">クラス</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0 ml-3">
+                <button @click="restoreClass(c.id)"
+                  class="text-xs bg-gc-blue hover:bg-gc-blue-dark text-white px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  復元
+                </button>
+                <button @click="permanentlyDeleteClass(c.id)"
+                  class="text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-lg transition-colors">
+                  完全削除
+                </button>
+              </div>
+            </div>
+          </template>
+
+        </div>
+      </div>
+    </template>
 
       </div>
     </template>
@@ -903,7 +985,7 @@
                 <th class="sticky left-[10rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap min-w-[5rem]">学籍番号</th>
                 <th class="sticky left-[15rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap min-w-[7rem]">氏名</th>
                 <th class="sticky left-[22rem] z-10 bg-gray-50 text-left px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap min-w-[12rem]">メールアドレス</th>
-                <template x-for="t in tests" :key="t.id">
+                <template x-for="t in activeTests" :key="t.id">
                   <th @click="switchTest(t.id); page='settings'"
                     class="text-center px-3 py-2.5 font-medium text-gray-500 whitespace-nowrap border-r border-gc-border last:border-r-0 min-w-[10rem] cursor-pointer hover:bg-blue-50 transition-colors group">
                     <div x-text="t.name" class="text-gc-blue group-hover:underline"></div>
@@ -1068,7 +1150,7 @@
                     </template>
                   </td>
                   <!-- テストごとの結果セル -->
-                  <template x-for="t in tests" :key="t.id">
+                  <template x-for="t in activeTests" :key="t.id">
                     <td class="px-3 py-2.5 border-r border-gc-border last:border-r-0 text-center align-top min-w-[10rem]"
                       x-data="{ r: null, allR: [] }"
                       x-effect="allR = getStudentTestResultAll(student, t); r = allR[0] || null">
@@ -1140,15 +1222,25 @@
                 <p class="text-sm font-semibold text-gray-800" x-text="at.name"></p>
                 <p class="text-xs text-gray-400 mt-0.5">
                   <span x-text="at.results.length + '件の成績記録'"></span>
-                  <span class="mx-1">·</span>
-                  <span x-text="'最終受験: ' + new Date(Math.max(...at.results.map(r => new Date(r.date)))).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })"></span>
+                  <template x-if="at.results.length > 0">
+                    <span>
+                      <span class="mx-1">·</span>
+                      <span x-text="'最終受験: ' + new Date(Math.max(...at.results.map(r => new Date(r.date)))).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })"></span>
+                    </span>
+                  </template>
                 </p>
               </div>
-              <button @click="restoreTest(at)"
-                class="text-xs bg-gc-blue hover:bg-gc-blue-dark text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 font-medium shrink-0">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                復元する
-              </button>
+              <div class="flex items-center gap-2 shrink-0">
+                <button @click="restoreDeletedTest(at.id)"
+                  class="text-xs bg-gc-blue hover:bg-gc-blue-dark text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 font-medium">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                  復元する
+                </button>
+                <button @click="permanentlyDeleteTest(at.id)"
+                  class="text-xs text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors">
+                  完全削除
+                </button>
+              </div>
             </div>
             <!-- Results list -->
             <div class="divide-y divide-gc-border">
@@ -2424,7 +2516,7 @@
   <main x-show="result" class="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
 
     <!-- Simplified Student View (shown when scores are hidden from students) -->
-    <div x-show="userRole !== 'admin' && !showScoreToStudent" class="flex flex-col items-center text-center space-y-6">
+    <div x-show="userRole !== 'admin' && !settings.showScoreToStudent" class="flex flex-col items-center text-center space-y-6">
       <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center">
         <svg class="w-12 h-12 text-gc-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -2436,11 +2528,11 @@
       </div>
       <div class="bg-white rounded-2xl p-5 border border-gc-border w-full max-w-xs text-left space-y-1 shadow-sm">
         <p class="text-xs text-gray-500">試験が完了しました。採点が完了次第、結果をお知らせします。</p>
-        <p x-show="allowStudentHistory" class="text-xs text-gc-blue">マイページから採点結果をいつでも確認できます。</p>
-        <p x-show="!allowStudentHistory" class="text-xs text-gray-400">結果は管理者よりお知らせします。</p>
+        <p x-show="settings.allowStudentHistory" class="text-xs text-gc-blue">マイページから採点結果をいつでも確認できます。</p>
+        <p x-show="!settings.allowStudentHistory" class="text-xs text-gray-400">結果は管理者よりお知らせします。</p>
       </div>
       <div class="w-full max-w-xs space-y-3">
-        <button x-show="allowStudentHistory"
+        <button x-show="settings.allowStudentHistory"
           @click="mypageSelectedResult = null; page = 'mypage'"
           class="w-full bg-gc-blue hover:bg-gc-blue-dark text-white font-medium py-3.5 rounded-2xl transition-colors flex items-center justify-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2449,15 +2541,15 @@
           マイページで確認する
         </button>
         <button @click="page='student'; studentUser=null; studentName=''; studentEmail=''; studentNameConfirmed=false;"
-          :class="allowStudentHistory ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-gc-blue hover:bg-gc-blue-dark text-white'"
+          :class="settings.allowStudentHistory ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-gc-blue hover:bg-gc-blue-dark text-white'"
           class="w-full font-medium py-3.5 rounded-2xl transition-colors">
           最初の画面に戻る
         </button>
       </div>
     </div>
 
-    <!-- Detailed Result View (shown to Admin, OR to Student if showScoreToStudent is true) -->
-    <div x-show="userRole === 'admin' || showScoreToStudent" class="space-y-6">
+    <!-- Detailed Result View (shown to Admin, OR to Student if settings.showScoreToStudent is true) -->
+    <div x-show="userRole === 'admin' || settings.showScoreToStudent" class="space-y-6">
       <div class="bg-white rounded-2xl p-6 text-center border border-gc-border shadow-sm">
         <p class="text-sm text-gray-500 mb-1" x-text="settings.theme"></p>
         <div x-show="result && result.studentName" class="text-xs text-gray-400 mb-4" x-text="'受験者: ' + (result && result.studentName || '')"></div>
@@ -2563,7 +2655,7 @@
         <button @click="retryExam()" class="w-full bg-gc-blue hover:bg-gc-blue-dark text-white font-medium py-3.5 rounded-xl transition-colors shadow-sm">
           もう一度試験する
         </button>
-        <button x-show="userRole !== 'admin' && allowStudentHistory" @click="page='mypage'" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3.5 rounded-xl transition-colors shadow-sm">
+        <button x-show="userRole !== 'admin' && settings.allowStudentHistory" @click="page='mypage'" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium py-3.5 rounded-xl transition-colors shadow-sm">
           マイページ（過去の履歴）へ移動する
         </button>
         <button x-show="userRole === 'admin'" @click="page='admin'" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3.5 rounded-xl transition-colors border border-gray-300">
@@ -2646,14 +2738,14 @@
           class="bg-white rounded-xl border border-gc-border shadow-sm cursor-pointer hover:shadow-md hover:border-gc-blue transition-all group">
           <div class="p-4 flex items-start gap-3">
             <!-- Score badge -->
-            <div x-show="showScoreToStudent"
+            <div x-show="settings.showScoreToStudent"
               :class="(r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 80 ? 'bg-emerald-100 text-emerald-700' : (r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 60 ? 'bg-yellow-100 text-yellow-700' : (r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 40 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'"
               class="w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0 border border-transparent">
               <span class="text-xl font-bold tabular-nums leading-none"
                 x-text="r.adminScore ? r.adminScore.totalScore : r.totalScore"></span>
               <span class="text-xs font-medium">点</span>
             </div>
-            <div x-show="!showScoreToStudent"
+            <div x-show="!settings.showScoreToStudent"
               class="w-14 h-14 rounded-xl bg-gray-100 border border-gc-border flex items-center justify-center shrink-0">
               <svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -2664,7 +2756,7 @@
               <p class="text-xs text-gray-400 mb-0.5"
                 x-text="new Date(r.date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })"></p>
               <p class="text-sm font-medium text-gray-900 truncate" x-text="r.theme"></p>
-              <p x-show="showCommentToStudent"
+              <p x-show="settings.showCommentToStudent"
                 class="text-xs text-gray-500 mt-1 leading-relaxed line-clamp-2"
                 x-text="r.adminScore ? r.adminScore.overallComment : r.overallComment"></p>
             </div>
@@ -2673,8 +2765,8 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
             </svg>
           </div>
-          <!-- Score bar (if showScoreToStudent) -->
-          <div x-show="showScoreToStudent" class="px-4 pb-3">
+          <!-- Score bar (if settings.showScoreToStudent) -->
+          <div x-show="settings.showScoreToStudent" class="px-4 pb-3">
             <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
               <div :class="(r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 80 ? 'bg-emerald-500' : (r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 60 ? 'bg-yellow-500' : (r.adminScore ? r.adminScore.totalScore : r.totalScore) >= 40 ? 'bg-orange-500' : 'bg-red-500'"
                 class="h-full rounded-full score-bar"
@@ -2716,8 +2808,8 @@
       </div>
     </div>
 
-    <!-- Score summary card (only if showScoreToStudent) -->
-    <div x-show="showScoreToStudent" class="bg-white rounded-xl p-6 border border-gc-border shadow-sm text-center">
+    <!-- Score summary card (only if settings.showScoreToStudent) -->
+    <div x-show="settings.showScoreToStudent" class="bg-white rounded-xl p-6 border border-gc-border shadow-sm text-center">
       <p class="text-xs text-gray-400 mb-3">総合スコア</p>
       <div :class="mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 80 ? 'text-emerald-600' : mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 60 ? 'text-yellow-600' : mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 40 ? 'text-orange-500' : 'text-red-500'"
         class="text-7xl font-bold tabular-nums"
@@ -2728,8 +2820,8 @@
         x-text="mypageSelectedResult ? ((mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 90 ? 'A+' : (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 80 ? 'A' : (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 70 ? 'B' : (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 60 ? 'C' : (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.totalScore : mypageSelectedResult.totalScore) >= 50 ? 'D' : 'F') : ''"></div>
     </div>
 
-    <!-- Overall comment (only if showCommentToStudent) -->
-    <div x-show="showCommentToStudent && mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.overallComment : mypageSelectedResult.overallComment)"
+    <!-- Overall comment (only if settings.showCommentToStudent) -->
+    <div x-show="settings.showCommentToStudent && mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.overallComment : mypageSelectedResult.overallComment)"
       class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-2">
       <h2 class="text-sm font-medium text-gray-600 flex items-center gap-2">
         <svg class="w-4 h-4 text-gc-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2741,8 +2833,8 @@
         x-text="mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.overallComment : mypageSelectedResult.overallComment)"></p>
     </div>
 
-    <!-- Criteria scores (only if showScoreToStudent) -->
-    <template x-if="showScoreToStudent && mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.criteria : mypageSelectedResult.criteria) && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.criteria : mypageSelectedResult.criteria).length > 0">
+    <!-- Criteria scores (only if settings.showScoreToStudent) -->
+    <template x-if="settings.showScoreToStudent && mypageSelectedResult && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.criteria : mypageSelectedResult.criteria) && (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.criteria : mypageSelectedResult.criteria).length > 0">
       <div class="space-y-3">
         <h2 class="text-sm font-medium text-gray-600 px-1">評価基準別採点</h2>
         <template x-for="(c, i) in (mypageSelectedResult.adminScore ? mypageSelectedResult.adminScore.criteria : mypageSelectedResult.criteria)" :key="i">
@@ -2760,14 +2852,14 @@
                 class="h-full rounded-full score-bar"
                 :style="'width: ' + Math.min(100,(c.score/c.maxScore)*100) + '%'"></div>
             </div>
-            <p x-show="showCommentToStudent && c.comment" class="mt-2 text-xs text-gray-500 leading-relaxed" x-text="c.comment"></p>
+            <p x-show="settings.showCommentToStudent && c.comment" class="mt-2 text-xs text-gray-500 leading-relaxed" x-text="c.comment"></p>
           </div>
         </template>
       </div>
     </template>
 
     <!-- Improvements (show if comment is enabled) -->
-    <template x-if="showCommentToStudent && mypageSelectedResult && mypageSelectedResult.improvements && mypageSelectedResult.improvements.length > 0">
+    <template x-if="settings.showCommentToStudent && mypageSelectedResult && mypageSelectedResult.improvements && mypageSelectedResult.improvements.length > 0">
       <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm">
         <h2 class="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
           <svg class="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2787,7 +2879,7 @@
     </template>
 
     <!-- No score/comment message (when both are hidden) -->
-    <div x-show="!showScoreToStudent && !showCommentToStudent"
+    <div x-show="!settings.showScoreToStudent && !settings.showCommentToStudent"
       class="bg-white rounded-xl p-8 border border-gc-border shadow-sm text-center">
       <div class="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
         <svg class="w-7 h-7 text-gc-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">

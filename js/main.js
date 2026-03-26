@@ -19,33 +19,49 @@ function app() {
     adminNewPassword: '',
     adminTab: 'tests',  // 'tests' | 'system'
     adminPassword: 'admin',
+    // ゴミ箱内テスト（status === 'deleted'）＋成績データを付加
     get archivedTests() {
-      const activeIds = new Set(this.tests.map(t => t.id));
-      const map = new Map();
-      this.examResults.forEach(r => {
-        if (r.testId && !activeIds.has(r.testId)) {
-          if (!map.has(r.testId)) {
-            map.set(r.testId, { id: r.testId, name: r.testName || r.testId, results: [] });
-          }
-          map.get(r.testId).results.push(r);
-        }
-      });
-      return [...map.values()].sort((a, b) => {
-        const latestA = Math.max(...a.results.map(r => new Date(r.date)));
-        const latestB = Math.max(...b.results.map(r => new Date(r.date)));
-        return latestB - latestA;
-      });
+      return this.tests
+        .filter(t => t.status === 'deleted')
+        .map(t => {
+          const results = this.examResults.filter(r => r.testId === t.id);
+          return { ...t, results };
+        })
+        .sort((a, b) => {
+          if (a.results.length === 0 && b.results.length === 0) return 0;
+          if (a.results.length === 0) return 1;
+          if (b.results.length === 0) return -1;
+          const latestA = Math.max(...a.results.map(r => new Date(r.date)));
+          const latestB = Math.max(...b.results.map(r => new Date(r.date)));
+          return latestB - latestA;
+        });
     },
 
-    async restoreTest(archivedTest) {
-      if (!confirm(`「${archivedTest.name}」を復元しますか？\nクラス・テスト管理に追加されます（テーマ等の設定は初期状態になります）。`)) return;
-      const defaultSettings = {
-        theme: '', criteria: [{ name: '理解度', description: '', maxScore: 100 }],
-        questions: [], autoQuestionCount: 5, difficultyDistribution: [0,0,0,0,0], learningMode: false
-      };
-      this.tests.push({ id: archivedTest.id, name: archivedTest.name, classIds: [], status: 'ended', settings: defaultSettings });
-      await this.saveTestsToStorage();
-      alert(`「${archivedTest.name}」を復元しました。クラス・テスト管理タブで確認できます。`);
+    // アクティブなテスト（削除済みを除く）
+    get activeTests() {
+      return this.tests.filter(t => t.status !== 'deleted');
+    },
+
+    async restoreDeletedTest(id) {
+      const t = this.tests.find(t => t.id === id);
+      if (!t) return;
+      if (!confirm(`「${t.name}」を復元しますか？\nクラス・テスト管理に戻ります。`)) return;
+      t.status = 'draft';
+      const { error } = await _supabase.from('tests').upsert({
+        id: t.id, name: t.name, class_id: t.classId || null,
+        class_ids: t.classIds || [], status: 'draft', settings: t.settings || {}
+      });
+      if (error) { alert('復元に失敗しました: ' + error.message); t.status = 'deleted'; return; }
+      alert(`「${t.name}」を復元しました。`);
+    },
+
+    async permanentlyDeleteTest(id) {
+      const t = this.tests.find(t => t.id === id);
+      if (!t) return;
+      if (!confirm(`「${t.name}」を完全に削除しますか？\nこの操作は取り消せません。\n※ 成績データは残ります。`)) return;
+      this.tests = this.tests.filter(x => x.id !== id);
+      const { error } = await _supabase.from('tests').delete().eq('id', id);
+      if (error) { alert('削除に失敗しました: ' + error.message); }
     },
 
     get filteredResults() {
@@ -78,7 +94,10 @@ function app() {
       ],
       questions: [],
       autoQuestionCount: 5,
-      difficultyDistribution: [0, 0, 0, 0, 0]
+      difficultyDistribution: [0, 0, 0, 0, 0],
+      showScoreToStudent: true,
+      showCommentToStudent: true,
+      allowStudentHistory: false
     },
     messages: [],
     inputText: '',
@@ -111,9 +130,6 @@ function app() {
     adminFilterText: '',
     isGeneratingFromDoc: false,
     saved: false,
-    showScoreToStudent: true,
-    showCommentToStudent: true,
-    allowStudentHistory: false,
     examResults: [],
     realtimeChannel: null,
     adminResultsSubTab: 'roster',
@@ -147,6 +163,7 @@ function app() {
     rosterAiVisible: false,
     _rosterAiSystemContext: '',
     archivedTestsVisible: false,
+    deletedClasses: [],
     checkResultsName: '',
     studentPastResults: [],
     showPastResults: false,
@@ -343,6 +360,12 @@ function app() {
         localStorage.removeItem('gemini_model');
       }
 
+      // 削除済みクラスをlocalStorageから復元
+      try {
+        const savedDelClasses = localStorage.getItem('deleted_classes');
+        if (savedDelClasses) this.deletedClasses = JSON.parse(savedDelClasses);
+      } catch(e) { this.deletedClasses = []; }
+
       // パスワードログイン管理者のセッション復元（同タブ・別タブ両対応）
       if (!this.isAdmin && sessionStorage.getItem('admin_session') === '1') {
         this.isAdmin = true;
@@ -396,6 +419,9 @@ function app() {
         this.settings = JSON.parse(JSON.stringify(t.settings));
         if (!this.settings.questions) this.settings.questions = [];
         if (!this.settings.criteria) this.settings.criteria = [];
+        if (this.settings.showScoreToStudent === undefined) this.settings.showScoreToStudent = true;
+        if (this.settings.showCommentToStudent === undefined) this.settings.showCommentToStudent = true;
+        if (this.settings.allowStudentHistory === undefined) this.settings.allowStudentHistory = false;
       }
     },
 
@@ -482,16 +508,46 @@ function app() {
     },
 
     removeClass(id) {
-      if (!confirm('このクラスを削除しますか？\nクラスに割り当てられたテストの割り当てたては解除されます。')) return;
-      // Unassign class from all tests
+      if (!confirm('このクラスをゴミ箱に移動しますか？\n管理画面のゴミ箱から復元できます。')) return;
+      const cls = this.classes.find(c => c.id === id);
+      if (!cls) return;
+      // ゴミ箱に保存
+      this.deletedClasses.push({ ...cls, deletedAt: new Date().toISOString() });
+      this._saveDeletedClasses();
+      // テストの割り当てを解除
       this.tests.forEach(t => {
         if (t.classIds && t.classIds.includes(id)) {
           t.classIds = t.classIds.filter(cid => cid !== id);
         }
       });
       this.classes = this.classes.filter(c => c.id !== id);
-      this.saveClassesToStorage();
+      _supabase.from('classes').delete().eq('id', id);
       this.saveTestsToStorage();
+    },
+
+    async restoreClass(id) {
+      const idx = this.deletedClasses.findIndex(c => c.id === id);
+      if (idx === -1) return;
+      const cls = this.deletedClasses[idx];
+      const { deletedAt, ...classData } = cls;
+      const { error } = await _supabase.from('classes').upsert({ id: classData.id, name: classData.name });
+      if (error) { alert('クラスの復元に失敗しました: ' + error.message); return; }
+      this.classes.push(classData);
+      this.deletedClasses.splice(idx, 1);
+      this._saveDeletedClasses();
+      alert(`「${cls.name}」を復元しました。`);
+    },
+
+    permanentlyDeleteClass(id) {
+      const cls = this.deletedClasses.find(c => c.id === id);
+      if (!cls) return;
+      if (!confirm(`「${cls.name}」を完全に削除しますか？\nこの操作は取り消せません。`)) return;
+      this.deletedClasses = this.deletedClasses.filter(c => c.id !== id);
+      this._saveDeletedClasses();
+    },
+
+    _saveDeletedClasses() {
+      localStorage.setItem('deleted_classes', JSON.stringify(this.deletedClasses));
     },
 
     getClassUrl(classId) {
@@ -568,6 +624,9 @@ function app() {
         if (this.settings.criteria.length > 0 && typeof this.settings.criteria[0] === 'string') {
           this.settings.criteria = this.settings.criteria.map(c => ({ name: c, description: '' }));
         }
+        if (this.settings.showScoreToStudent === undefined) this.settings.showScoreToStudent = true;
+        if (this.settings.showCommentToStudent === undefined) this.settings.showCommentToStudent = true;
+        if (this.settings.allowStudentHistory === undefined) this.settings.allowStudentHistory = false;
       }
       this.saveTestsToStorage();
     },
@@ -585,7 +644,10 @@ function app() {
         questions: [],
         autoQuestionCount: 5,
         difficultyDistribution: [0,0,0,0,0],
-        learningMode: false
+        learningMode: false,
+        showScoreToStudent: true,
+        showCommentToStudent: true,
+        allowStudentHistory: false
       };
       this.tests.push({ id, name, classIds: [], status: 'draft', settings: defaultSettings });
       this.switchTest(id);
@@ -593,18 +655,20 @@ function app() {
     },
 
     async deleteTestAndBack(id) {
-      const existed = this.tests.some(t => t.id === id);
       await this.deleteTest(id);
-      if (existed && !this.tests.some(t => t.id === id)) this.page = 'admin';
+      const t = this.tests.find(t => t.id === id);
+      if (t && t.status === 'deleted') this.page = 'admin';
     },
 
     async deleteTest(id) {
-      const hasResults = this.examResults.some(r => r.testId === id);
-      if (hasResults && !confirm('このテストには採点結果があります。本当に削除しますか？')) return;
-      if (!hasResults && !confirm('このテストを削除しますか？')) return;
-      this.tests = this.tests.filter(t => t.id !== id);
+      if (!confirm('このテストをゴミ箱に移動しますか？\n管理画面のゴミ箱から復元できます。')) return;
+      const t = this.tests.find(t => t.id === id);
+      if (!t) return;
+      t.status = 'deleted';
+      // アクティブテストが削除対象なら別のテストへ切り替え
       if (this.activeTestId === id) {
-        if (this.tests.length > 0) this.switchTest(this.tests[0].id);
+        const remaining = this.activeTests;
+        if (remaining.length > 0) this.switchTest(remaining[0].id);
         else {
           this.activeTestId = null;
           this.settings = {
@@ -617,17 +681,22 @@ function app() {
             questions: [],
             autoQuestionCount: 5,
             difficultyDistribution: [0,0,0,0,0],
-            learningMode: false
+            learningMode: false,
+            showScoreToStudent: true,
+            showCommentToStudent: true,
+            allowStudentHistory: false
           };
         }
       }
-      const { error } = await _supabase.from('tests').delete().eq('id', id);
+      const { error } = await _supabase.from('tests').upsert({
+        id: t.id, name: t.name, class_id: t.classId || null,
+        class_ids: t.classIds || [], status: 'deleted', settings: t.settings || {}
+      });
       if (error) {
-        console.error('Failed to delete test:', error);
-        alert('テストの削除に失敗しました。\n' + error.message + '\n\nSupabaseのRLSポリシーを確認してください。');
-        return;
+        console.error('Failed to move test to trash:', error);
+        alert('ゴミ箱への移動に失敗しました。\n' + error.message);
+        t.status = 'draft'; // ロールバック
       }
-      await this.saveTestsToStorage();
     },
 
     startEditTest(id, name) {
@@ -1179,9 +1248,6 @@ ${resultText}
             if (key === 'google_client_id') this.googleClientId = value;
             if (key === 'google_picker_api_key') this.googlePickerApiKey = value;
             if (key === 'google_picker_client_id') this.googlePickerClientId = value;
-            if (key === 'show_score_to_student') this.showScoreToStudent = value === 'true';
-            if (key === 'show_comment_to_student') this.showCommentToStudent = value === 'true';
-            if (key === 'allow_student_history') this.allowStudentHistory = value === 'true';
             if (key === 'focus_monitoring_enabled') this.focusMonitoringEnabled = value === 'true';
             if (key === 'gemini_api_key' && value) this.apiKey = value;
           });
