@@ -508,7 +508,7 @@ function app() {
     },
 
     removeClass(id) {
-      if (!confirm('このクラスをゴミ箱に移動しますか？\n管理画面のゴミ箱から復元できます。')) return;
+      if (!confirm('このクラスを削除しますか？\n管理画面の「過去の試験」から復元できます。')) return;
       const cls = this.classes.find(c => c.id === id);
       if (!cls) return;
       // ゴミ箱に保存
@@ -661,7 +661,7 @@ function app() {
     },
 
     async deleteTest(id) {
-      if (!confirm('このテストをゴミ箱に移動しますか？\n管理画面のゴミ箱から復元できます。')) return;
+      if (!confirm('このテストを削除しますか？\n管理画面の「過去の試験」から復元できます。')) return;
       const t = this.tests.find(t => t.id === id);
       if (!t) return;
       t.status = 'deleted';
@@ -694,7 +694,7 @@ function app() {
       });
       if (error) {
         console.error('Failed to move test to trash:', error);
-        alert('ゴミ箱への移動に失敗しました。\n' + error.message);
+        alert('削除に失敗しました。\n' + error.message);
         t.status = 'draft'; // ロールバック
       }
     },
