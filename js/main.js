@@ -2352,7 +2352,7 @@ ${this.settings.documentText.slice(0, 15000)}
       const t = this.tests.find(t => t.id === this.activeTestId);
       if (t) {
         t.settings = JSON.parse(JSON.stringify(this.settings));
-        await _supabase.from('tests').upsert({
+        const { error } = await _supabase.from('tests').upsert({
           id: t.id,
           name: t.name,
           class_id: t.classId || null,
@@ -2360,6 +2360,13 @@ ${this.settings.documentText.slice(0, 15000)}
           status: t.status || 'draft',
           settings: t.settings
         });
+        if (error) {
+          console.error('saveSettings error:', error);
+          alert('テスト設定の保存に失敗しました:\n' + error.message + '\n\nSupabaseのRLSポリシーを確認してください。');
+          return;
+        }
+      } else {
+        console.warn('saveSettings: activeTestId not found:', this.activeTestId, 'tests:', this.tests.map(t=>t.id));
       }
       localStorage.setItem('gemini_model', this.selectedModel);
       this.saved = true;
