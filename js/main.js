@@ -12,7 +12,7 @@ function app() {
   const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
   return {
-    page: 'student',
+    page: 'admin-login',
     isAdmin: false,
     adminLoginInput: '',
     adminLoginError: false,
@@ -255,8 +255,6 @@ function app() {
       if (this.userRole === 'admin' || this.userRole === 'teacher') {
         await this.loadFromSupabase();
       }
-      
-      this.authLoading = false;
     },
 
     async adminLogout() {
@@ -335,7 +333,6 @@ function app() {
           }
         });
       }
-      this.authLoading = false;
 
       // Local settings (device-specific, keep in localStorage)
       const storedKey = localStorage.getItem('gemini_api_key');
@@ -407,6 +404,9 @@ function app() {
           // If multiple tests, student will see the selector dropdown
         }
       } catch(e) {}
+
+      // All init done — remove loading screen
+      this.authLoading = false;
     },
 
     get availableTestsForStudent() {

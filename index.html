@@ -138,8 +138,17 @@
 </head>
 <body class="bg-gc-surface text-gray-800 min-h-screen font-sans" x-data="app()" x-init="init()">
 
+<!-- ========== LOADING SCREEN (shown while init() runs) ========== -->
+<div x-show="authLoading" class="fixed inset-0 z-50 bg-gc-surface flex flex-col items-center justify-center gap-4" style="display:flex">
+  <svg class="w-10 h-10 text-gc-blue animate-spin" fill="none" viewBox="0 0 24 24">
+    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+  </svg>
+  <p class="text-sm text-gray-400">読み込み中...</p>
+</div>
+
 <!-- ========== STUDENT HOME PAGE ========== -->
-<div x-show="page === 'student'" class="min-h-screen flex flex-col items-center justify-center px-4 py-10 bg-gc-surface relative">
+<div x-show="!authLoading && page === 'student'" class="min-h-screen flex flex-col items-center justify-center px-4 py-10 bg-gc-surface relative">
   <button x-show="userRole === 'admin' && !(_pendingTestIdFromUrl || _pendingClassIdFromUrl)" @click="page = 'admin'" class="absolute top-4 right-4 text-xs bg-indigo-100 text-indigo-700 font-medium px-3 py-1.5 rounded-xl hover:bg-indigo-200 transition-colors shadow-sm">
     ⚙️ 管理者画面へ戻る
   </button>
@@ -319,7 +328,7 @@
 </div>
 
 <!-- ========== STAFF LOGIN PAGE ========== -->
-<div x-show="page === 'admin-login'" class="min-h-screen flex items-center justify-center px-4 bg-gc-surface">
+<div x-show="!authLoading && page === 'admin-login'" class="min-h-screen flex items-center justify-center px-4 bg-gc-surface">
   <div class="w-full max-w-sm space-y-6">
     <div class="text-center">
       <div class="w-20 h-20 bg-indigo-50 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-indigo-100">
@@ -361,7 +370,7 @@
 
 
 <!-- ========== ADMIN DASHBOARD PAGE ========== -->
-<div x-show="page === 'admin'" class="min-h-screen flex flex-col bg-gc-surface">
+<div x-show="!authLoading && page === 'admin'" class="min-h-screen flex flex-col bg-gc-surface">
   <header class="border-b border-gc-border px-5 py-3.5 flex items-center justify-between bg-white sticky top-0 z-10 shadow-sm">
     <div class="flex items-center gap-2">
       <div class="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center border border-green-200">
@@ -1309,7 +1318,7 @@
 </div>
 
 <!-- ========== SETTINGS PAGE ========== -->
-<div x-show="page === 'settings'" class="min-h-screen flex flex-col bg-gc-surface">
+<div x-show="!authLoading && page === 'settings'" class="min-h-screen flex flex-col bg-gc-surface">
   <header class="border-b border-gc-border px-6 py-4 flex items-center justify-between bg-white shadow-sm">
     <button @click="page='admin'" class="text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-2 text-sm">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2103,7 +2112,7 @@
 </div>
 
 <!-- ========== MODE SELECT PAGE ========== -->
-<div x-show="page === 'mode-select'" class="min-h-screen flex flex-col items-center justify-center px-4 py-10 bg-gc-surface">
+<div x-show="!authLoading && page === 'mode-select'" class="min-h-screen flex flex-col items-center justify-center px-4 py-10 bg-gc-surface">
   <div class="w-full max-w-sm space-y-6">
     <!-- Back button -->
     <button @click="page = 'student'"
@@ -2177,7 +2186,7 @@
 </div>
 
 <!-- ========== EXAM PAGE ========== -->
-<div x-show="page === 'exam'" class="min-h-screen flex flex-col bg-gc-surface">
+<div x-show="!authLoading && page === 'exam'" class="min-h-screen flex flex-col bg-gc-surface">
 
   <!-- ===== END EXAM CONFIRMATION MODAL ===== -->
   <div x-show="showEndConfirm"
@@ -2609,7 +2618,7 @@
 </div>
 
 <!-- ========== RESULT PAGE ========== -->
-<div x-show="page === 'result'" class="min-h-screen flex flex-col bg-gc-surface">
+<div x-show="!authLoading && page === 'result'" class="min-h-screen flex flex-col bg-gc-surface">
   <header class="border-b border-gc-border px-4 py-3 flex items-center justify-between bg-white shadow-sm">
     <div class="w-16"></div>
     <h1 class="text-base font-semibold text-gray-900">試験終了</h1>
@@ -2774,7 +2783,7 @@
 </div>
 
 <!-- ========== MY PAGE ========== -->
-<div x-show="page === 'mypage'" class="min-h-screen flex flex-col bg-gc-surface">
+<div x-show="!authLoading && page === 'mypage'" class="min-h-screen flex flex-col bg-gc-surface">
 
   <!-- Header -->
   <header class="border-b border-gc-border px-4 py-3 flex items-center gap-3 bg-white sticky top-0 z-10 shadow-sm">
