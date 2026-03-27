@@ -189,6 +189,12 @@
       </select>
     </div>
 
+    <!-- Test unavailable notice (direct URL to non-published test) -->
+    <div x-show="_testUnavailableReason" class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center space-y-1">
+      <p class="text-sm font-medium text-amber-700" x-text="_testUnavailableReason"></p>
+      <p class="text-xs text-amber-600">管理者にお問い合わせください。</p>
+    </div>
+
     <!-- Test selector -->
     <div class="space-y-2" x-show="availableTestsForStudent.length > 1 && !activeTestId">
       <p class="text-xs text-gray-600 font-medium">テストを選択してください</p>

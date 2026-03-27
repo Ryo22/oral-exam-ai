@@ -139,6 +139,7 @@ function app() {
     newRosterEntry: { classId: '', studentNumber: '', name: '', email: '' },
     classes: [],
     studentClassId: '',
+    _testUnavailableReason: '',
     adminFilterClassId: 'all',
     editingClassId: null,
     editingClassName: '',
@@ -390,14 +391,16 @@ function app() {
         }
 
         if (testId) {
-          // Load specific test by URL
+          // Load specific test by URL — published only
           const t = this.tests.find(t => t.id === testId);
-          if (t) {
+          if (t && t.status === 'published') {
             this.selectTestForStudent(testId);
+          } else if (t && t.status !== 'published') {
+            this._testUnavailableReason = t.status === 'ended' ? 'このテストは終了しました。' : 'このテストは現在公開されていません。';
           }
         } else if (classId) {
-          // Auto-select the only test for this class
-          const classTests = this.tests.filter(t => t.classIds && t.classIds.includes(classId));
+          // Auto-select the only published test for this class
+          const classTests = this.tests.filter(t => t.status === 'published' && t.classIds && t.classIds.includes(classId));
           if (classTests.length === 1) {
             this.selectTestForStudent(classTests[0].id);
           }
@@ -2468,6 +2471,13 @@ ${this.settings.documentText.slice(0, 15000)}
     },
 
     startExamPage() {
+      // Guard: test must be published
+      const t = this.tests.find(t => t.id === this.activeTestId);
+      if (!t || t.status !== 'published') {
+        const reason = t?.status === 'ended' ? 'このテストは終了しました。' : 'このテストは現在公開されていません。';
+        alert(reason);
+        return;
+      }
       this.messages = [];
       this.examStarted = false;
       this.result = null;
