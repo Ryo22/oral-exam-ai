@@ -70,10 +70,11 @@
   .md-body code { background: rgba(0,0,0,0.07); border-radius: 3px; padding: 0.1em 0.35em; font-size: 0.9em; font-family: monospace; }
   .md-body pre { background: rgba(0,0,0,0.06); border-radius: 6px; padding: 0.6em 0.8em; margin: 0.4em 0; overflow-x: auto; }
   .md-body pre code { background: none; padding: 0; }
-  .md-body h1, .md-body h2, .md-body h3 { font-weight: 600; margin: 0.5em 0 0.25em; }
-  .md-body h1 { font-size: 1.1em; }
+  .md-body h1, .md-body h2, .md-body h3, .md-body h4 { font-weight: 600; margin: 0.8em 0 0.3em; line-height: 1.4; }
+  .md-body h1 { font-size: 1.1em; border-bottom: 1px solid rgba(0,0,0,0.08); padding-bottom: 0.2em; }
   .md-body h2 { font-size: 1.05em; }
-  .md-body h3 { font-size: 1em; }
+  .md-body h3 { font-size: 1em; color: #1a73e8; }
+  .md-body h4 { font-size: 0.95em; color: #444; }
   .md-body blockquote { border-left: 3px solid rgba(0,0,0,0.15); margin: 0.4em 0; padding-left: 0.75em; color: inherit; opacity: 0.85; }
   /* Quill light theme overrides */
   .ql-toolbar.ql-snow {
@@ -1834,7 +1835,7 @@
             <div class="w-7 h-7 rounded-full bg-gc-blue shrink-0 flex items-center justify-center text-white text-xs font-bold">AI</div>
           </template>
           <div :class="msg.role === 'user' ? 'bg-gc-blue text-white rounded-2xl rounded-br-sm max-w-[80%] px-4 py-3 text-sm leading-relaxed' : 'bg-white border border-gc-border text-gray-800 rounded-2xl rounded-bl-sm max-w-[85%] px-4 py-3 text-sm leading-relaxed shadow-sm md-body'"
-            x-text="msg.content"></div>
+            x-html="msg.role === 'user' ? msg.content : (typeof marked !== 'undefined' ? marked.parse(msg.content) : msg.content)"></div>
         </div>
       </template>
       <template x-if="rosterAiLoading && rosterAiMessages.length > 0">
