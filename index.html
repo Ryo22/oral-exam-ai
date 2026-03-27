@@ -1318,8 +1318,9 @@
     </div>
     <div class="flex items-center gap-2">
       <button @click="saveSettings()"
-        class="text-sm bg-gc-blue hover:bg-gc-blue-dark text-white font-medium px-4 py-2 rounded-xl transition-colors"
-        x-text="saved ? '保存済み ✓' : '設定を保存'"></button>
+        :class="saved ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-gc-blue hover:bg-gc-blue-dark'"
+        class="text-sm text-white font-medium px-4 py-2 rounded-xl transition-all"
+        x-text="saved ? '保存しました ✓' : '設定を保存'"></button>
       <button @click="deleteTestAndBack(activeTestId)"
         title="このテストを削除"
         class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-xl transition-colors border border-transparent hover:border-red-200">
@@ -1357,6 +1358,63 @@
             class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
         </button>
       </label>
+    </section>
+
+    <!-- Result display & anti-cheat settings (per-test) -->
+    <section class="space-y-3">
+      <!-- 試験後表示 -->
+      <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-3">
+        <p class="text-xs text-gray-600 font-medium">試験終了後に受験者へ表示する情報</p>
+        <label class="flex items-start gap-3 cursor-pointer">
+          <div class="flex-1 min-w-0 overflow-hidden">
+            <span class="text-sm text-gray-700 block">過去の採点結果をマイページに表示</span>
+            <p class="text-xs text-gray-400 mt-0.5">ONにすると、受験者が自分の名前でログイン後に公開済み結果の一覧が表示されます</p>
+          </div>
+          <button @click="settings.allowStudentHistory = !settings.allowStudentHistory; saveSettings()"
+            :class="settings.allowStudentHistory ? 'bg-gc-green' : 'bg-gray-300'"
+            class="w-12 h-6 rounded-full flex items-center transition-colors flex-none mt-0.5 px-0.5">
+            <span :class="settings.allowStudentHistory ? 'ml-6' : 'ml-0'"
+              class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
+          </button>
+        </label>
+        <div class="border-t border-gc-border pt-3">
+          <p class="text-xs text-gray-500 mb-2">結果ページに表示する内容</p>
+        </div>
+        <label class="flex items-center gap-3 cursor-pointer">
+          <span class="text-sm text-gray-700 flex-1 min-w-0 truncate">スコア・グレード</span>
+          <button @click="settings.showScoreToStudent = !settings.showScoreToStudent; saveSettings()"
+            :class="settings.showScoreToStudent ? 'bg-gc-green' : 'bg-gray-300'"
+            class="w-12 h-6 rounded-full flex items-center transition-colors flex-none px-0.5">
+            <span :class="settings.showScoreToStudent ? 'ml-6' : 'ml-0'"
+              class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
+          </button>
+        </label>
+        <label class="flex items-center gap-3 cursor-pointer">
+          <span class="text-sm text-gray-700 flex-1 min-w-0 truncate">総合コメント</span>
+          <button @click="settings.showCommentToStudent = !settings.showCommentToStudent; saveSettings()"
+            :class="settings.showCommentToStudent ? 'bg-gc-green' : 'bg-gray-300'"
+            class="w-12 h-6 rounded-full flex items-center transition-colors flex-none px-0.5">
+            <span :class="settings.showCommentToStudent ? 'ml-6' : 'ml-0'"
+              class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
+          </button>
+        </label>
+      </div>
+      <!-- 不正行為対策 -->
+      <div class="bg-white rounded-xl p-4 border border-gc-border shadow-sm space-y-3">
+        <p class="text-xs text-gray-600 font-medium">不正行為対策</p>
+        <label class="flex items-start gap-3 cursor-pointer">
+          <div class="flex-1 min-w-0 overflow-hidden">
+            <span class="text-sm text-gray-700 block">フォーカス監視（画面離脱検知）</span>
+            <p class="text-xs text-gray-400 mt-0.5">試験中に他の画面へ移動した回数を記録。問題数×3回または12回超過で要注意フラグを立てます</p>
+          </div>
+          <button @click="settings.focusMonitoringEnabled = !settings.focusMonitoringEnabled; saveSettings()"
+            :class="settings.focusMonitoringEnabled ? 'bg-gc-green' : 'bg-gray-300'"
+            class="w-12 h-6 rounded-full flex items-center transition-colors flex-none mt-0.5 px-0.5">
+            <span :class="settings.focusMonitoringEnabled ? 'ml-6' : 'ml-0'"
+              class="w-5 h-5 bg-white rounded-full shadow block shrink-0 transition-all duration-200"></span>
+          </button>
+        </label>
+      </div>
     </section>
 
     <!-- Criteria - Dynamic -->
@@ -2163,7 +2221,7 @@
       </div>
       <div class="text-xs text-gray-400 flex items-center justify-center gap-2">
         <span x-text="messages.filter(m => m.role === 'user').length + ' 回答済み'"></span>
-        <span x-show="focusMonitoringEnabled && focusViolationCount > 0"
+        <span x-show="(settings.focusMonitoringEnabled ?? focusMonitoringEnabled) && focusViolationCount > 0"
           :class="focusViolationFlagged ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'"
           class="text-xs px-1.5 py-0.5 rounded font-medium"
           x-text="'⚠ ' + focusViolationCount + '回'"></span>

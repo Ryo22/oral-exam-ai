@@ -97,7 +97,8 @@ function app() {
       difficultyDistribution: [0, 0, 0, 0, 0],
       showScoreToStudent: true,
       showCommentToStudent: true,
-      allowStudentHistory: false
+      allowStudentHistory: false,
+      focusMonitoringEnabled: false
     },
     messages: [],
     inputText: '',
@@ -422,6 +423,7 @@ function app() {
         if (this.settings.showScoreToStudent === undefined) this.settings.showScoreToStudent = true;
         if (this.settings.showCommentToStudent === undefined) this.settings.showCommentToStudent = true;
         if (this.settings.allowStudentHistory === undefined) this.settings.allowStudentHistory = false;
+        if (this.settings.focusMonitoringEnabled === undefined) this.settings.focusMonitoringEnabled = false;
       }
     },
 
@@ -627,6 +629,7 @@ function app() {
         if (this.settings.showScoreToStudent === undefined) this.settings.showScoreToStudent = true;
         if (this.settings.showCommentToStudent === undefined) this.settings.showCommentToStudent = true;
         if (this.settings.allowStudentHistory === undefined) this.settings.allowStudentHistory = false;
+        if (this.settings.focusMonitoringEnabled === undefined) this.settings.focusMonitoringEnabled = false;
       }
       this.saveTestsToStorage();
     },
@@ -647,7 +650,8 @@ function app() {
         learningMode: false,
         showScoreToStudent: true,
         showCommentToStudent: true,
-        allowStudentHistory: false
+        allowStudentHistory: false,
+        focusMonitoringEnabled: false
       };
       this.tests.push({ id, name, classIds: [], status: 'draft', settings: defaultSettings });
       this.switchTest(id);
@@ -684,7 +688,8 @@ function app() {
             learningMode: false,
             showScoreToStudent: true,
             showCommentToStudent: true,
-            allowStudentHistory: false
+            allowStudentHistory: false,
+            focusMonitoringEnabled: false
           };
         }
       }
@@ -870,6 +875,29 @@ function app() {
             const r = payload.new;
             const idx = this.examResults.findIndex(e => String(e.id) === String(r.id));
             if (idx !== -1) this.examResults.splice(idx, 1, this._mapResultRow(r));
+          })
+          .subscribe();
+      }
+
+      // Supabase Realtime: テスト設定の変更を即時反映（試験中は除く）
+      if (!this._realtimeTestsChannel) {
+        this._realtimeTestsChannel = _supabase
+          .channel('tests_live')
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tests' }, (payload) => {
+            const updated = payload.new;
+            const idx = this.tests.findIndex(t => String(t.id) === String(updated.id));
+            if (idx !== -1) {
+              this.tests[idx] = {
+                ...this.tests[idx],
+                name: updated.name,
+                status: updated.status,
+                settings: updated.settings || this.tests[idx].settings
+              };
+              // 試験中でなければアクティブテストの設定も更新
+              if (String(updated.id) === String(this.activeTestId) && !this.examStarted) {
+                this.settings = JSON.parse(JSON.stringify(updated.settings || this.settings));
+              }
+            }
           })
           .subscribe();
       }
@@ -2972,7 +3000,7 @@ ${criteriaText}
     // ========== FOCUS MONITORING / ANTI-CHEAT ==========
 
     setupFocusMonitoring() {
-      if (!this.focusMonitoringEnabled) return;
+      if (!(this.settings.focusMonitoringEnabled ?? this.focusMonitoringEnabled)) return;
       // Reset counts
       this.focusViolationCount = 0;
       this.focusViolations = [];
