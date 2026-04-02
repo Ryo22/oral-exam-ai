@@ -864,13 +864,15 @@ ${this.settings.documentText.slice(0, 15000)}
       const t = this.tests.find(t => t.id === this.activeTestId);
       if (t) {
         t.settings = JSON.parse(JSON.stringify(this.settings));
-        await _supabase.from('tests').upsert({
+        const { error } = await _supabase.from('tests').upsert({
           id: t.id,
           name: t.name,
           class_id: t.classId || null,
           class_ids: t.classIds || [],
+          status: t.status || 'draft',
           settings: t.settings
         });
+        if (error) { alert('設定の保存に失敗しました\n' + error.message); return; }
       }
       localStorage.setItem('gemini_model', this.selectedModel);
       this.saved = true;
