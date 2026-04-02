@@ -356,9 +356,13 @@
       <input type="email" x-model="authEmail" placeholder="管理者・教員メールアドレス" required class="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm" />
       <input type="password" x-model="authPassword" placeholder="パスワード (6文字以上)" required minlength="6" class="w-full bg-white border border-gray-300 rounded-xl px-4 py-3 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm" />
       <p x-show="authError" class="text-xs text-red-500 text-center" x-text="authError"></p>
-      
       <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-xl transition-colors shadow-sm text-sm" x-text="authMode === 'login' ? 'ログイン' : '新規登録'"></button>
     </form>
+
+    <div class="text-center">
+      <button @click="authMode = authMode === 'login' ? 'signup' : 'login'; authError = '';" class="text-xs text-indigo-600 hover:underline"
+        x-text="authMode === 'login' ? 'アカウントをお持ちでない方は新規登録' : 'すでにアカウントをお持ちの場合はログイン'"></button>
+    </div>
 
     <button @click="page='student'; authEmail=''; authPassword=''; authError='';" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-3 rounded-xl transition-colors text-sm">
       生徒画面へ戻る
