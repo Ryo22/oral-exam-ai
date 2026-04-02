@@ -296,10 +296,22 @@ function app() {
 
     async loginWithGoogle() {
       if (typeof _supabase === 'undefined' || !_supabase) return alert('Supabaseが設定されていません。');
-      await _supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: 'https://ryo22.github.io/oral-exam-ai/' }
+      if (!this.googleClientId) return alert('管理者設定からGoogle Client IDを設定してください。');
+      google.accounts.id.initialize({
+        client_id: this.googleClientId,
+        callback: async (response) => {
+          try {
+            const { error } = await _supabase.auth.signInWithIdToken({
+              provider: 'google',
+              token: response.credential,
+            });
+            if (error) throw error;
+          } catch (err) {
+            alert(err.message || 'Googleログインに失敗しました');
+          }
+        }
       });
+      google.accounts.id.prompt();
     },
 
     async init() {
