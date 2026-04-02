@@ -442,10 +442,11 @@ function app() {
       }
     },
 
-    saveApiKey() {
+    async saveApiKey() {
       localStorage.setItem('gemini_api_key', this.apiKey);
       if (typeof _supabase !== 'undefined' && _supabase) {
-        _supabase.from('app_settings').upsert({ key: 'gemini_api_key', value: this.apiKey }).then();
+        const { error } = await _supabase.from('app_settings').upsert({ key: 'gemini_api_key', value: this.apiKey });
+        if (error) { console.error('APIキー保存エラー:', error); alert('APIキーの保存に失敗しました\n' + error.message); }
       }
     },
 
@@ -485,8 +486,9 @@ function app() {
       this.$nextTick(() => { this.editingClassId = id; this.editingClassName = name; });
     },
 
-    saveClassesToStorage() {
-        _supabase.from('classes').upsert(this.classes.map(c => ({ id: c.id, name: c.name })));
+    async saveClassesToStorage() {
+      const { error } = await _supabase.from('classes').upsert(this.classes.map(c => ({ id: c.id, name: c.name })));
+      if (error) { console.error('クラス保存エラー:', error); alert('クラスの保存に失敗しました\n' + error.message); }
     },
 
     async addTeacher() {
@@ -589,7 +591,7 @@ function app() {
       const url = base + '?test=' + testId + '&class=' + classId;
       navigator.clipboard.writeText(url).then(() => alert('URLをコピーしました:\n' + url)).catch(() => prompt('このURLをコピーしてください:', url));
     },
-    toggleTestClass(testId, classId, checked) {
+    async toggleTestClass(testId, classId, checked) {
       const t = this.tests.find(t => t.id === testId);
       if (!t) return;
       if (!t.classIds) t.classIds = [];
@@ -598,7 +600,8 @@ function app() {
       } else {
         t.classIds = t.classIds.filter(id => id !== classId);
       }
-      _supabase.from('tests').update({ class_ids: t.classIds }).eq('id', testId);
+      const { error } = await _supabase.from('tests').update({ class_ids: t.classIds }).eq('id', testId);
+      if (error) { console.error('テストクラス割り当てエラー:', error); alert('クラス割り当ての保存に失敗しました\n' + error.message); }
     },
 
     // Test management
