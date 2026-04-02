@@ -256,15 +256,24 @@ ${logText}
         return `${i + 1}. ${c.name}（${pts}点満点）${c.description ? ': ' + c.description : ''}`;
       }).join('\n');
 
-      // Build expected-answer comparison block if any question has an expected answer
-      const activeQuestions = (this.settings.questions || []).filter(q => q.question.trim());
-      const questionsWithAnswer = activeQuestions.filter(q => q.expectedAnswer.trim());
+      // Flatten all questions (including sub-questions from groups) for scoring
+      const activeQuestions = [];
+      for (const item of (this.settings.questions || [])) {
+        if (item.type === 'group') {
+          (item.subQuestions || []).filter(sq => sq.question.trim()).forEach((sq, j) => {
+            activeQuestions.push({ ...sq, _groupTitle: item.title, _label: `大問${(this.settings.questions.indexOf(item)+1)}-小問${j+1}` });
+          });
+        } else if (item.question && item.question.trim()) {
+          activeQuestions.push({ ...item, _label: `問${activeQuestions.length + 1}` });
+        }
+      }
+      const questionsWithAnswer = activeQuestions.filter(q => q.expectedAnswer && q.expectedAnswer.trim());
       let expectedAnswerBlock = '';
       if (questionsWithAnswer.length > 0) {
         expectedAnswerBlock = `
 【問題と想定する答えの対照】
-${activeQuestions.map((q, i) =>
-  `問${i + 1}: ${q.question}` +
+${activeQuestions.map((q) =>
+  `${q._label}: ${q.question}` +
   (q.expectedAnswer ? `\n　想定する答え: ${q.expectedAnswer}` : '\n　想定する答え: （未設定）') +
   (q.notes ? `\n　備考: ${q.notes}` : '')
 ).join('\n\n')}
@@ -301,7 +310,7 @@ ${conversationLog}
   ],${activeQuestions.length > 0 ? `
   "questionScores": [
     {
-      "questionNum": <問番号(1始まり)>,
+      "questionNum": "<問ラベル（例: 問1 または 大問1-小問2）>",
       "question": "<問題文（短縮可）>",
       "score": <点数(0-10)>,
       "maxScore": 10,
@@ -396,23 +405,49 @@ ${topic ? `「${topic}」について話し合いましょう。` : '何でも�
         `${i + 1}. ${c.name}${c.description ? '（' + c.description + '）' : ''}`
       ).join('\n');
 
-      const activeQuestions = (this.settings.questions || []).filter(q => q.question.trim());
-      const hasQuestions = activeQuestions.length > 0;
+      const allItems = this.settings.questions || [];
+      const difficultyLabels = ['易（基礎的な定義・事実の確認）', 'やや易（概念の理解と説明）', '標準（応用・比較・分析）', 'やや難（複合的な問題解決）', '難（高度な応用・批判的思考）'];
+
+      // Flatten to check if any questions exist
+      const hasQuestions = allItems.some(q =>
+        q.type === 'group'
+          ? q.subQuestions && q.subQuestions.some(sq => sq.question.trim())
+          : q.question && q.question.trim()
+      );
 
       let questionBlock = '';
-      const difficultyLabels = ['易（基礎的な定義・事実の確認）', 'やや易（概念の理解と説明）', '標準（応用・比較・分析）', 'やや難（複合的な問題解決）', '難（高度な応用・批判的思考）'];
       if (hasQuestions) {
-        const qList = activeQuestions.map((q, i) => {
-          let line = `【問${i + 1}】${q.question}`;
-          if (q.difficulty) line += `\n　（内部ガイド）難易度: Lv.${q.difficulty}（${difficultyLabels[q.difficulty - 1]}）— 受験者には伝えないこと`;
-          if (q.notes) line += `\n　（内部ガイド）備考: ${q.notes}`;
-          return line;
-        }).join('\n\n');
+        let singleNum = 1;
+        const qList = allItems.map((q, i) => {
+          if (q.type === 'group') {
+            const activeSubs = (q.subQuestions || []).filter(sq => sq.question.trim());
+            if (activeSubs.length === 0) return null;
+            let block = `【大問${i + 1}】${q.title || ''}`;
+            if (q.materialText) block += `\n【共通資料】（この資料を参照して小問に答えさせること。資料全体を読み上げるのではなく口頭で問うこと）:\n${q.materialText.slice(0, 8000)}`;
+            if (q.materialImages && q.materialImages.length > 0) block += `\n（※ この大問には画像資料${q.materialImages.length}枚が添付されています）`;
+            block += `\n\n小問（順番に出題してください）:`;
+            activeSubs.forEach((sq, j) => {
+              let line = `\n【小問${i + 1}-${j + 1}】${sq.question}`;
+              if (sq.difficulty) line += `\n　（内部ガイド）難易度: Lv.${sq.difficulty}（${difficultyLabels[sq.difficulty - 1]}）— 受験者には伝えないこと`;
+              if (sq.notes) line += `\n　（内部ガイド）備考: ${sq.notes}`;
+              block += line;
+            });
+            return block;
+          } else {
+            if (!q.question || !q.question.trim()) return null;
+            let line = `【問${singleNum++}】${q.question}`;
+            if (q.difficulty) line += `\n　（内部ガイド）難易度: Lv.${q.difficulty}（${difficultyLabels[q.difficulty - 1]}）— 受験者には伝えないこと`;
+            if (q.notes) line += `\n　（内部ガイド）備考: ${q.notes}`;
+            return line;
+          }
+        }).filter(Boolean).join('\n\n');
+
         questionBlock = `
 以下の問題リストを順番に出題してください:
 ${qList}
 
 各問いの進め方:
+- 大問がある場合、まず大問の資料・文脈を提示してから小問を順番に出題する
 - 問いを提示する際、難易度レベルや内部ガイドの情報は受験者に一切伝えないこと
 - 問いを提示し、受験者の回答を受け取る
 - 回答が不十分な場合は1〜2回の深掘り質問をしてから次の問いへ進む（難易度が高い問いほど深掘りを丁寧に）
@@ -494,7 +529,17 @@ ${criteriaText}
           parts: [{ text: m.content }]
         }));
         if (contents.length === 0) {
-          contents.push({ role: 'user', parts: [{ text: '試験を開始してください。最初の質問をしてください。' }] });
+          // Collect material images from group questions for the initial message
+          const imageParts = [];
+          for (const q of (this.settings.questions || [])) {
+            if (q.type === 'group' && q.materialImages && q.materialImages.length > 0) {
+              for (const img of q.materialImages) {
+                imageParts.push({ inline_data: { mime_type: img.mimeType, data: img.base64 } });
+              }
+            }
+          }
+          const parts = [...imageParts, { text: '試験を開始してください。最初の質問をしてください。' }];
+          contents.push({ role: 'user', parts });
         }
 
         const endpoint = `${GEMINI_BASE}${this.selectedModel}:generateContent?key=${this.apiKey}`;

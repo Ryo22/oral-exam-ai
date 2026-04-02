@@ -1743,6 +1743,60 @@ ${logText}
       this.settings.questions.push({ id: Date.now() + Math.random(), question: '', expectedAnswer: '', notes: '', difficulty: null });
     },
 
+    addQuestionGroup() {
+      this.settings.questions.push({
+        id: Date.now() + Math.random(),
+        type: 'group',
+        title: '',
+        materialText: '',
+        materialImages: [],
+        subQuestions: [
+          { id: Date.now() + Math.random() + 1, question: '', expectedAnswer: '', notes: '', difficulty: null }
+        ]
+      });
+    },
+
+    addSubQuestion(groupIdx) {
+      const group = this.settings.questions[groupIdx];
+      if (group && group.type === 'group') {
+        group.subQuestions.push({ id: Date.now() + Math.random(), question: '', expectedAnswer: '', notes: '', difficulty: null });
+      }
+    },
+
+    removeSubQuestion(groupIdx, subIdx) {
+      const group = this.settings.questions[groupIdx];
+      if (group && group.type === 'group' && group.subQuestions.length > 1) {
+        group.subQuestions.splice(subIdx, 1);
+      }
+    },
+
+    handleMaterialImageUpload(groupIdx, event) {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+      const group = this.settings.questions[groupIdx];
+      if (!group || group.type !== 'group') return;
+      Array.from(files).forEach(file => {
+        if (!file.type.startsWith('image/')) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          group.materialImages.push({
+            name: file.name,
+            mimeType: file.type,
+            base64: e.target.result.split(',')[1]
+          });
+        };
+        reader.readAsDataURL(file);
+      });
+      event.target.value = '';
+    },
+
+    removeMaterialImage(groupIdx, imgIdx) {
+      const group = this.settings.questions[groupIdx];
+      if (group && group.type === 'group') {
+        group.materialImages.splice(imgIdx, 1);
+      }
+    },
+
     removeQuestion(index) {
       this.settings.questions.splice(index, 1);
     },

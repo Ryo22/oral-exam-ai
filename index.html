@@ -1506,6 +1506,13 @@
             </svg>
             CSV出力
           </button>
+          <button @click="addQuestionGroup()"
+            class="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-lg transition-colors">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+            </svg>
+            大問を追加
+          </button>
           <button @click="addQuestion()"
             class="flex items-center gap-1 text-xs text-gc-blue hover:text-gc-blue-dark bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors">
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1601,64 +1608,186 @@
 
       <div class="space-y-4">
         <template x-for="(q, index) in settings.questions" :key="q.id">
-          <div class="bg-white border border-gc-border rounded-xl p-4 space-y-3 shadow-sm">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="w-7 h-7 flex items-center justify-center bg-green-100 text-gc-green rounded-full text-xs font-bold shrink-0"
-                x-text="'問' + (index + 1)"></span>
-              <span class="flex-1 text-xs text-gray-400">問題文（必須）</span>
-              <button @click="removeQuestion(index)"
-                class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0" title="削除">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                </svg>
-              </button>
-            </div>
-            <textarea
-              :value="settings.questions[index].question"
-              @input="settings.questions[index].question = $event.target.value"
-              placeholder="問題文を入力（例: データ構造のうち、スタックとキューの違いを説明してください）"
-              rows="2"
-              class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue resize-y"></textarea>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">想定する答え <span class="text-gray-300">（任意）</span></label>
-              <textarea
-                :value="settings.questions[index].expectedAnswer"
-                @input="settings.questions[index].expectedAnswer = $event.target.value"
-                placeholder="採点時に参照する想定回答。空欄の場合はAIのみで評価します。"
-                rows="2"
-                class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gc-blue focus:border-gc-blue resize-y"></textarea>
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">備考 <span class="text-gray-300">（任意）</span></label>
-              <input type="text"
-                :value="settings.questions[index].notes"
-                @input="settings.questions[index].notes = $event.target.value"
-                placeholder="採点基準の補足、ポイントなど"
-                class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gc-blue focus:border-gc-blue"/>
-            </div>
-            <!-- Difficulty selector -->
-            <div class="flex items-center gap-3">
-              <label class="text-xs text-gray-500 shrink-0">難易度 <span class="text-gray-300">（任意）</span></label>
-              <div class="flex gap-1.5">
-                <template x-for="lv in [1,2,3,4,5]" :key="lv">
-                  <button
-                    @click="settings.questions[index].difficulty = (settings.questions[index].difficulty === lv ? null : lv)"
-                    :class="{
-                      'bg-sky-100 text-sky-600 border-sky-300': settings.questions[index].difficulty === lv && lv === 1,
-                      'bg-green-100 text-green-600 border-green-300': settings.questions[index].difficulty === lv && lv === 2,
-                      'bg-yellow-100 text-yellow-600 border-yellow-300': settings.questions[index].difficulty === lv && lv === 3,
-                      'bg-orange-100 text-orange-600 border-orange-300': settings.questions[index].difficulty === lv && lv === 4,
-                      'bg-red-100 text-red-600 border-red-300': settings.questions[index].difficulty === lv && lv === 5,
-                      'bg-gray-100 text-gray-400 border-gray-200 hover:border-gray-300': settings.questions[index].difficulty !== lv
-                    }"
-                    class="w-9 h-7 rounded-lg border text-xs font-semibold transition-colors"
-                    x-text="lv"></button>
+          <div>
+
+            <!-- ========== 大問 (group) ========== -->
+            <div x-show="q.type === 'group'" class="bg-white border-2 border-purple-200 rounded-xl shadow-sm overflow-hidden">
+              <!-- 大問ヘッダー -->
+              <div class="bg-purple-50 px-4 py-3 flex items-center gap-2 border-b border-purple-100">
+                <span class="bg-purple-600 text-white text-xs font-bold px-2 py-0.5 rounded" x-text="'大問' + (index + 1)"></span>
+                <input type="text"
+                  :value="q.title"
+                  @input="settings.questions[index].title = $event.target.value"
+                  placeholder="大問のタイトル（例: 次の資料を読んで答えなさい）"
+                  class="flex-1 bg-white border border-purple-200 rounded-lg px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"/>
+                <button @click="removeQuestion(index)"
+                  class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0" title="大問を削除">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- 共通資料セクション -->
+              <div class="px-4 py-3 border-b border-purple-100 space-y-3">
+                <p class="text-xs font-medium text-purple-700">共通資料（全小問で参照）</p>
+                <!-- テキスト資料 -->
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">テキスト資料 <span class="text-gray-300">（PDFの内容を貼り付けるなど）</span></label>
+                  <textarea
+                    :value="q.materialText"
+                    @input="settings.questions[index].materialText = $event.target.value"
+                    placeholder="資料のテキストをここに貼り付けてください。AIが試問時にこの内容を参照します。"
+                    rows="4"
+                    class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-purple-400 focus:border-purple-400 resize-y"></textarea>
+                </div>
+                <!-- 画像資料 -->
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <label class="text-xs text-gray-500">画像資料 <span class="text-gray-300">（PNG・JPG・GIF・WebP）</span></label>
+                    <label class="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 px-2 py-1 rounded-lg transition-colors cursor-pointer">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                      </svg>
+                      画像を追加
+                      <input type="file" accept="image/*" multiple @change="handleMaterialImageUpload(index, $event)" class="hidden"/>
+                    </label>
+                  </div>
+                  <div x-show="q.materialImages && q.materialImages.length > 0" class="flex flex-wrap gap-2">
+                    <template x-for="(img, imgIdx) in (q.materialImages || [])" :key="imgIdx">
+                      <div class="relative group">
+                        <img :src="'data:' + img.mimeType + ';base64,' + img.base64" class="w-20 h-20 object-cover rounded-lg border border-gray-200"/>
+                        <button @click="removeMaterialImage(index, imgIdx)"
+                          class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                        <p class="text-xs text-gray-400 truncate max-w-[80px]" x-text="img.name"></p>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 小問リスト -->
+              <div class="px-4 py-3 space-y-3">
+                <p class="text-xs font-medium text-gray-600">小問</p>
+                <template x-for="(sq, subIdx) in q.subQuestions" :key="sq.id">
+                  <div class="bg-gray-50 border border-gc-border rounded-xl p-3 space-y-2">
+                    <div class="flex items-center gap-2">
+                      <span class="text-xs font-bold text-purple-600" x-text="'小問' + (index+1) + '-' + (subIdx+1)"></span>
+                      <span class="flex-1 text-xs text-gray-400">問題文（必須）</span>
+                      <button @click="removeSubQuestion(index, subIdx)"
+                        x-show="q.subQuestions.length > 1"
+                        class="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0" title="削除">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                      </button>
+                    </div>
+                    <textarea
+                      :value="sq.question"
+                      @input="settings.questions[index].subQuestions[subIdx].question = $event.target.value"
+                      placeholder="小問の問題文を入力"
+                      rows="2"
+                      class="w-full bg-white border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 resize-y"></textarea>
+                    <div>
+                      <label class="block text-xs text-gray-500 mb-1">想定する答え <span class="text-gray-300">（任意）</span></label>
+                      <textarea
+                        :value="sq.expectedAnswer"
+                        @input="settings.questions[index].subQuestions[subIdx].expectedAnswer = $event.target.value"
+                        placeholder="採点時に参照する想定回答"
+                        rows="1"
+                        class="w-full bg-white border border-gc-border rounded-lg px-3 py-2 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-purple-400 focus:border-purple-400 resize-y"></textarea>
+                    </div>
+                    <div class="flex items-center gap-3">
+                      <label class="text-xs text-gray-500 shrink-0">難易度</label>
+                      <div class="flex gap-1">
+                        <template x-for="lv in [1,2,3,4,5]" :key="lv">
+                          <button
+                            @click="settings.questions[index].subQuestions[subIdx].difficulty = (sq.difficulty === lv ? null : lv)"
+                            :class="{
+                              'bg-sky-100 text-sky-600 border-sky-300': sq.difficulty === lv && lv === 1,
+                              'bg-green-100 text-green-600 border-green-300': sq.difficulty === lv && lv === 2,
+                              'bg-yellow-100 text-yellow-600 border-yellow-300': sq.difficulty === lv && lv === 3,
+                              'bg-orange-100 text-orange-600 border-orange-300': sq.difficulty === lv && lv === 4,
+                              'bg-red-100 text-red-600 border-red-300': sq.difficulty === lv && lv === 5,
+                              'bg-gray-100 text-gray-400 border-gray-200 hover:border-gray-300': sq.difficulty !== lv
+                            }"
+                            class="w-8 h-6 rounded border text-xs font-semibold transition-colors"
+                            x-text="lv"></button>
+                        </template>
+                      </div>
+                    </div>
+                  </div>
                 </template>
-                <span x-show="settings.questions[index].difficulty"
-                  class="text-xs text-gray-400 self-center ml-1"
-                  x-text="['易', 'やや易', '標準', 'やや難', '難'][settings.questions[index].difficulty - 1]"></span>
+                <button @click="addSubQuestion(index)"
+                  class="w-full flex items-center justify-center gap-1 text-xs text-purple-600 hover:text-purple-700 bg-purple-50 hover:bg-purple-100 border border-dashed border-purple-300 rounded-xl py-2 transition-colors">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                  </svg>
+                  小問を追加
+                </button>
               </div>
             </div>
+
+            <!-- ========== 単体問題 (single) ========== -->
+            <div x-show="q.type !== 'group'" class="bg-white border border-gc-border rounded-xl p-4 space-y-3 shadow-sm">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="w-7 h-7 flex items-center justify-center bg-green-100 text-gc-green rounded-full text-xs font-bold shrink-0"
+                  x-text="'問' + (index + 1)"></span>
+                <span class="flex-1 text-xs text-gray-400">問題文（必須）</span>
+                <button @click="removeQuestion(index)"
+                  class="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0" title="削除">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                  </svg>
+                </button>
+              </div>
+              <textarea
+                :value="q.question"
+                @input="settings.questions[index].question = $event.target.value"
+                placeholder="問題文を入力（例: データ構造のうち、スタックとキューの違いを説明してください）"
+                rows="2"
+                class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gc-blue focus:border-gc-blue resize-y"></textarea>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">想定する答え <span class="text-gray-300">（任意）</span></label>
+                <textarea
+                  :value="q.expectedAnswer"
+                  @input="settings.questions[index].expectedAnswer = $event.target.value"
+                  placeholder="採点時に参照する想定回答。空欄の場合はAIのみで評価します。"
+                  rows="2"
+                  class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gc-blue focus:border-gc-blue resize-y"></textarea>
+              </div>
+              <div>
+                <label class="block text-xs text-gray-500 mb-1">備考 <span class="text-gray-300">（任意）</span></label>
+                <input type="text"
+                  :value="q.notes"
+                  @input="settings.questions[index].notes = $event.target.value"
+                  placeholder="採点基準の補足、ポイントなど"
+                  class="w-full bg-gray-50 border border-gc-border rounded-lg px-3 py-2 text-xs text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gc-blue focus:border-gc-blue"/>
+              </div>
+              <div class="flex items-center gap-3">
+                <label class="text-xs text-gray-500 shrink-0">難易度 <span class="text-gray-300">（任意）</span></label>
+                <div class="flex gap-1.5">
+                  <template x-for="lv in [1,2,3,4,5]" :key="lv">
+                    <button
+                      @click="settings.questions[index].difficulty = (settings.questions[index].difficulty === lv ? null : lv)"
+                      :class="{
+                        'bg-sky-100 text-sky-600 border-sky-300': settings.questions[index].difficulty === lv && lv === 1,
+                        'bg-green-100 text-green-600 border-green-300': settings.questions[index].difficulty === lv && lv === 2,
+                        'bg-yellow-100 text-yellow-600 border-yellow-300': settings.questions[index].difficulty === lv && lv === 3,
+                        'bg-orange-100 text-orange-600 border-orange-300': settings.questions[index].difficulty === lv && lv === 4,
+                        'bg-red-100 text-red-600 border-red-300': settings.questions[index].difficulty === lv && lv === 5,
+                        'bg-gray-100 text-gray-400 border-gray-200 hover:border-gray-300': settings.questions[index].difficulty !== lv
+                      }"
+                      class="w-9 h-7 rounded-lg border text-xs font-semibold transition-colors"
+                      x-text="lv"></button>
+                  </template>
+                  <span x-show="settings.questions[index].difficulty"
+                    class="text-xs text-gray-400 self-center ml-1"
+                    x-text="['易', 'やや易', '標準', 'やや難', '難'][settings.questions[index].difficulty - 1]"></span>
+                </div>
+              </div>
+            </div>
+
           </div>
         </template>
       </div>
