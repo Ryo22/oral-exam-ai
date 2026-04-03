@@ -2450,6 +2450,26 @@
 
     <template x-if="examStarted">
       <div class="space-y-4">
+        <!-- Exam Reference Images Panel -->
+        <template x-if="getExamMaterialImages().length > 0">
+          <div class="bg-gray-50 border border-gc-border rounded-xl p-4 mb-4 shadow-sm">
+            <h4 class="text-xs font-bold text-gray-500 mb-3 flex items-center gap-2">
+              <svg class="w-4 h-4 text-gc-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0V17a2 2 0 01-2 2H6a2 2 0 01-2-2v-5z"/>
+              </svg>
+              【参考資料 画像】
+            </h4>
+            <div class="flex flex-wrap gap-4">
+              <template x-for="(img, idx) in getExamMaterialImages()" :key="idx">
+                <a :href="img" target="_blank" class="block shrink-0 bg-white border border-gray-200 rounded-lg p-1 hover:border-gc-blue hover:shadow-md transition-all">
+                  <img :src="img" class="max-h-[250px] object-contain rounded" alt="参考資料">
+                </a>
+              </template>
+            </div>
+            <p class="text-[10px] text-gray-400 mt-2">※ 画像をクリックすると拡大表示されます</p>
+          </div>
+        </template>
+
         <template x-for="(msg, i) in messages" :key="i">
           <div x-show="(msg.html || msg.content || '').trim()" :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
             <div x-show="msg.role === 'assistant'" class="w-8 h-8 bg-gc-green rounded-full flex items-center justify-center text-xs font-medium text-white mr-2 shrink-0 mt-1">試</div>
