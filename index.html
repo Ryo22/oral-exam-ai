@@ -2507,9 +2507,17 @@
             </h4>
             <div class="flex flex-wrap gap-4">
               <template x-for="(img, idx) in getExamMaterialImages()" :key="idx">
-                <a :href="img" target="_blank" class="block shrink-0 bg-white border border-gray-200 rounded-lg p-1 hover:border-gc-blue hover:shadow-md transition-all">
-                  <img :src="img" class="max-h-[250px] object-contain rounded" alt="参考資料">
-                </a>
+                <div class="relative group">
+                  <a :href="img.url" target="_blank" :download="img.name" class="block shrink-0 bg-white border border-gray-200 rounded-lg p-1 hover:border-gc-blue hover:shadow-md transition-all">
+                    <img :src="img.url" class="max-h-[200px] object-contain rounded" alt="参考資料">
+                  </a>
+                  <div class="absolute bottom-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                     <span class="text-white text-[10px] font-bold px-1.5 py-0.5 bg-black/60 rounded flex items-center gap-1">
+                       <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg>
+                       保存・拡大
+                     </span>
+                  </div>
+                </div>
               </template>
             </div>
             <p class="text-[10px] text-gray-400 mt-2">※ 画像をクリックすると拡大表示されます</p>

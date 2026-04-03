@@ -854,7 +854,10 @@ function app() {
       }));
       if (rows.length > 0) {
         const { error } = await _supabase.from('exam_results').upsert(rows);
-        if (error) console.error('Failed to save exam results:', error);
+        if (error) {
+          console.error('Failed to save exam results:', error);
+          alert('成績の保存（Supabase同期）に失敗しました:\n' + error.message);
+        }
       }
     },
 
@@ -930,7 +933,12 @@ function app() {
         email: this.newRosterEntry.email.trim() || null,
       };
       const { data, error } = await _supabase.from('roster').insert(row).select().single();
-      if (!error && data) {
+      if (error) {
+        console.error('Failed to add roster student:', error);
+        alert('名簿の登録に失敗しました:\n' + error.message);
+        return;
+      }
+      if (data) {
         this.roster.push({ id: data.id, classId: data.class_id, studentNumber: data.student_number || '', name: data.name, email: data.email || '' });
       }
       this.newRosterEntry = { classId: this.newRosterEntry.classId, studentNumber: '', name: '', email: '' };
@@ -1007,12 +1015,15 @@ function app() {
         name: d.name.trim(),
         email: d.email?.trim() || null,
       }).eq('id', id);
-      if (!error) {
-        const idx = this.roster.findIndex(s => s.id === id);
-        if (idx !== -1) this.roster.splice(idx, 1, { ...this.roster[idx], classId: d.classId || null, studentNumber: d.studentNumber || '', name: d.name.trim(), email: d.email?.trim() || '' });
-        this.rosterEditingId = null;
-        this.rosterEditingData = {};
+      if (error) {
+        console.error('Failed to update roster student:', error);
+        alert('名簿の更新に失敗しました:\n' + error.message);
+        return;
       }
+      const idx = this.roster.findIndex(s => s.id === id);
+      if (idx !== -1) this.roster.splice(idx, 1, { ...this.roster[idx], classId: d.classId || null, studentNumber: d.studentNumber || '', name: d.name.trim(), email: d.email?.trim() || '' });
+      this.rosterEditingId = null;
+      this.rosterEditingData = {};
     },
 
     importRosterFromFile(event) {
@@ -1115,7 +1126,12 @@ function app() {
         email: r.email?.trim() || null,
       }));
       const { data, error } = await _supabase.from('roster').insert(inserts).select();
-      if (!error && data) {
+      if (error) {
+        console.error('Failed to import roster:', error);
+        alert('名簿のインポートに失敗しました:\n' + error.message);
+        return;
+      }
+      if (data) {
         data.forEach(s => this.roster.push({
           id: s.id, classId: s.class_id, studentNumber: s.student_number || '', name: s.name, email: s.email || '',
         }));
@@ -1136,7 +1152,12 @@ function app() {
           email: d.email?.trim() || null,
         };
         const { data, error } = await _supabase.from('roster').insert(row).select().single();
-        if (!error && data) {
+        if (error) {
+          console.error('Failed to save roster student (inline):', error);
+          alert('名簿の登録に失敗しました:\n' + error.message);
+          return;
+        }
+        if (data) {
           this.roster.push({
             id: data.id,
             classId: data.class_id,
@@ -2591,14 +2612,17 @@ ${this.settings.documentText.slice(0, 15000)}
     },
 
     getExamMaterialImages() {
-      const dataUrls = [];
+      const imageObjects = [];
       (this.settings.questions || []).forEach(item => {
         const processList = (list) => {
           (list || []).forEach(img => {
             if (img.base64 && img.mimeType) {
-              dataUrls.push(`data:${img.mimeType};base64,${img.base64}`);
+              imageObjects.push({
+                url: `data:${img.mimeType};base64,${img.base64}`,
+                name: img.name || 'image.png'
+              });
             } else if (typeof img === 'string') {
-              dataUrls.push(img);
+              imageObjects.push({ url: img, name: 'image.png' });
             }
           });
         };
@@ -2610,7 +2634,13 @@ ${this.settings.documentText.slice(0, 15000)}
           processList(item.materialImages);
         }
       });
-      return [...new Set(dataUrls)];
+      // Deduplicate by URL
+      const uniqueUrls = new Set();
+      return imageObjects.filter(obj => {
+        if (uniqueUrls.has(obj.url)) return false;
+        uniqueUrls.add(obj.url);
+        return true;
+      });
     },
 
     startExamPage() {
