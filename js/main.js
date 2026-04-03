@@ -264,23 +264,32 @@ function app() {
     async submitAuth() {
       if (!this.authEmail || !this.authPassword) return;
       this.authError = '';
-      const APP_URL = 'https://ryo22.github.io/oral-exam-ai/';
+      const currentUrl = window.location.origin + window.location.pathname;
       try {
         if (this.authMode === 'signup') {
-          const { error } = await _supabase.auth.signUp({
+          const { data, error } = await _supabase.auth.signUp({
             email: this.authEmail,
             password: this.authPassword,
-            options: { emailRedirectTo: APP_URL }
+            options: { emailRedirectTo: currentUrl }
           });
           if (error) throw error;
-          alert('確認メールを送信しました。メール内のリンクをクリックし、このページへ戻ってからログインしてください。');
-          this.authMode = 'login';
+          
+          if (data.session) {
+            // Confirm email is disabled in Supabase, logged in immediately
+            this.authMode = 'login';
+          } else {
+            alert('確認メールを送信しました。メール内のリンクをクリックし、このページへ戻ってからログインしてください。\n\n※メールが届かない場合は、迷惑メールフォルダを確認するか、Supabaseの管理画面で「Confirm email」がオフになっているか確認してください。');
+            this.authMode = 'login';
+          }
         } else {
           const { error } = await _supabase.auth.signInWithPassword({ email: this.authEmail, password: this.authPassword });
           if (error) throw error;
         }
       } catch (err) {
-        this.authError = err.message || 'エラーが発生しました';
+        this.authError = err.message || '認証エラーが発生しました';
+        if (this.authError.includes('Database error')) {
+           this.authError = 'データベース接続エラーです。Supabaseの設定を確認してください。';
+        }
       }
     },
     async logoutSystem() {
