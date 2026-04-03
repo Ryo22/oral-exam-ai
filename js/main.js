@@ -1770,16 +1770,23 @@ ${logText}
       }
     },
 
-    handleMaterialImageUpload(groupIdx, event) {
+    handleMaterialImageUpload(groupIdx, subIdx, event) {
+      if (subIdx instanceof Event || (subIdx && subIdx.target)) {
+        event = subIdx;
+        subIdx = null;
+      }
       const files = event.target.files;
       if (!files || files.length === 0) return;
       const group = this.settings.questions[groupIdx];
-      if (!group || group.type !== 'group') return;
+      if (!group) return;
+      const target = (subIdx !== null && subIdx !== undefined) ? group.subQuestions[subIdx] : group;
+      if (!target.materialImages) target.materialImages = [];
+      
       Array.from(files).forEach(file => {
         if (!file.type.startsWith('image/')) return;
         const reader = new FileReader();
         reader.onload = (e) => {
-          group.materialImages.push({
+          target.materialImages.push({
             name: file.name,
             mimeType: file.type,
             base64: e.target.result.split(',')[1]
@@ -1790,10 +1797,18 @@ ${logText}
       event.target.value = '';
     },
 
-    removeMaterialImage(groupIdx, imgIdx) {
+    removeMaterialImage(groupIdx, arg2, arg3) {
+      let subIdx = null;
+      let imgIdx = arg2;
+      if (arg3 !== undefined) {
+         subIdx = arg2;
+         imgIdx = arg3;
+      }
       const group = this.settings.questions[groupIdx];
-      if (group && group.type === 'group') {
-        group.materialImages.splice(imgIdx, 1);
+      if (!group) return;
+      const target = (subIdx !== null && subIdx !== undefined) ? group.subQuestions[subIdx] : group;
+      if (target && target.materialImages) {
+        target.materialImages.splice(imgIdx, 1);
       }
     },
 
@@ -2573,6 +2588,27 @@ ${this.settings.documentText.slice(0, 15000)}
         }
       });
       return active;
+    },
+
+    getExamMaterialImages() {
+      const images = [];
+      (this.settings.questions || []).forEach(item => {
+        if (item.type === 'group') {
+          if (item.materialImages && Array.isArray(item.materialImages)) {
+            images.push(...item.materialImages);
+          }
+          (item.subQuestions || []).forEach(sub => {
+            if (sub.materialImages && Array.isArray(sub.materialImages)) {
+              images.push(...sub.materialImages);
+            }
+          });
+        } else {
+          if (item.materialImages && Array.isArray(item.materialImages)) {
+            images.push(...item.materialImages);
+          }
+        }
+      });
+      return images;
     },
 
     startExamPage() {
