@@ -2591,24 +2591,26 @@ ${this.settings.documentText.slice(0, 15000)}
     },
 
     getExamMaterialImages() {
-      const images = [];
+      const dataUrls = [];
       (this.settings.questions || []).forEach(item => {
-        if (item.type === 'group') {
-          if (item.materialImages && Array.isArray(item.materialImages)) {
-            images.push(...item.materialImages);
-          }
-          (item.subQuestions || []).forEach(sub => {
-            if (sub.materialImages && Array.isArray(sub.materialImages)) {
-              images.push(...sub.materialImages);
+        const processList = (list) => {
+          (list || []).forEach(img => {
+            if (img.base64 && img.mimeType) {
+              dataUrls.push(`data:${img.mimeType};base64,${img.base64}`);
+            } else if (typeof img === 'string') {
+              dataUrls.push(img);
             }
           });
+        };
+        
+        if (item.type === 'group') {
+          processList(item.materialImages);
+          (item.subQuestions || []).forEach(sub => processList(sub.materialImages));
         } else {
-          if (item.materialImages && Array.isArray(item.materialImages)) {
-            images.push(...item.materialImages);
-          }
+          processList(item.materialImages);
         }
       });
-      return images;
+      return [...new Set(dataUrls)];
     },
 
     startExamPage() {
