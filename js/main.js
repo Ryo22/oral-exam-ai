@@ -759,7 +759,7 @@ function app() {
 
     getTestQuestionCount(t) {
       if (!t || !t.settings || !t.settings.questions) return 0;
-      return t.settings.questions.filter(q => q && q.question && String(q.question).trim() !== '').length;
+      return this._getActiveQuestions(t.settings.questions).length;
     },
 
     // Result publishing & editing
@@ -2514,11 +2514,16 @@ ${this.settings.documentText.slice(0, 15000)}
     },
 
     async saveSettings() {
+      console.log('saveSettings: function triggered! activeTestId:', this.activeTestId);
       // Sync settings into the active test
       const t = this.tests.find(t => t.id === this.activeTestId);
+      
+      console.log('saveSettings: found test object:', !!t);
       if (t) {
         t.settings = JSON.parse(JSON.stringify(this.settings));
-        const { error } = await _supabase.from('tests').upsert({
+        
+        console.log('saveSettings: attempting supabase upsert for id', t.id);
+        const { data, error } = await _supabase.from('tests').upsert({
           id: t.id,
           name: t.name,
           class_id: t.classId || null,
@@ -2526,6 +2531,8 @@ ${this.settings.documentText.slice(0, 15000)}
           status: t.status || 'draft',
           settings: t.settings
         });
+        
+        console.log('saveSettings: upsert completed. Error?', error);
         if (error) {
           console.error('saveSettings error:', error);
           alert('テスト設定の保存に失敗しました:\n' + error.message + '\n\nSupabaseのRLSポリシーを確認してください。');
@@ -2534,9 +2541,38 @@ ${this.settings.documentText.slice(0, 15000)}
       } else {
         console.warn('saveSettings: activeTestId not found:', this.activeTestId, 'tests:', this.tests.map(t=>t.id));
       }
-      localStorage.setItem('gemini_model', this.selectedModel);
+      
+      console.log('saveSettings: attempting localStorage.setItem');
+      try {
+        localStorage.setItem('gemini_model', this.selectedModel);
+      } catch (e) {
+        console.error('saveSettings: localStorage error:', e);
+      }
+      
+      console.log('saveSettings: toggling this.saved');
       this.saved = true;
-      setTimeout(() => this.saved = false, 2000);
+      setTimeout(() => {
+         this.saved = false;
+         console.log('saveSettings: this.saved reset to false');
+      }, 2000);
+      
+      console.log('saveSettings: function completed!');
+    },
+
+    _getActiveQuestions(qs) {
+      const active = [];
+      (qs || this.settings.questions || []).forEach(item => {
+        if (item.type === 'group') {
+          (item.subQuestions || []).forEach(sub => {
+            if (sub.question && typeof sub.question === 'string' && sub.question.trim() !== '') {
+              active.push({...sub, _groupMaterial: item.materialText, _groupTitle: item.title});
+            }
+          });
+        } else if (item.question && typeof item.question === 'string' && item.question.trim() !== '') {
+          active.push(item);
+        }
+      });
+      return active;
     },
 
     startExamPage() {
@@ -2697,14 +2733,14 @@ ${this.settings.documentText.slice(0, 15000)}
       }).join('\n');
 
       // Build expected-answer comparison block if any question has an expected answer
-      const activeQuestions = (this.settings.questions || []).filter(q => q.question.trim());
-      const questionsWithAnswer = activeQuestions.filter(q => q.expectedAnswer.trim());
+      const activeQuestions = this._getActiveQuestions();
+      const questionsWithAnswer = activeQuestions.filter(q => q.expectedAnswer && typeof q.expectedAnswer === 'string' && q.expectedAnswer.trim() !== '');
       let expectedAnswerBlock = '';
       if (questionsWithAnswer.length > 0) {
         expectedAnswerBlock = `
 【問題と想定する答えの対照】
 ${activeQuestions.map((q, i) =>
-  `問${i + 1}: ${q.question}` +
+  `問${i + 1}: ${q._groupTitle ? `[${q._groupTitle}] ` : ''}${q.question}` +
   (q.expectedAnswer ? `\n　想定する答え: ${q.expectedAnswer}` : '\n　想定する答え: （未設定）') +
   (q.notes ? `\n　備考: ${q.notes}` : '')
 ).join('\n\n')}
@@ -2942,14 +2978,15 @@ ${topic ? `「${topic}」について話し合いましょう。` : '何でも�
         `${i + 1}. ${c.name}${c.description ? '（' + c.description + '）' : ''}`
       ).join('\n');
 
-      const activeQuestions = (this.settings.questions || []).filter(q => q.question.trim());
+      const activeQuestions = this._getActiveQuestions();
       const hasQuestions = activeQuestions.length > 0;
 
       let questionBlock = '';
       const difficultyLabels = ['易（基礎的な定義・事実の確認）', 'やや易（概念の理解と説明）', '標準（応用・比較・分析）', 'やや難（複合的な問題解決）', '難（高度な応用・批判的思考）'];
       if (hasQuestions) {
         const qList = activeQuestions.map((q, i) => {
-          let line = `【問${i + 1}】${q.question}`;
+          let line = `【問${i + 1}】${q._groupTitle ? `[${q._groupTitle}] ` : ''}${q.question}`;
+          if (q._groupMaterial) line += `\n　（参考資料）: ${q._groupMaterial}`;
           if (q.difficulty) line += `\n　（内部ガイド）難易度: Lv.${q.difficulty}（${difficultyLabels[q.difficulty - 1]}）— 受験者には伝えないこと`;
           if (q.notes) line += `\n　（内部ガイド）備考: ${q.notes}`;
           return line;
@@ -3131,7 +3168,7 @@ ${criteriaText}
     },
 
     recordFocusViolation(type) {
-      const activeQuestions = (this.settings.questions || []).filter(q => q.question && q.question.trim());
+      const activeQuestions = this._getActiveQuestions();
       const threshold = activeQuestions.length > 0 ? Math.min(activeQuestions.length * 3, 12) : 12;
 
       this.focusViolationCount++;
