@@ -8,6 +8,16 @@ const SUPABASE_URL = 'https://dbhnhquaijtfitlkszej.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRiaG5ocXVhaWp0Zml0bGtzemVqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUxNDMwOTAsImV4cCI6MjA5MDcxOTA5MH0.vF3qje-tCYGHppEl0lcAqJW1Z8GtGZOTami6-6j9MFg';
 const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+function generateUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 function app() {
   const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/';
 
@@ -839,8 +849,16 @@ function app() {
 
     async saveResults() {
       // Upsert all results to Supabase
-      const rows = this.examResults.map(r => ({
-        id: String(r.id),
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const rows = this.examResults.map(r => {
+        let id = String(r.id);
+        if (!uuidRegex.test(id)) {
+           // If the ID is not a valid UUID (e.g. legacy Date.now() timestamp), replace it locally so sync works next time
+           id = generateUUID();
+           r.id = id; 
+        }
+        return {
+          id: id,
         test_id: r.testId || null,
         test_name: r.testName || '',
         class_id: r.classId || null,
@@ -860,7 +878,8 @@ function app() {
         focus_violation_flagged: r.focusViolationFlagged || false,
         focus_violations: r.focusViolations || [],
         conversation_log: r.conversationLog || []
-      }));
+        };
+      });
       if (rows.length > 0) {
         const { error } = await _supabase.from('exam_results').upsert(rows);
         if (error) {
@@ -1493,7 +1512,7 @@ ${logText}
       const email = this.studentUser ? this.studentUser.email : this.studentEmail;
       const classId = this.studentClassId || (this.classes[0] && this.classes[0].id) || 'default';
       const entry = {
-        id: Date.now(),
+        id: generateUUID(),
         date: new Date().toISOString(),
         theme: this.freeTalkMode ? (this.freeTalkTopic.trim() || 'フリートーク') : this.settings.theme,
         studentName: name || '（未入力）',
@@ -2934,7 +2953,7 @@ ${conversationLog}
       const name = this.studentUser ? this.studentUser.name : this.studentName;
       const email = this.studentUser ? this.studentUser.email : this.studentEmail;
       const classId = this.studentClassId || '';
-      const progressId = this._examProgressId || ('prog_' + Date.now());
+      const progressId = this._examProgressId || generateUUID();
       this._examProgressId = progressId;
       const row = {
         id: progressId,
