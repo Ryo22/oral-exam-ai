@@ -2450,26 +2450,6 @@
         :disabled="!examStarted || (messages.length < 2 && !voiceMode) || isScoring"
         class="text-sm bg-red-100 hover:bg-red-200 text-red-600 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         x-text="isScoring ? '採点中...' : '試験終了'"></button>
-    </div>
-  </header>
-
-  <div class="flex-1 overflow-y-auto px-4 py-4 space-y-4" id="messages-container">
-    <div x-show="!examStarted" class="flex flex-col items-center justify-center py-20 text-center">
-      <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-        <svg class="w-10 h-10 text-gc-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-        </svg>
-      </div>
-      <h2 class="text-xl font-semibold mb-2 text-gray-900">対話を開始</h2>
-      <p class="text-gray-500 text-sm mb-2" x-text="freeTalkMode ? (freeTalkTopic ? 'テーマ: ' + freeTalkTopic : '🗣 フリートーク') : 'テーマ: ' + settings.theme"></p>
-      <p class="text-gray-400 text-xs mb-2" x-text="'評価基準: ' + settings.criteria.filter(c=>c.name).map(c=>c.name).join(' / ')"></p>
-      <p class="text-gray-400 text-xs mb-4" x-text="settings.learningMode ? 'ヒントや解説を求めることができます。気軽に学習してください。' : '試験中は正解・解説は教えません。自分の言葉で答えてください。'"></p>
-      <div x-show="settings.learningMode"
-        class="mb-6 flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl px-4 py-2.5 text-xs">
-        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
-        </svg>
-        <span>学習モード：「ヒントをください」「答えを教えて」と言えばサポートしてもらえます</span>
       </div>
       <!-- Mode selector: text vs voice -->
       <div class="flex gap-3 w-full max-w-xs mb-4">
